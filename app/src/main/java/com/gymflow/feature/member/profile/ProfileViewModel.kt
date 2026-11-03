@@ -126,10 +126,6 @@ class ProfileViewModel @Inject constructor(
             // Observe reactive Room changes
             userDao.getCurrentUserFlow().collect { userEntity ->
                 if (userEntity != null) {
-                    // Purge legacy mock seed data if present
-                    if (userEntity.age == 28 && userEntity.heightCm == 178f && userEntity.currentWeightKg == 67.8f) {
-                        userDao.updateFullMemberProfile(userEntity.id, 0f, 0f, "General Fitness", 0)
-                    }
                     if (userEntity.syncStatus == "Connected" && userEntity.connectedTrainerId == null) {
                         userDao.updateTrainerConnection(userEntity.id, null, "Not Connected")
                     }
@@ -173,6 +169,40 @@ class ProfileViewModel @Inject constructor(
                 heightCm = _uiState.value.profile.heightCm,
                 weightKg = _uiState.value.profile.currentWeightKg,
                 goal = newGoal
+            )
+        }
+    }
+
+    fun updateAge(newAge: Int) {
+        val userId = _uiState.value.user.id
+        val clampedAge = newAge.coerceIn(10, 120)
+        _uiState.update { current ->
+            current.copy(profile = current.profile.copy(age = clampedAge))
+        }
+        viewModelScope.launch {
+            userDao.updateFullMemberProfile(
+                id = userId,
+                heightCm = _uiState.value.profile.heightCm,
+                weightKg = _uiState.value.profile.currentWeightKg,
+                goal = _uiState.value.profile.fitnessGoal,
+                age = clampedAge
+            )
+        }
+    }
+
+    fun updateHeight(newHeightCm: Float) {
+        val userId = _uiState.value.user.id
+        val clampedHeight = newHeightCm.coerceIn(50f, 260f)
+        _uiState.update { current ->
+            current.copy(profile = current.profile.copy(heightCm = clampedHeight))
+        }
+        viewModelScope.launch {
+            userDao.updateFullMemberProfile(
+                id = userId,
+                heightCm = clampedHeight,
+                weightKg = _uiState.value.profile.currentWeightKg,
+                goal = _uiState.value.profile.fitnessGoal,
+                age = _uiState.value.profile.age
             )
         }
     }

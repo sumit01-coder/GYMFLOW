@@ -56,7 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.GymFlowPrimaryButton
 import com.gymflow.core.components.GymFlowSecondaryButton
@@ -81,7 +81,7 @@ import kotlin.math.abs
 @Composable
 fun WeightTrackingScreen(
     onNavigateBack: () -> Unit = {},
-    viewModel: WeightViewModel = viewModel()
+    viewModel: WeightViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 

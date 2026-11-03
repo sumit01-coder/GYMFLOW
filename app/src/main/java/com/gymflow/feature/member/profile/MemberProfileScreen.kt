@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -50,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,6 +60,7 @@ import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
 import com.gymflow.core.components.GymFlowCard
+import com.gymflow.core.components.GymFlowTextField
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
@@ -79,6 +82,8 @@ fun MemberProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var isGoalDialogOpen by remember { mutableStateOf(false) }
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
+    var isAgeDialogOpen by remember { mutableStateOf(false) }
+    var isHeightDialogOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -248,7 +253,13 @@ fun MemberProfileScreen(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { isAgeDialogOpen = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
                         Text(
                             text = "AGE",
                             style = GymFlowTheme.typography.Caption,
@@ -262,7 +273,13 @@ fun MemberProfileScreen(
                         )
                     }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { isHeightDialogOpen = true }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
                         Text(
                             text = "HEIGHT",
                             style = GymFlowTheme.typography.Caption,
@@ -493,6 +510,122 @@ fun MemberProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { isGoalDialogOpen = false }) {
+                    Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Dialog 1b: Edit Age Dialog
+    if (isAgeDialogOpen) {
+        var ageInput by remember { mutableStateOf(if (uiState.profile.age > 0) "${uiState.profile.age}" else "") }
+
+        AlertDialog(
+            onDismissRequest = { isAgeDialogOpen = false },
+            title = {
+                Text(
+                    text = "Edit Age",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 20.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Enter your current age to optimize workout intensity and metabolic calculations.",
+                        style = GymFlowTheme.typography.BodyRegular,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    GymFlowTextField(
+                        value = ageInput,
+                        onValueChange = { ageInput = it.filter { char -> char.isDigit() }.take(3) },
+                        label = "Age (Years)",
+                        placeholder = "e.g. 25",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val parsed = ageInput.toIntOrNull() ?: 0
+                        viewModel.updateAge(parsed)
+                        isAgeDialogOpen = false
+                    }
+                ) {
+                    Text(
+                        text = "Save Age",
+                        color = GymFlowTheme.colors.textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isAgeDialogOpen = false }) {
+                    Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Dialog 1c: Edit Height Dialog
+    if (isHeightDialogOpen) {
+        var heightInput by remember {
+            mutableStateOf(if (uiState.profile.heightCm > 0f) "${uiState.profile.heightCm.toInt()}" else "")
+        }
+
+        AlertDialog(
+            onDismissRequest = { isHeightDialogOpen = false },
+            title = {
+                Text(
+                    text = "Edit Height",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 20.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Enter your height in centimeters (cm) for accurate BMI, posture and volume metrics.",
+                        style = GymFlowTheme.typography.BodyRegular,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    GymFlowTextField(
+                        value = heightInput,
+                        onValueChange = { heightInput = it.filter { char -> char.isDigit() || char == '.' }.take(5) },
+                        label = "Height (cm)",
+                        placeholder = "e.g. 175",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val parsed = heightInput.toFloatOrNull() ?: 0f
+                        viewModel.updateHeight(parsed)
+                        isHeightDialogOpen = false
+                    }
+                ) {
+                    Text(
+                        text = "Save Height",
+                        color = GymFlowTheme.colors.textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isHeightDialogOpen = false }) {
                     Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
                 }
             },

@@ -38,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.BadgeStatus
 import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowCard
@@ -58,7 +58,7 @@ import com.gymflow.core.theme.StatusDestructive
 @Composable
 fun JoinTrainerScreen(
     onNavigateBack: () -> Unit = {},
-    viewModel: TrainerConnectionViewModel = viewModel()
+    viewModel: TrainerConnectionViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
 

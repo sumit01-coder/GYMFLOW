@@ -46,7 +46,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowCard
@@ -64,7 +64,7 @@ fun MemberProgressScreen(
     onNavigateToActivity: () -> Unit,
     onNavigateToProfile: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ProgressViewModel = viewModel()
+    viewModel: ProgressViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val numberFormat = NumberFormat.getNumberInstance(Locale.US)

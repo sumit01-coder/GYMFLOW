@@ -2,12 +2,18 @@ package com.gymflow.feature.member.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymflow.domain.calculator.CalorieCalculator
-import com.gymflow.domain.calculator.VolumeCalculator
+import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.repository.WeightRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import javax.inject.Inject
 
 enum class TimeRangeTab(val label: String) {
     SEVEN_DAYS("7D"),
@@ -83,10 +89,44 @@ data class ProgressUiState(
     }
 }
 
-class ProgressViewModel : ViewModel() {
+@HiltViewModel
+class ProgressViewModel @Inject constructor(
+    private val weightRepository: WeightRepository,
+    private val tokenManager: TokenManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProgressUiState())
     val uiState: StateFlow<ProgressUiState> = _uiState.asStateFlow()
+
+    init {
+        observeWeightData()
+    }
+
+    private fun observeWeightData() {
+        val userId = tokenManager.getUserIdSync() ?: "default_member"
+        viewModelScope.launch {
+            weightRepository.getWeightHistory(userId).collect { logs ->
+                if (logs.isNotEmpty()) {
+                    val points = logs.take(7).reversed().map { log ->
+                        val date = Date(log.recordedAtEpochMs)
+                        val dayLabel = SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+                        val dateLabel = SimpleDateFormat("MMM dd", Locale.getDefault()).format(date)
+                        ProgressChartPoint(dayLabel, log.postWeightKg, dateLabel)
+                    }
+                    val min = (points.minOf { it.weightKg } - 1.0f).coerceAtLeast(0f)
+                    val max = points.maxOf { it.weightKg } + 1.0f
+
+                    _uiState.update { current ->
+                        current.copy(
+                            weightProgressPoints = points,
+                            minY = Math.round(min * 10f) / 10f,
+                            maxY = Math.round(max * 10f) / 10f
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun selectTimeRange(tab: TimeRangeTab) {
         _uiState.update { current ->
@@ -98,7 +138,7 @@ class ProgressViewModel : ViewModel() {
                     totalReps = 1140,
                     caloriesBurned = 1520,
                     totalVolumeKg = 13450f,
-                    weightProgressPoints = ProgressUiState.default7DayPoints,
+                    weightProgressPoints = if (current.weightProgressPoints.isNotEmpty()) current.weightProgressPoints else ProgressUiState.default7DayPoints,
                     minY = 67.0f,
                     maxY = 68.5f
                 )
@@ -109,7 +149,7 @@ class ProgressViewModel : ViewModel() {
                     totalReps = 4126,
                     caloriesBurned = 5480,
                     totalVolumeKg = 48250f,
-                    weightProgressPoints = ProgressUiState.default30DayPoints,
+                    weightProgressPoints = if (current.weightProgressPoints.isNotEmpty()) current.weightProgressPoints else ProgressUiState.default30DayPoints,
                     minY = 66.5f,
                     maxY = 69.5f
                 )

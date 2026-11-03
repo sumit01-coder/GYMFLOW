@@ -2,8 +2,13 @@ package com.gymflow.feature.member.weight
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.common.Resource
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.calculator.WeightDifferenceCalculator
 import com.gymflow.domain.model.WeightLog
+import com.gymflow.domain.repository.WeightRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +17,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
+import javax.inject.Inject
 
 enum class WeightTimeFilter(val label: String) {
     DAILY("Daily"),
@@ -36,13 +41,74 @@ data class WeightUiState(
     val minY: Float = 0f,
     val maxY: Float = 100f,
     val recentLogs: List<WeightLog> = emptyList(),
-    val isLogDialogOpen: Boolean = false
+    val isLogDialogOpen: Boolean = false,
+    val isSaving: Boolean = false,
+    val errorMessage: String? = null
 )
 
-class WeightViewModel : ViewModel() {
+@HiltViewModel
+class WeightViewModel @Inject constructor(
+    private val weightRepository: WeightRepository,
+    private val userDao: UserDao,
+    private val tokenManager: TokenManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeightUiState())
     val uiState: StateFlow<WeightUiState> = _uiState.asStateFlow()
+
+    init {
+        observeWeightHistory()
+    }
+
+    private fun currentUserId(): String = tokenManager.getUserIdSync() ?: "default_member"
+
+    private fun observeWeightHistory() {
+        val userId = currentUserId()
+        viewModelScope.launch {
+            // Also check initial user weight for baseline fallback
+            val user = userDao.getUserById(userId)
+            val profileWeight = user?.currentWeightKg ?: 0f
+
+            weightRepository.getWeightHistory(userId).collect { logs ->
+                if (logs.isNotEmpty()) {
+                    val latest = logs.first()
+                    val analysis = WeightDifferenceCalculator.analyze(latest.preWeightKg, latest.postWeightKg)
+
+                    // Plot up to 7 most recent points chronologically
+                    val points = logs.take(7).reversed().map { log ->
+                        val date = Date(log.recordedAtEpochMs)
+                        val dayLabel = SimpleDateFormat("EEE", Locale.getDefault()).format(date)
+                        val dateLabel = SimpleDateFormat("MMM dd", Locale.getDefault()).format(date)
+                        WeightTrendPoint(dayLabel, log.postWeightKg, dateLabel)
+                    }
+
+                    val minWeight = (points.minOf { it.weightKg } - 1.0f).coerceAtLeast(0f)
+                    val maxWeight = points.maxOf { it.weightKg } + 1.0f
+
+                    _uiState.update { current ->
+                        current.copy(
+                            recentLogs = logs,
+                            trendPoints = points,
+                            preWeightKg = latest.preWeightKg,
+                            postWeightKg = latest.postWeightKg,
+                            deltaAnalysis = analysis,
+                            minY = Math.round(minWeight * 10f) / 10f,
+                            maxY = Math.round(maxWeight * 10f) / 10f
+                        )
+                    }
+                } else if (profileWeight > 0f) {
+                    _uiState.update { current ->
+                        current.copy(
+                            preWeightKg = profileWeight,
+                            postWeightKg = profileWeight,
+                            minY = (profileWeight - 5f).coerceAtLeast(0f),
+                            maxY = profileWeight + 5f
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun onFilterSelected(filter: WeightTimeFilter) {
         _uiState.update { current ->
@@ -51,44 +117,44 @@ class WeightViewModel : ViewModel() {
     }
 
     fun openLogDialog() {
-        _uiState.update { it.copy(isLogDialogOpen = true) }
+        _uiState.update { it.copy(isLogDialogOpen = true, errorMessage = null) }
     }
 
     fun closeLogDialog() {
-        _uiState.update { it.copy(isLogDialogOpen = false) }
+        _uiState.update { it.copy(isLogDialogOpen = false, errorMessage = null) }
     }
 
     fun recordWeight(preKg: Float, postKg: Float, notes: String = "") {
+        val userId = currentUserId()
         viewModelScope.launch {
-            val analysis = WeightDifferenceCalculator.analyze(preKg, postKg)
-            val newLog = WeightLog(
-                id = UUID.randomUUID().toString(),
-                memberId = "current_user",
+            _uiState.update { it.copy(isSaving = true) }
+            weightRepository.logWeight(
+                memberId = userId,
                 preWeightKg = preKg,
                 postWeightKg = postKg,
-                deltaKg = analysis.deltaKg,
-                recordedAtEpochMs = System.currentTimeMillis(),
                 notes = notes
-            )
-
-            _uiState.update { current ->
-                val updatedLogs = listOf(newLog) + current.recentLogs
-                val dayLabel = SimpleDateFormat("EEE", Locale.getDefault()).format(Date())
-                val dateLabel = SimpleDateFormat("MMM dd", Locale.getDefault()).format(Date())
-                val updatedPoints = current.trendPoints + WeightTrendPoint(dayLabel, postKg, dateLabel)
-                val min = (updatedPoints.minOf { it.weightKg } - 0.5f).coerceAtLeast(0f)
-                val max = updatedPoints.maxOf { it.weightKg } + 0.5f
-
-                current.copy(
-                    preWeightKg = preKg,
-                    postWeightKg = postKg,
-                    deltaAnalysis = analysis,
-                    recentLogs = updatedLogs,
-                    trendPoints = updatedPoints,
-                    minY = Math.round(min * 10f) / 10f,
-                    maxY = Math.round(max * 10f) / 10f,
-                    isLogDialogOpen = false
-                )
+            ).collect { resource ->
+                when (resource) {
+                    is Resource.Success -> {
+                        // Keep MemberProfile and Home screen synced with latest logged weight
+                        val user = userDao.getUserById(userId)
+                        if (user != null) {
+                            userDao.updateMemberProfile(
+                                id = userId,
+                                heightCm = user.heightCm,
+                                weightKg = postKg,
+                                goal = user.fitnessGoal
+                            )
+                        }
+                        _uiState.update { it.copy(isSaving = false, isLogDialogOpen = false) }
+                    }
+                    is Resource.Error -> {
+                        _uiState.update { it.copy(isSaving = false, errorMessage = resource.message) }
+                    }
+                    is Resource.Loading -> {
+                        _uiState.update { it.copy(isSaving = true) }
+                    }
+                }
             }
         }
     }

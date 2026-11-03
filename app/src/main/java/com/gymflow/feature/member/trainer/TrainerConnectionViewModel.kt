@@ -2,14 +2,16 @@ package com.gymflow.feature.member.trainer
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gymflow.domain.model.InvitationCode
-import com.gymflow.domain.model.TrainerProfile
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.security.TokenManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 enum class TrainerConnectionStatus {
     NOT_CONNECTED,
@@ -37,10 +39,52 @@ data class JoinTrainerUiState(
     val successMessage: String? = null
 )
 
-class TrainerConnectionViewModel : ViewModel() {
+@HiltViewModel
+class TrainerConnectionViewModel @Inject constructor(
+    private val userDao: UserDao,
+    private val tokenManager: TokenManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(JoinTrainerUiState())
     val uiState: StateFlow<JoinTrainerUiState> = _uiState.asStateFlow()
+
+    init {
+        observeConnectionStatus()
+    }
+
+    private fun currentUserId(): String = tokenManager.getUserIdSync() ?: "default_member"
+
+    private fun observeConnectionStatus() {
+        val userId = currentUserId()
+        viewModelScope.launch {
+            userDao.getUserFlow(userId).collect { user ->
+                if (user != null && !user.connectedTrainerId.isNullOrBlank()) {
+                    val trainer = TrainerDetails(
+                        id = user.connectedTrainerId,
+                        name = "Coach Marcus",
+                        specialization = "Strength & Conditioning",
+                        experienceYears = 5,
+                        activeMembersCount = 12,
+                        gymName = "Iron Works Performance",
+                        invitationCode = "GYM-82K91"
+                    )
+                    _uiState.update {
+                        it.copy(
+                            connectionStatus = TrainerConnectionStatus.CONNECTED,
+                            activeTrainer = trainer
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            connectionStatus = TrainerConnectionStatus.NOT_CONNECTED,
+                            activeTrainer = null
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     fun onCodeChanged(input: String) {
         val formatted = formatInvitationCode(input)
@@ -51,11 +95,11 @@ class TrainerConnectionViewModel : ViewModel() {
                 previewTrainer = if (formatted.startsWith("GYM-") && formatted.length >= 7) {
                     TrainerDetails(
                         id = "trainer-new",
-                        name = "Coach",
+                        name = "Coach Marcus",
                         specialization = "Strength & Conditioning",
-                        experienceYears = 3,
-                        activeMembersCount = 10,
-                        gymName = "Partner Athletic Facility",
+                        experienceYears = 5,
+                        activeMembersCount = 12,
+                        gymName = "Iron Works Performance",
                         invitationCode = formatted
                     )
                 } else null
@@ -72,16 +116,19 @@ class TrainerConnectionViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            delay(1200) // Simulate fast network sync
+            delay(500) // Fast snappy feedback
 
             if (code.contains("GYM")) {
+                val userId = currentUserId()
+                userDao.updateTrainerConnection(userId, "trainer-verified", "Connected")
+
                 val connected = TrainerDetails(
                     id = "trainer-verified",
-                    name = "Coach Verified",
+                    name = "Coach Marcus",
                     specialization = "Strength & Conditioning",
-                    experienceYears = 3,
-                    activeMembersCount = 10,
-                    gymName = "Partner Athletic Facility",
+                    experienceYears = 5,
+                    activeMembersCount = 12,
+                    gymName = "Iron Works Performance",
                     invitationCode = code
                 )
                 _uiState.update {
@@ -104,14 +151,18 @@ class TrainerConnectionViewModel : ViewModel() {
     }
 
     fun disconnectTrainer() {
-        _uiState.update {
-            it.copy(
-                connectionStatus = TrainerConnectionStatus.NOT_CONNECTED,
-                activeTrainer = null,
-                codeInput = "",
-                previewTrainer = null,
-                successMessage = "Disconnected from trainer."
-            )
+        viewModelScope.launch {
+            val userId = currentUserId()
+            userDao.updateTrainerConnection(userId, null, "Not Connected")
+            _uiState.update {
+                it.copy(
+                    connectionStatus = TrainerConnectionStatus.NOT_CONNECTED,
+                    activeTrainer = null,
+                    codeInput = "",
+                    previewTrainer = null,
+                    successMessage = "Disconnected from trainer."
+                )
+            }
         }
     }
 

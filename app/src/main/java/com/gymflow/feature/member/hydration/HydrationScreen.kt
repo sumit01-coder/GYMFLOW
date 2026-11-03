@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.GymFlowOutlinedButton
 import com.gymflow.core.components.GymFlowPrimaryButton
@@ -69,7 +69,7 @@ import java.util.Locale
 @Composable
 fun HydrationScreen(
     onNavigateBack: () -> Unit = {},
-    viewModel: HydrationViewModel = viewModel()
+    viewModel: HydrationViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val numberFormat = NumberFormat.getNumberInstance(Locale.US)
