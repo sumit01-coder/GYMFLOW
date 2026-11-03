@@ -19,5 +19,5 @@ val GymFlowShapes = Shapes(
     small = GymFlowShapesTokens.CardSmall,
     medium = GymFlowShapesTokens.CardMain,
     large = GymFlowShapesTokens.CardLarge,
-    extraLarge = GymFlowShapesTokens.ButtonPill
+    extraLarge = RoundedCornerShape(24.dp)
 )

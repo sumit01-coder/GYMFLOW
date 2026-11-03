@@ -59,6 +59,7 @@ import com.gymflow.core.theme.GymFlowWhite
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -342,6 +343,7 @@ fun WorkoutScheduleContent(
 
         DatePickerDialog(
             onDismissRequest = onDismissCalendar,
+            shape = RoundedCornerShape(24.dp),
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -389,6 +391,34 @@ fun WorkoutScheduleContent(
         ) {
             DatePicker(
                 state = datePickerState,
+                showModeToggle = false,
+                title = {
+                    Text(
+                        text = "SELECT DATE",
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.padding(start = 24.dp, top = 20.dp, end = 24.dp)
+                    )
+                },
+                headline = {
+                    val selectedMillis = datePickerState.selectedDateMillis
+                    val formattedHeadline = selectedMillis?.let {
+                        val date = Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()
+                        date.format(DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", Locale.getDefault()))
+                    } ?: "Choose Date"
+                    Text(
+                        text = formattedHeadline,
+                        style = GymFlowTheme.typography.Heading2.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = GymFlowTheme.colors.textPrimary,
+                        modifier = Modifier.padding(start = 24.dp, top = 4.dp, bottom = 12.dp, end = 24.dp)
+                    )
+                },
                 colors = DatePickerDefaults.colors(
                     containerColor = GymFlowTheme.colors.surface,
                     titleContentColor = GymFlowTheme.colors.textPrimary,
