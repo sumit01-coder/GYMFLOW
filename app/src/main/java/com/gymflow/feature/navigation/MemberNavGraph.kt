@@ -19,6 +19,7 @@ import com.gymflow.feature.member.profile.MemberSettingsScreen
 import com.gymflow.feature.member.progress.MemberProgressScreen
 import com.gymflow.feature.member.schedule.WorkoutScheduleScreen
 import com.gymflow.feature.member.schedule.WorkoutScheduleViewModel
+import com.gymflow.feature.member.stopwatch.StopwatchScreen
 import com.gymflow.feature.member.trainer.JoinTrainerScreen
 import com.gymflow.feature.member.weight.WeightTrackingScreen
 import com.gymflow.feature.member.workout.ActiveWorkoutScreen
@@ -142,7 +143,8 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToProgress = { navController.navigate(NavRoutes.MEMBER_PROGRESS) },
             onNavigateToProfile = { navController.navigate(NavRoutes.MEMBER_PROFILE) },
             onNavigateToHydration = { navController.navigate(NavRoutes.MEMBER_HYDRATION) },
-            onNavigateToAchievements = { navController.navigate(NavRoutes.MEMBER_ACHIEVEMENTS) }
+            onNavigateToAchievements = { navController.navigate(NavRoutes.MEMBER_ACHIEVEMENTS) },
+            onNavigateToStopwatch = { navController.navigate(NavRoutes.MEMBER_STOPWATCH) }
         )
     }
 
@@ -208,6 +210,13 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
     // Achievements & Badges
     composable(NavRoutes.MEMBER_ACHIEVEMENTS) {
         AchievementsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    // Athletic Stopwatch
+    composable(NavRoutes.MEMBER_STOPWATCH) {
+        StopwatchScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

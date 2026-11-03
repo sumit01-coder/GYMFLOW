@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -47,6 +48,7 @@ fun MemberActivityScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToHydration: () -> Unit = {},
     onNavigateToAchievements: () -> Unit = {},
+    onNavigateToStopwatch: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -112,6 +114,17 @@ fun MemberActivityScreen(
                 badgeText = "VIEW ALL",
                 icon = Icons.Default.EmojiEvents,
                 onClick = onNavigateToAchievements
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 3. Stopwatch & Split Timer Shortcut Card
+            ActivityHubCard(
+                title = "Athletic Stopwatch",
+                subtitle = "Precision split timer & gym interval presets",
+                badgeText = "TIMER",
+                icon = Icons.Default.Timer,
+                onClick = onNavigateToStopwatch
             )
 
             Spacer(modifier = Modifier.height(24.dp))
