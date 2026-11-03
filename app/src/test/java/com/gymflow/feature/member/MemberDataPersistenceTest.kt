@@ -610,6 +610,14 @@ class FakeWeightDao : WeightDao {
                 .maxByOrNull { it.recordedAtEpochMs }
         }
 
+    override fun getLatestAnyWeightLog(): Flow<WeightLogEntity?> =
+        weightFlow.map { list ->
+            list.maxByOrNull { it.recordedAtEpochMs }
+        }
+
+    override suspend fun getLatestAnyWeightLogSync(): WeightLogEntity? =
+        weightLogs.values.maxByOrNull { it.recordedAtEpochMs }
+
     override suspend fun getWeightById(id: String): WeightLogEntity? = weightLogs[id]
 
     override suspend fun deleteWeightLog(id: String) {

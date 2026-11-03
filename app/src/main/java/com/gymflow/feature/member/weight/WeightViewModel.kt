@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.common.Resource
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.database.UserEntity
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.calculator.WeightDifferenceCalculator
+import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WeightLog
 import com.gymflow.domain.repository.WeightRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -137,13 +139,23 @@ class WeightViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Success -> {
                         // Keep MemberProfile and Home screen synced with latest logged weight
-                        val user = userDao.getUserById(userId)
-                        if (user != null) {
+                        val existingUser = userDao.getUserById(userId) ?: userDao.getCurrentUser()
+                        if (existingUser != null) {
                             userDao.updateMemberProfile(
-                                id = userId,
-                                heightCm = user.heightCm,
+                                id = existingUser.id,
+                                heightCm = existingUser.heightCm,
                                 weightKg = postKg,
-                                goal = user.fitnessGoal
+                                goal = existingUser.fitnessGoal
+                            )
+                        } else {
+                            userDao.upsertUser(
+                                UserEntity(
+                                    id = userId,
+                                    name = tokenManager.getName() ?: "GymFlow Member",
+                                    email = tokenManager.getEmail() ?: "",
+                                    role = Role.MEMBER,
+                                    currentWeightKg = postKg
+                                )
                             )
                         }
                         _uiState.update { it.copy(isSaving = false, isLogDialogOpen = false) }

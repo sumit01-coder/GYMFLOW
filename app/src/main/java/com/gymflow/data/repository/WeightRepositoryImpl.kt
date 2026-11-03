@@ -82,7 +82,10 @@ class WeightRepositoryImpl @Inject constructor(
     }
 
     override fun getLatestWeight(memberId: String): Flow<WeightLog?> {
-        return weightDao.getLatestWeightLog(memberId).map { it?.toDomain() }
+        return weightDao.getLatestWeightLog(memberId).map { entity ->
+            val resolved = entity ?: weightDao.getLatestAnyWeightLogSync()
+            resolved?.toDomain()
+        }
     }
 
     override fun deleteWeightLog(id: String): Flow<Resource<Unit>> = flow {

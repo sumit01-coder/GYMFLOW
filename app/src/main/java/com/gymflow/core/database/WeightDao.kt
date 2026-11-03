@@ -18,6 +18,12 @@ interface WeightDao {
     @Query("SELECT * FROM weight_logs WHERE memberId = :memberId ORDER BY recordedAtEpochMs DESC LIMIT 1")
     fun getLatestWeightLog(memberId: String): Flow<WeightLogEntity?>
 
+    @Query("SELECT * FROM weight_logs ORDER BY recordedAtEpochMs DESC LIMIT 1")
+    fun getLatestAnyWeightLog(): Flow<WeightLogEntity?>
+
+    @Query("SELECT * FROM weight_logs ORDER BY recordedAtEpochMs DESC LIMIT 1")
+    suspend fun getLatestAnyWeightLogSync(): WeightLogEntity?
+
     @Query("SELECT * FROM weight_logs WHERE id = :id LIMIT 1")
     suspend fun getWeightById(id: String): WeightLogEntity?
 
