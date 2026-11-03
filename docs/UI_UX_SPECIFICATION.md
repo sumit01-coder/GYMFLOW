@@ -380,3 +380,4 @@ The full **UI/UX Pro Max** design toolkit and accompanying design skills have be
 python .agents/skills/ui-ux-pro-max/scripts/search.py "fitness" --design-system
 python .agents/skills/ui-ux-pro-max/scripts/search.py "minimalist black white" --domain style
 ```
+

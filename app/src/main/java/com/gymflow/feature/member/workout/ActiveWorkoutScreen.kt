@@ -1,0 +1,481 @@
+package com.gymflow.feature.member.workout
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.gymflow.core.components.ActiveWorkoutBadge
+import com.gymflow.core.components.GymFlowButton
+import com.gymflow.core.components.GymFlowButtonStyle
+import com.gymflow.core.components.GymFlowCard
+import com.gymflow.core.theme.GymFlowBlack
+import com.gymflow.core.theme.GymFlowBorder
+import com.gymflow.core.theme.GymFlowGreen
+import com.gymflow.core.theme.GymFlowShapesTokens
+import com.gymflow.core.theme.GymFlowTheme
+import com.gymflow.core.theme.GymFlowWhite
+
+@Composable
+fun ActiveWorkoutScreen(
+    viewModel: ActiveWorkoutViewModel,
+    onCloseWorkout: () -> Unit,
+    onNavigateToRest: (nextSetText: String, durationSeconds: Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    ActiveWorkoutContent(
+        uiState = uiState,
+        onTogglePause = viewModel::togglePause,
+        onIncrementReps = viewModel::incrementReps,
+        onDecrementReps = viewModel::decrementReps,
+        onIncrementWeight = viewModel::incrementWeight,
+        onDecrementWeight = viewModel::decrementWeight,
+        onCompleteSet = {
+            viewModel.completeSet(onNavigateToRest)
+        },
+        onCloseWorkout = onCloseWorkout,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun ActiveWorkoutContent(
+    uiState: ActiveWorkoutUiState,
+    onTogglePause: () -> Unit,
+    onIncrementReps: () -> Unit,
+    onDecrementReps: () -> Unit,
+    onIncrementWeight: () -> Unit,
+    onDecrementWeight: () -> Unit,
+    onCompleteSet: () -> Unit,
+    onCloseWorkout: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val progressAnim by animateFloatAsState(
+        targetValue = uiState.progressPercentage,
+        label = "workoutProgress"
+    )
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = GymFlowTheme.colors.background,
+        bottomBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(GymFlowTheme.colors.surface)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                // Workout Controls
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    GymFlowButton(
+                        text = if (uiState.isPaused) "Resume" else "Pause",
+                        onClick = onTogglePause,
+                        style = GymFlowButtonStyle.OUTLINED,
+                        modifier = Modifier.weight(0.38f),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (uiState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+
+                    GymFlowButton(
+                        text = "Complete Set",
+                        onClick = onCompleteSet,
+                        style = GymFlowButtonStyle.PRIMARY,
+                        modifier = Modifier.weight(0.62f),
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = GymFlowWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Rest timer starts automatically after completing a set",
+                    style = GymFlowTheme.typography.Caption,
+                    color = GymFlowTheme.colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Header Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onCloseWorkout) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close Workout",
+                        tint = GymFlowTheme.colors.textPrimary
+                    )
+                }
+
+                ActiveWorkoutBadge()
+
+                Text(
+                    text = uiState.workoutTag,
+                    style = GymFlowTheme.typography.Caption.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = GymFlowTheme.colors.textSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Exercise Title
+            Text(
+                text = uiState.exerciseName,
+                style = GymFlowTheme.typography.Heading1.copy(fontSize = 28.sp),
+                color = GymFlowTheme.colors.textPrimary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Exercise Media Illustration Box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+                    .clip(GymFlowShapesTokens.CardMain)
+                    .background(Color(0xFF1E1E22))
+                    .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = GymFlowWhite,
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Barbell Bench Press — Standard Grip",
+                        style = GymFlowTheme.typography.Caption,
+                        color = GymFlowWhite.copy(alpha = 0.8f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Exercise Duration Timer Display
+            Text(
+                text = "EXERCISE DURATION",
+                style = GymFlowTheme.typography.Caption.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.5.sp
+                ),
+                color = GymFlowTheme.colors.textSecondary
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = uiState.formattedDuration,
+                style = GymFlowTheme.typography.Timer.copy(fontSize = 44.sp),
+                color = if (uiState.isPaused) GymFlowTheme.colors.accentPending else GymFlowTheme.colors.textPrimary
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Target Metrics (3 Columns: Sets, Reps, Target Weight)
+            GymFlowCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "SETS",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${uiState.totalSets}",
+                            style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(30.dp)
+                            .background(GymFlowBorder)
+                    )
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "REPS",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${uiState.targetReps}",
+                            style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(30.dp)
+                            .background(GymFlowBorder)
+                    )
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "TARGET",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${uiState.targetWeightKg.toInt()} kg",
+                            style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Progress Indicator
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Current Set: Set ${uiState.currentSet} of ${uiState.totalSets}",
+                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                    Text(
+                        text = "${(progressAnim * 100).toInt()}%",
+                        style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold),
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LinearProgressIndicator(
+                    progress = { progressAnim },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(CircleShape),
+                    color = GymFlowBlack,
+                    trackColor = GymFlowTheme.colors.surfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Actual Input Controls for Reps and Weight
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Actual Reps Card
+                GymFlowCard(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = 12.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "ACTUAL REPS",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowTheme.colors.surfaceVariant)
+                                    .clickable { onDecrementReps() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Remove,
+                                    contentDescription = "Decrease Reps",
+                                    tint = GymFlowTheme.colors.textPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            Text(
+                                text = "${uiState.actualReps}",
+                                style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                                color = GymFlowTheme.colors.textPrimary,
+                                modifier = Modifier.padding(horizontal = 14.dp)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowTheme.colors.surfaceVariant)
+                                    .clickable { onIncrementReps() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Increase Reps",
+                                    tint = GymFlowTheme.colors.textPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Actual Weight Card
+                GymFlowCard(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = 12.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "ACTUAL WEIGHT",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowTheme.colors.surfaceVariant)
+                                    .clickable { onDecrementWeight() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Remove,
+                                    contentDescription = "Decrease Weight",
+                                    tint = GymFlowTheme.colors.textPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            Text(
+                                text = "${uiState.actualWeightKg.toInt()} kg",
+                                style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                                color = GymFlowTheme.colors.textPrimary,
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowTheme.colors.surfaceVariant)
+                                    .clickable { onIncrementWeight() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Increase Weight",
+                                    tint = GymFlowTheme.colors.textPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}

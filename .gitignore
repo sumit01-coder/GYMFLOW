@@ -3,10 +3,16 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
+# Gradle & Build
+.gradle/
+.kotlin/
+build/
+**/build/
+local.properties
+
 # Node
 node_modules/
 dist/
-build/
 .npm/
 
 # Python
@@ -20,6 +26,8 @@ ENV/
 # IDE & Editor
 .vscode/
 .idea/
+*.iml
+.navigation/
 
 # Environment Variables
 .env
