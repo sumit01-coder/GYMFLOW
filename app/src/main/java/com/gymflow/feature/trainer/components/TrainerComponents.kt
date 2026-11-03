@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,53 +90,59 @@ fun TrainerTopBar(
     onBackClick: (() -> Unit)? = null,
     actions: (@Composable () -> Unit)? = null
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
             .background(TrainerDarkBg)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .statusBarsPadding()
     ) {
-        if (onBackClick != null) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onBackClick),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = TrainerDarkTextPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = title,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TrainerDarkTextPrimary
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    fontSize = 12.sp,
-                    color = TrainerDarkTextSecondary
-                )
+            if (onBackClick != null) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onBackClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TrainerDarkTextPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
             }
-        }
 
-        if (actions != null) {
-            actions()
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TrainerDarkTextPrimary
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = TrainerDarkTextSecondary
+                    )
+                }
+            }
+
+            if (actions != null) {
+                actions()
+            }
         }
     }
 }
@@ -147,7 +155,7 @@ fun TrainerCard(
     borderWidth: Dp = 1.dp,
     contentPadding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(16.dp)
     val clickableModifier = if (onClick != null) {
@@ -164,7 +172,7 @@ fun TrainerCard(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
-        Box(
+        Column(
             modifier = Modifier.padding(contentPadding),
             content = content
         )
@@ -514,7 +522,7 @@ fun TrainerBottomNavBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
+                    .height(64.dp)
                     .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
@@ -539,7 +547,7 @@ fun TrainerBottomNavBar(
                                 indication = ripple(bounded = false, radius = 28.dp),
                                 onClick = { onTabSelected(tab) }
                             )
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 2.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -549,10 +557,11 @@ fun TrainerBottomNavBar(
                             modifier = Modifier.size(24.dp),
                             tint = if (isSelected) TrainerDarkTextPrimary else TrainerDarkTextSecondary
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = label,
                             fontSize = 11.sp,
+                            lineHeight = 14.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

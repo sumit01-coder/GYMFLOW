@@ -1,17 +1,24 @@
 package com.gymflow.feature.member.schedule
 
 import androidx.lifecycle.ViewModel
-import com.gymflow.domain.model.WorkoutDay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.time.temporal.TemporalAdjusters
+import java.util.Locale
 import javax.inject.Inject
 
 data class ScheduleDayItem(
+    val date: LocalDate,
     val dayOfWeek: String, // Mon, Tue, Wed, ...
-    val dayNumber: Int,    // 12, 13, 14, ...
+    val dayNumber: Int,    // 1, 2, 3, ...
+    val isToday: Boolean = false,
     val isSelected: Boolean = false,
     val isCompleted: Boolean = false
 )
@@ -26,9 +33,12 @@ data class ScheduleWorkoutEntry(
 )
 
 data class WorkoutScheduleUiState(
-    val selectedDayIndex: Int = 0,
+    val selectedDate: LocalDate = LocalDate.now(),
+    val currentMonthYearLabel: String = "",
     val weekDays: List<ScheduleDayItem> = emptyList(),
-    val scheduleEntries: List<ScheduleWorkoutEntry> = emptyList()
+    val scheduleEntries: List<ScheduleWorkoutEntry> = emptyList(),
+    val isDatePickerOpen: Boolean = false,
+    val isLookingAtToday: Boolean = true
 )
 
 @HiltViewModel
@@ -38,47 +48,59 @@ class WorkoutScheduleViewModel @Inject constructor() : ViewModel() {
     val uiState: StateFlow<WorkoutScheduleUiState> = _uiState.asStateFlow()
 
     init {
-        loadSchedule()
+        val today = LocalDate.now()
+        loadScheduleForDate(today)
     }
 
-    private fun loadSchedule() {
-        val days = listOf(
-            ScheduleDayItem("Mon", 12, isSelected = true, isCompleted = true),
-            ScheduleDayItem("Tue", 13, isSelected = false, isCompleted = true),
-            ScheduleDayItem("Wed", 14, isSelected = false, isCompleted = true),
-            ScheduleDayItem("Thu", 15, isSelected = false, isCompleted = false),
-            ScheduleDayItem("Fri", 16, isSelected = false, isCompleted = false),
-            ScheduleDayItem("Sat", 17, isSelected = false, isCompleted = false),
-            ScheduleDayItem("Sun", 18, isSelected = false, isCompleted = false)
-        )
+    fun selectDate(date: LocalDate) {
+        loadScheduleForDate(date)
+    }
 
-        val entries = listOf(
-            ScheduleWorkoutEntry("Mon", "Chest + Triceps", isCompleted = true, exerciseCount = 5, estimatedMinutes = 50),
-            ScheduleWorkoutEntry("Tue", "Back + Biceps", isCompleted = true, exerciseCount = 5, estimatedMinutes = 45),
-            ScheduleWorkoutEntry("Wed", "Legs", isCompleted = true, exerciseCount = 6, estimatedMinutes = 60),
-            ScheduleWorkoutEntry("Thu", "Shoulders", isCompleted = false, exerciseCount = 4, estimatedMinutes = 40),
-            ScheduleWorkoutEntry("Fri", "Chest + Abs", isCompleted = false, exerciseCount = 5, estimatedMinutes = 45),
-            ScheduleWorkoutEntry("Sat", "Back + Legs", isCompleted = false, exerciseCount = 5, estimatedMinutes = 55),
-            ScheduleWorkoutEntry("Sun", "Rest Day", isCompleted = false, isRestDay = true, exerciseCount = 0, estimatedMinutes = 0)
+    fun setDatePickerOpen(isOpen: Boolean) {
+        _uiState.update { it.copy(isDatePickerOpen = isOpen) }
+    }
+
+    fun jumpToToday() {
+        loadScheduleForDate(LocalDate.now())
+    }
+
+    private fun loadScheduleForDate(targetDate: LocalDate) {
+        val today = LocalDate.now()
+        val startOfWeek = targetDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+        val days = (0L..6L).map { offset ->
+            val date = startOfWeek.plusDays(offset)
+            val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            ScheduleDayItem(
+                date = date,
+                dayOfWeek = dayOfWeek,
+                dayNumber = date.dayOfMonth,
+                isToday = date == today,
+                isSelected = date == targetDate,
+                isCompleted = date.isBefore(today)
+            )
+        }
+
+        val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
+        val monthLabel = targetDate.format(monthFormatter)
+
+        val routine = listOf(
+            ScheduleWorkoutEntry("Mon", "Chest + Triceps", isCompleted = startOfWeek.isBefore(today), exerciseCount = 5, estimatedMinutes = 50),
+            ScheduleWorkoutEntry("Tue", "Back + Biceps", isCompleted = startOfWeek.plusDays(1).isBefore(today), exerciseCount = 5, estimatedMinutes = 45),
+            ScheduleWorkoutEntry("Wed", "Legs", isCompleted = startOfWeek.plusDays(2).isBefore(today), exerciseCount = 6, estimatedMinutes = 60),
+            ScheduleWorkoutEntry("Thu", "Shoulders", isCompleted = startOfWeek.plusDays(3).isBefore(today), exerciseCount = 4, estimatedMinutes = 40),
+            ScheduleWorkoutEntry("Fri", "Chest + Abs", isCompleted = startOfWeek.plusDays(4).isBefore(today), exerciseCount = 5, estimatedMinutes = 45),
+            ScheduleWorkoutEntry("Sat", "Back + Legs", isCompleted = startOfWeek.plusDays(5).isBefore(today), exerciseCount = 5, estimatedMinutes = 55),
+            ScheduleWorkoutEntry("Sun", "Rest Day", isCompleted = startOfWeek.plusDays(6).isBefore(today), isRestDay = true, exerciseCount = 0, estimatedMinutes = 0)
         )
 
         _uiState.update {
             it.copy(
-                selectedDayIndex = 0,
+                selectedDate = targetDate,
+                currentMonthYearLabel = monthLabel,
                 weekDays = days,
-                scheduleEntries = entries
-            )
-        }
-    }
-
-    fun onSelectDay(index: Int) {
-        _uiState.update { current ->
-            val updatedWeekDays = current.weekDays.mapIndexed { idx, item ->
-                item.copy(isSelected = idx == index)
-            }
-            current.copy(
-                selectedDayIndex = index,
-                weekDays = updatedWeekDays
+                scheduleEntries = routine,
+                isLookingAtToday = targetDate == today
             )
         }
     }

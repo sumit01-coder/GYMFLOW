@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -25,7 +26,6 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MilitaryTech
 import androidx.compose.material.icons.filled.Scale
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.AlertDialog
@@ -401,7 +401,7 @@ private fun AchievementDetailDialog(
 private fun resolveAchievementIcon(iconName: String): ImageVector {
     return when (iconName) {
         "fitness_center" -> Icons.Default.FitnessCenter
-        "trending_up" -> Icons.Default.TrendingUp
+        "trending_up" -> Icons.AutoMirrored.Filled.TrendingUp
         "calendar_month" -> Icons.Default.CalendarMonth
         "water_drop" -> Icons.Default.WaterDrop
         "military_tech" -> Icons.Default.MilitaryTech

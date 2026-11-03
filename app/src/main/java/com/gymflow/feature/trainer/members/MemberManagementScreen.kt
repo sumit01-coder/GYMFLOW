@@ -20,10 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -304,7 +304,7 @@ fun MemberManagementScreen(
                                             height = 38.dp,
                                             leadingIcon = {
                                                 Icon(
-                                                    imageVector = Icons.Default.ShowChart,
+                                                    imageVector = Icons.AutoMirrored.Filled.ShowChart,
                                                     contentDescription = null,
                                                     tint = Color.White,
                                                     modifier = Modifier.size(14.dp)

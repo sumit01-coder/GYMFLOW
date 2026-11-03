@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,21 +17,27 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Hotel
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -49,6 +56,11 @@ import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Composable
 fun WorkoutScheduleScreen(
@@ -65,7 +77,11 @@ fun WorkoutScheduleScreen(
 
     WorkoutScheduleContent(
         uiState = uiState,
-        onSelectDay = viewModel::onSelectDay,
+        onSelectDay = { dayItem -> viewModel.selectDate(dayItem.date) },
+        onOpenCalendar = { viewModel.setDatePickerOpen(true) },
+        onDismissCalendar = { viewModel.setDatePickerOpen(false) },
+        onDatePicked = { date -> viewModel.selectDate(date) },
+        onJumpToToday = { viewModel.jumpToToday() },
         onNavigateBack = onNavigateBack,
         onNavigateToHome = onNavigateToHome,
         onNavigateToProgress = onNavigateToProgress,
@@ -76,10 +92,15 @@ fun WorkoutScheduleScreen(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutScheduleContent(
     uiState: WorkoutScheduleUiState,
-    onSelectDay: (Int) -> Unit,
+    onSelectDay: (ScheduleDayItem) -> Unit,
+    onOpenCalendar: () -> Unit,
+    onDismissCalendar: () -> Unit,
+    onDatePicked: (LocalDate) -> Unit,
+    onJumpToToday: () -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     onNavigateToProgress: () -> Unit,
@@ -113,7 +134,7 @@ fun WorkoutScheduleContent(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            // Header
+            // Header Bar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -135,16 +156,18 @@ fun WorkoutScheduleContent(
                     )
                 }
 
+                // Interactive Calendar Icon
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
-                        .background(GymFlowTheme.colors.surfaceVariant),
+                        .background(GymFlowTheme.colors.surfaceVariant)
+                        .clickable(onClick = onOpenCalendar),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = "Calendar",
+                        contentDescription = "Open Calendar",
                         modifier = Modifier.size(20.dp),
                         tint = GymFlowTheme.colors.textPrimary
                     )
@@ -153,31 +176,82 @@ fun WorkoutScheduleContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 7-Day Horizontal Strip
-            Text(
-                text = "October 2026",
-                style = GymFlowTheme.typography.Caption,
-                color = GymFlowTheme.colors.textSecondary
-            )
+            // 7-Day Horizontal Strip Header (Current Month & Year + Today indicator)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = uiState.currentMonthYearLabel,
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                    if (uiState.isLookingAtToday) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Today",
+                                style = GymFlowTheme.typography.Caption.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                        }
+                    }
+                }
+
+                if (!uiState.isLookingAtToday) {
+                    TextButton(
+                        onClick = onJumpToToday,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Jump to Today",
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // 7-Day Horizontal Strip
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(uiState.weekDays) { index, day ->
-                    val isSelected = index == uiState.selectedDayIndex
+                items(uiState.weekDays) { day ->
+                    val isSelected = day.isSelected
                     val pillBg = if (isSelected) GymFlowBlack else GymFlowTheme.colors.surfaceVariant
                     val textCol = if (isSelected) GymFlowWhite else GymFlowTheme.colors.textPrimary
                     val subTextCol = if (isSelected) GymFlowWhite.copy(alpha = 0.8f) else GymFlowTheme.colors.textSecondary
+                    val borderModifier = if (day.isToday && !isSelected) {
+                        Modifier.border(1.5.dp, GymFlowBlack, GymFlowShapesTokens.CardMain)
+                    } else {
+                        Modifier
+                    }
 
                     Column(
                         modifier = Modifier
                             .width(52.dp)
+                            .then(borderModifier)
                             .clip(GymFlowShapesTokens.CardMain)
                             .background(pillBg)
-                            .clickable { onSelectDay(index) }
+                            .clickable { onSelectDay(day) }
                             .padding(vertical = 12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -202,6 +276,13 @@ fun WorkoutScheduleContent(
                                     .size(6.dp)
                                     .background(GymFlowGreen, shape = CircleShape)
                             )
+                        } else if (day.isToday && isSelected) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .background(GymFlowWhite, shape = CircleShape)
+                            )
                         } else {
                             Spacer(modifier = Modifier.height(12.dp))
                         }
@@ -211,18 +292,34 @@ fun WorkoutScheduleContent(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Daily Workout List
-            Text(
-                text = "Weekly Routine",
-                style = GymFlowTheme.typography.Heading2,
-                color = GymFlowTheme.colors.textPrimary
-            )
+            // Daily Workout List Header
+            val selectedDayFull = uiState.selectedDate.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+            val selectedDayShort = uiState.selectedDate.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Weekly Routine",
+                    style = GymFlowTheme.typography.Heading2,
+                    color = GymFlowTheme.colors.textPrimary
+                )
+                Text(
+                    text = "$selectedDayFull",
+                    style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.SemiBold),
+                    color = GymFlowTheme.colors.textSecondary
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             uiState.scheduleEntries.forEach { entry ->
+                val isCurrentSelectedDay = entry.dayName.equals(selectedDayShort, ignoreCase = true)
                 ScheduleEntryCard(
                     entry = entry,
+                    isHighlighted = isCurrentSelectedDay,
                     onClick = {
                         if (!entry.isRestDay) {
                             onSelectWorkout(entry.title)
@@ -233,17 +330,98 @@ fun WorkoutScheduleContent(
             }
         }
     }
+
+    // Material 3 Calendar Date Picker Dialog
+    if (uiState.isDatePickerOpen) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.selectedDate
+                .atStartOfDay(ZoneOffset.UTC)
+                .toInstant()
+                .toEpochMilli()
+        )
+
+        DatePickerDialog(
+            onDismissRequest = onDismissCalendar,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val pickedDate = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate()
+                            onDatePicked(pickedDate)
+                        }
+                        onDismissCalendar()
+                    }
+                ) {
+                    Text(
+                        text = "Select",
+                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissCalendar) {
+                    Text(
+                        text = "Cancel",
+                        style = GymFlowTheme.typography.BodyMedium,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                }
+            },
+            colors = DatePickerDefaults.colors(
+                containerColor = GymFlowTheme.colors.surface,
+                titleContentColor = GymFlowTheme.colors.textPrimary,
+                headlineContentColor = GymFlowTheme.colors.textPrimary,
+                weekdayContentColor = GymFlowTheme.colors.textSecondary,
+                subheadContentColor = GymFlowTheme.colors.textPrimary,
+                yearContentColor = GymFlowTheme.colors.textPrimary,
+                currentYearContentColor = GymFlowTheme.colors.textPrimary,
+                selectedYearContentColor = GymFlowWhite,
+                selectedYearContainerColor = GymFlowBlack,
+                dayContentColor = GymFlowTheme.colors.textPrimary,
+                selectedDayContentColor = GymFlowWhite,
+                selectedDayContainerColor = GymFlowBlack,
+                todayContentColor = GymFlowBlack,
+                todayDateBorderColor = GymFlowBlack
+            )
+        ) {
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = GymFlowTheme.colors.surface,
+                    titleContentColor = GymFlowTheme.colors.textPrimary,
+                    headlineContentColor = GymFlowTheme.colors.textPrimary,
+                    weekdayContentColor = GymFlowTheme.colors.textSecondary,
+                    subheadContentColor = GymFlowTheme.colors.textPrimary,
+                    yearContentColor = GymFlowTheme.colors.textPrimary,
+                    currentYearContentColor = GymFlowTheme.colors.textPrimary,
+                    selectedYearContentColor = GymFlowWhite,
+                    selectedYearContainerColor = GymFlowBlack,
+                    dayContentColor = GymFlowTheme.colors.textPrimary,
+                    selectedDayContentColor = GymFlowWhite,
+                    selectedDayContainerColor = GymFlowBlack,
+                    todayContentColor = GymFlowBlack,
+                    todayDateBorderColor = GymFlowBlack
+                )
+            )
+        }
+    }
 }
 
 @Composable
 private fun ScheduleEntryCard(
     entry: ScheduleWorkoutEntry,
+    isHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
     GymFlowCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        contentPadding = 14.dp
+        contentPadding = 14.dp,
+        borderColor = if (isHighlighted) GymFlowBlack else GymFlowBorder,
+        borderWidth = if (isHighlighted) 1.5.dp else 1.dp
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -301,15 +479,31 @@ private fun ScheduleEntryCard(
                             style = GymFlowTheme.typography.Caption.copy(
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = GymFlowTheme.colors.textSecondary
+                            color = if (isHighlighted) GymFlowBlack else GymFlowTheme.colors.textSecondary
                         )
                         Text(
                             text = " · ${entry.title}",
                             style = GymFlowTheme.typography.BodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.SemiBold
                             ),
                             color = GymFlowTheme.colors.textPrimary
                         )
+                        if (isHighlighted) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(GymFlowBlack)
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "SELECTED",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowWhite
+                                )
+                            }
+                        }
                     }
                     if (!entry.isRestDay) {
                         Spacer(modifier = Modifier.height(2.dp))

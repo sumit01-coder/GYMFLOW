@@ -74,7 +74,7 @@ fun GymFlowBottomBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp) // Generous dedicated height above gesture bar
+                    .height(64.dp) // Dedicated height above gesture bar
                     .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
@@ -91,7 +91,7 @@ fun GymFlowBottomBar(
                                 indication = ripple(bounded = false, radius = 28.dp),
                                 onClick = { onNavigate(item.route) }
                             )
-                            .padding(vertical = 4.dp),
+                            .padding(vertical = 2.dp),
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -101,11 +101,12 @@ fun GymFlowBottomBar(
                             modifier = Modifier.size(24.dp),
                             tint = if (isSelected) GymFlowTheme.colors.textPrimary else GymFlowTheme.colors.textTertiary
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = item.label,
                             style = GymFlowTheme.typography.Caption.copy(
                                 fontSize = 11.sp,
+                                lineHeight = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                             ),
                             maxLines = 1,

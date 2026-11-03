@@ -2,8 +2,8 @@ package com.gymflow.core.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -24,7 +24,7 @@ fun GymFlowCard(
     borderWidth: Dp = 1.dp,
     contentPadding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit
 ) {
     val clickableModifier = if (onClick != null) {
         modifier.clickable(onClick = onClick)
@@ -40,7 +40,7 @@ fun GymFlowCard(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp
     ) {
-        Box(
+        Column(
             modifier = Modifier.padding(contentPadding),
             content = content
         )
