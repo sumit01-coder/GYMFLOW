@@ -11,10 +11,14 @@ import com.gymflow.feature.member.exercises.ExerciseDetailsScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsViewModel
 import com.gymflow.feature.member.home.MemberHomeScreen
 import com.gymflow.feature.member.home.MemberHomeViewModel
+import com.gymflow.feature.member.measurements.BodyMeasurementsScreen
 import com.gymflow.feature.member.profile.MemberProfileScreen
+import com.gymflow.feature.member.profile.MemberSettingsScreen
 import com.gymflow.feature.member.progress.MemberProgressScreen
 import com.gymflow.feature.member.schedule.WorkoutScheduleScreen
 import com.gymflow.feature.member.schedule.WorkoutScheduleViewModel
+import com.gymflow.feature.member.trainer.JoinTrainerScreen
+import com.gymflow.feature.member.weight.WeightTrackingScreen
 import com.gymflow.feature.member.workout.ActiveWorkoutScreen
 import com.gymflow.feature.member.workout.ActiveWorkoutViewModel
 import com.gymflow.feature.member.workout.RestTimerScreen
@@ -143,11 +147,48 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToSchedule = { navController.navigate(NavRoutes.WORKOUT_SCHEDULE) },
             onNavigateToProgress = { navController.navigate(NavRoutes.MEMBER_PROGRESS) },
             onNavigateToActivity = { navController.navigate(NavRoutes.MEMBER_ACTIVITY) },
+            onNavigateToMeasurements = { navController.navigate(NavRoutes.MEMBER_MEASUREMENTS) },
+            onNavigateToSettings = { navController.navigate(NavRoutes.MEMBER_SETTINGS) },
+            onNavigateToJoinTrainer = { navController.navigate(NavRoutes.MEMBER_JOIN_TRAINER) },
             onLogout = {
                 navController.navigate(NavRoutes.LOGIN) {
                     popUpTo(0) { inclusive = true }
                 }
             }
+        )
+    }
+
+    // Body Measurements
+    composable(NavRoutes.MEMBER_MEASUREMENTS) {
+        BodyMeasurementsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    // Settings & Privacy
+    composable(NavRoutes.MEMBER_SETTINGS) {
+        MemberSettingsScreen(
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateTrainerSync = { navController.navigate(NavRoutes.MEMBER_JOIN_TRAINER) },
+            onLoggedOut = {
+                navController.navigate(NavRoutes.LOGIN) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        )
+    }
+
+    // Join / Connected Trainer
+    composable(NavRoutes.MEMBER_JOIN_TRAINER) {
+        JoinTrainerScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    // Weight Tracking
+    composable(NavRoutes.MEMBER_WEIGHT) {
+        WeightTrackingScreen(
+            onNavigateBack = { navController.popBackStack() }
         )
     }
 }

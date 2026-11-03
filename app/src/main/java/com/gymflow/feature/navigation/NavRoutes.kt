@@ -18,6 +18,10 @@ object NavRoutes {
     const val MEMBER_PROGRESS = "member/progress"
     const val MEMBER_ACTIVITY = "member/activity"
     const val MEMBER_PROFILE = "member/profile"
+    const val MEMBER_MEASUREMENTS = "member/measurements"
+    const val MEMBER_SETTINGS = "member/settings"
+    const val MEMBER_JOIN_TRAINER = "member/join_trainer"
+    const val MEMBER_WEIGHT = "member/weight"
 
     fun exerciseDetails(exerciseId: String): String = "$EXERCISE_DETAILS_BASE/$exerciseId"
     fun activeWorkout(exerciseId: String): String = "$ACTIVE_WORKOUT_BASE/$exerciseId"
