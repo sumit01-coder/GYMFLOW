@@ -39,6 +39,102 @@ import com.gymflow.core.theme.GymFlowWhite
 object ExerciseVisuals {
 
     const val BASE_IMAGE_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
+    const val BASE_GIF_URL = "https://raw.githubusercontent.com/omercotkd/exercises-gifs/master/assets/"
+
+    val EXERCISE_GIF_IDS: Map<String, String> = mapOf(
+        // CHEST (7)
+        "ex_chest_barbell_bench_press" to "0025",
+        "ex_chest_incline_dumbbell_press" to "0314",
+        "ex_chest_pec_deck_fly" to "0009",
+        "ex_chest_cable_crossover" to "1261",
+        "ex_chest_hammer_strength_press" to "1289",
+        "ex_chest_dips" to "0009",
+        "ex_chest_decline_cable_press" to "1261",
+
+        // BACK (7)
+        "ex_back_lat_pulldown" to "2330",
+        "ex_back_seated_cable_row" to "0159",
+        "ex_back_barbell_bent_row" to "0027",
+        "ex_back_deadlift" to "0032",
+        "ex_back_tbar_row" to "1349",
+        "ex_back_assisted_pullup" to "0017",
+        "ex_back_single_arm_dumbbell_row" to "0292",
+
+        // SHOULDERS (6)
+        "ex_sh_overhead_press" to "0103",
+        "ex_sh_seated_dumbbell_press" to "0290",
+        "ex_sh_cable_lateral_raise" to "0178",
+        "ex_sh_dumbbell_lateral_raise" to "0334",
+        "ex_sh_reverse_pec_deck" to "1022",
+        "ex_sh_cable_face_pull" to "0178",
+
+        // BICEPS (5)
+        "ex_bi_barbell_curl" to "0031",
+        "ex_bi_incline_dumbbell_curl" to "0315",
+        "ex_bi_preacher_curl_machine" to "0059",
+        "ex_bi_cable_hammer_curl" to "0165",
+        "ex_bi_concentration_curl" to "0976",
+
+        // TRICEPS (5)
+        "ex_tri_rope_pushdown" to "0241",
+        "ex_tri_skull_crushers" to "1721",
+        "ex_tri_overhead_cable_extension" to "0092",
+        "ex_tri_dip_machine" to "0009",
+        "ex_tri_close_grip_bench" to "0030",
+
+        // LEGS (7)
+        "ex_leg_barbell_squat" to "0043",
+        "ex_leg_incline_leg_press" to "0739",
+        "ex_leg_quad_extension" to "0585",
+        "ex_leg_lying_hamstring_curl" to "0586",
+        "ex_leg_romanian_deadlift" to "0085",
+        "ex_leg_hack_squat" to "0046",
+        "ex_leg_standing_calf_raise" to "1372",
+
+        // ABS (6)
+        "ex_abs_cable_rope_crunch" to "0175",
+        "ex_abs_hanging_leg_raise" to "0472",
+        "ex_abs_cable_woodchopper" to "0175",
+        "ex_abs_machine_crunch" to "0277",
+        "ex_abs_decline_bench_crunch" to "0277",
+        "ex_abs_plank" to "0464",
+
+        // Aliases
+        "lat-pulldown" to "2330",
+        "barbell-row" to "0027",
+        "bicep-curl" to "0031",
+        "squat" to "0043",
+        "leg-press" to "0739",
+        "calf-raise" to "1372",
+        "overhead-press" to "0103",
+        "lateral-raise" to "0334",
+        "dumbbell-bench" to "0314",
+        "cable-crunches" to "0175",
+        "romanian-deadlift" to "0085",
+        "seated-cable-row" to "0159",
+        "ex_chest_press" to "0025",
+        "ex_lat_pulldown" to "2330",
+        "ex_barbell_squat" to "0043",
+        "ex_cable_fly" to "1261",
+        "ex_deadlift" to "0032",
+        "ex_barbell_curl" to "0031",
+        "ex_triceps_pushdown" to "0241"
+    )
+
+    fun getGifUrl(exerciseId: String?): String? {
+        if (exerciseId == null) return null
+        val directId = EXERCISE_GIF_IDS[exerciseId]
+        if (directId != null) return "$BASE_GIF_URL$directId.gif"
+
+        val norm = exerciseId.lowercase().replace("-", "_").replace(" ", "_")
+        for ((key, gid) in EXERCISE_GIF_IDS) {
+            val keyNorm = key.lowercase().replace("-", "_").replace(" ", "_")
+            if (norm.contains(keyNorm) || keyNorm.contains(norm)) {
+                return "$BASE_GIF_URL$gid.gif"
+            }
+        }
+        return null
+    }
 
     val EXERCISE_IMAGE_PATHS: Map<String, String> = mapOf(
         // CHEST (7)
@@ -216,12 +312,17 @@ fun MuscleCategoryChip(
 @Composable
 fun ExerciseThumbnail(
     imageUrl: String? = null,
+    exerciseId: String? = null,
     category: String = "Chest",
     equipment: String = "Machine",
+    preferGif: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val cornerRadius = 10.dp
     val shape = RoundedCornerShape(cornerRadius)
+    val resolvedUrl = (if (preferGif) ExerciseVisuals.getGifUrl(exerciseId) else null)
+        ?: imageUrl
+        ?: ExerciseVisuals.getImageUrl(exerciseId)
 
     Box(
         modifier = modifier
@@ -230,10 +331,10 @@ fun ExerciseThumbnail(
             .border(1.dp, GymFlowBorder, shape),
         contentAlignment = Alignment.Center
     ) {
-        if (!imageUrl.isNullOrBlank()) {
+        if (!resolvedUrl.isNullOrBlank()) {
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(imageUrl)
+                    .data(resolvedUrl)
                     .crossfade(true)
                     .build(),
                 contentDescription = null,

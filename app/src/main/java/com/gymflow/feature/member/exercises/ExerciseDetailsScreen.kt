@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -49,6 +50,7 @@ import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowBorder
+import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
@@ -65,6 +67,7 @@ fun ExerciseDetailsScreen(
     ExerciseDetailsContent(
         uiState = uiState,
         onSelectTab = viewModel::onSelectTab,
+        onToggleMediaMode = viewModel::toggleMediaMode,
         onNavigateBack = onNavigateBack,
         onStartSet = { onStartSet(uiState.exerciseId) },
         modifier = modifier
@@ -75,6 +78,7 @@ fun ExerciseDetailsScreen(
 fun ExerciseDetailsContent(
     uiState: ExerciseDetailsUiState,
     onSelectTab: (ExerciseTab) -> Unit,
+    onToggleMediaMode: () -> Unit,
     onNavigateBack: () -> Unit,
     onStartSet: () -> Unit,
     modifier: Modifier = Modifier
@@ -145,15 +149,22 @@ fun ExerciseDetailsContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Hero Media Container (Demonstration photo & guide)
-            val demonstrationUrl = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
+            // Hero Media Container (Demonstration Animated GIF & HD Photo)
+            val isGifActive = uiState.isPlayingGif && !uiState.gifUrl.isNullOrBlank()
+            val demonstrationUrl = if (isGifActive) {
+                uiState.gifUrl
+            } else {
+                uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(230.dp)
+                    .height(240.dp)
                     .clip(GymFlowShapesTokens.CardMain)
                     .background(Color(0xFF1E1E22))
-                    .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
+                    .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain)
+                    .clickable(onClick = onToggleMediaMode),
                 contentAlignment = Alignment.Center
             ) {
                 if (!demonstrationUrl.isNullOrBlank()) {
@@ -203,14 +214,14 @@ fun ExerciseDetailsContent(
                                 Brush.verticalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        Color.Black.copy(alpha = 0.8f)
+                                        Color.Black.copy(alpha = 0.85f)
                                     ),
-                                    startY = 120f
+                                    startY = 100f
                                 )
                             )
                     )
 
-                    // Overlay bottom bar with play indicator and badge
+                    // Overlay bottom bar with play/pause indicator and GIF mode badge
                     Row(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -219,42 +230,59 @@ fun ExerciseDetailsContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Box(
                                 modifier = Modifier
                                     .size(32.dp)
-                                    .background(GymFlowWhite.copy(alpha = 0.9f), CircleShape),
+                                    .background(GymFlowWhite.copy(alpha = 0.95f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
+                                    imageVector = if (isGifActive) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isGifActive) "Pause GIF" else "Play GIF",
                                     tint = GymFlowBlack,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = uiState.videoTitle,
+                                text = if (isGifActive) "Live Movement Loop" else uiState.videoTitle,
                                 style = GymFlowTheme.typography.BodySmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = GymFlowWhite
+                                color = GymFlowWhite,
+                                maxLines = 1
                             )
                         }
 
+                        Spacer(modifier = Modifier.width(8.dp))
+
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(GymFlowBlack.copy(alpha = 0.7f))
-                                .border(0.5.dp, GymFlowWhite.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isGifActive) GymFlowGreen else GymFlowBlack.copy(alpha = 0.8f))
+                                .border(0.5.dp, GymFlowWhite.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                .clickable(onClick = onToggleMediaMode)
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            Text(
-                                text = "HD DEMO",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = GymFlowWhite,
-                                letterSpacing = 0.5.sp
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isGifActive) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .background(GymFlowWhite, CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                }
+                                Text(
+                                    text = if (isGifActive) "GIF DEMO" else "VIEW GIF",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowWhite,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
                         }
                     }
                 } else {

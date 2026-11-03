@@ -23,6 +23,8 @@ data class ExerciseDetailsUiState(
     val metadataSubhead: String = "3 sets · 12 reps · 20 kg",
     val videoTitle: String = "Barbell Bench Press Technique",
     val mediaUrl: String? = null,
+    val gifUrl: String? = null,
+    val isPlayingGif: Boolean = true,
     val selectedTab: ExerciseTab = ExerciseTab.INSTRUCTIONS,
     val instructions: List<String> = emptyList(),
     val primaryMuscle: String = "",
@@ -46,6 +48,7 @@ class ExerciseDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             exerciseRepository.getExerciseById(exerciseId).collect { ex ->
                 if (ex != null) {
+                    val resolvedGif = ExerciseVisuals.getGifUrl(ex.id)
                     _uiState.update { current ->
                         current.copy(
                             exerciseId = ex.id,
@@ -53,6 +56,7 @@ class ExerciseDetailsViewModel @Inject constructor(
                             metadataSubhead = "${ex.defaultSets} sets · ${ex.defaultReps} reps · ${ex.defaultWeightKg} kg",
                             videoTitle = "${ex.name} Technique & Form",
                             mediaUrl = ex.mediaUrl ?: ExerciseVisuals.getImageUrl(ex.id),
+                            gifUrl = resolvedGif ?: current.gifUrl,
                             instructions = if (ex.instructions.isNotEmpty()) ex.instructions else current.instructions,
                             primaryMuscle = "${ex.category} (${ex.muscleGroup})",
                             equipmentRequired = ex.machineName ?: ex.equipment,
@@ -66,12 +70,16 @@ class ExerciseDetailsViewModel @Inject constructor(
 
     private fun buildInitialUiState(id: String): ExerciseDetailsUiState {
         val details = ExerciseCatalog.getExercise(id)
+        val photoUrl = ExerciseVisuals.getImageUrl(details.exerciseId)
+        val gifUrl = ExerciseVisuals.getGifUrl(details.exerciseId)
         return ExerciseDetailsUiState(
             exerciseId = details.exerciseId,
             exerciseName = details.exerciseName,
             metadataSubhead = details.metadataSubhead,
             videoTitle = details.videoTitle,
-            mediaUrl = ExerciseVisuals.getImageUrl(details.exerciseId),
+            mediaUrl = photoUrl,
+            gifUrl = gifUrl,
+            isPlayingGif = gifUrl != null,
             selectedTab = ExerciseTab.INSTRUCTIONS,
             instructions = details.instructions,
             primaryMuscle = details.primaryMuscle,
@@ -83,5 +91,13 @@ class ExerciseDetailsViewModel @Inject constructor(
 
     fun onSelectTab(tab: ExerciseTab) {
         _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    fun toggleMediaMode() {
+        _uiState.update { it.copy(isPlayingGif = !it.isPlayingGif) }
+    }
+
+    fun setMediaMode(isGif: Boolean) {
+        _uiState.update { it.copy(isPlayingGif = isGif) }
     }
 }
