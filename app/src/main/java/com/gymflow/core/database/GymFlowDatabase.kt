@@ -3,6 +3,8 @@ package com.gymflow.core.database
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -17,7 +19,7 @@ import androidx.room.TypeConverters
         BodyMeasurementEntity::class,
         SyncQueueEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -30,5 +32,11 @@ abstract class GymFlowDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "gymflow.db"
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE users ADD COLUMN isEmailVerified INTEGER NOT NULL DEFAULT 0")
+            }
+        }
     }
 }

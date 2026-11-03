@@ -38,3 +38,4 @@ object FirebaseModule {
         return Firebase.auth
     }
 }
+

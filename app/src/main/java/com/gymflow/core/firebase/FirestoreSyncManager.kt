@@ -189,3 +189,4 @@ class FirestoreSyncManager @Inject constructor(
         return trainerId
     }
 }
+

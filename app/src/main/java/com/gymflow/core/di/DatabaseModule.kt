@@ -29,6 +29,7 @@ object DatabaseModule {
             GymFlowDatabase::class.java,
             GymFlowDatabase.DATABASE_NAME
         )
+            .addMigrations(GymFlowDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigration()
             .build()
     }
