@@ -54,6 +54,8 @@ import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
 import com.gymflow.domain.model.WorkoutExercise
+import com.gymflow.feature.member.exercises.ExerciseThumbnail
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 
 @Composable
 fun MemberHomeScreen(
@@ -365,22 +367,13 @@ private fun TodayExerciseItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Exercise Thumbnail Placeholder / Icon
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(GymFlowShapesTokens.CardSmall)
-                        .background(GymFlowTheme.colors.surfaceVariant)
-                        .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardSmall),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint = GymFlowBlack,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                // Exercise Demonstration Thumbnail
+                ExerciseThumbnail(
+                    imageUrl = ExerciseVisuals.getImageUrl(exercise.exerciseId),
+                    category = exercise.category,
+                    equipment = "Machine",
+                    modifier = Modifier.size(46.dp)
+                )
 
                 Spacer(modifier = Modifier.width(14.dp))
 

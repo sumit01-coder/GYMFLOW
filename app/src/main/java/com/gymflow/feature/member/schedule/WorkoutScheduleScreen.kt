@@ -75,6 +75,8 @@ import com.gymflow.domain.model.Exercise
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.feature.member.exercises.ExerciseEquipmentBadge
 import com.gymflow.feature.member.exercises.ExerciseSelectorBottomSheet
+import com.gymflow.feature.member.exercises.ExerciseThumbnail
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 import com.gymflow.feature.member.exercises.MuscleCategoryChip
 import java.time.Instant
 import java.time.LocalDate
@@ -759,9 +761,17 @@ private fun ScheduledExerciseItemRow(
             .background(GymFlowTheme.colors.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        ExerciseThumbnail(
+            imageUrl = ExerciseVisuals.getImageUrl(exercise.exerciseId),
+            category = exercise.category,
+            equipment = "Machine",
+            modifier = Modifier.size(42.dp)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

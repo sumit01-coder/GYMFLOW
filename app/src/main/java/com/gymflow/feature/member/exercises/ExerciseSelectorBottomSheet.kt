@@ -305,9 +305,10 @@ private fun ExerciseCatalogItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ExerciseThumbnail(
+                imageUrl = exercise.mediaUrl ?: ExerciseVisuals.getImageUrl(exercise.id),
                 category = exercise.category,
                 equipment = exercise.equipment,
-                modifier = Modifier.size(46.dp)
+                modifier = Modifier.size(48.dp)
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -388,10 +389,18 @@ private fun ConfigureExerciseSection(
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                ExerciseThumbnail(
+                    imageUrl = exercise.mediaUrl ?: ExerciseVisuals.getImageUrl(exercise.id),
+                    category = exercise.category,
+                    equipment = exercise.equipment,
+                    modifier = Modifier.size(52.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = exercise.name,
                         style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
@@ -403,6 +412,7 @@ private fun ConfigureExerciseSection(
                         color = GymFlowTheme.colors.textSecondary
                     )
                 }
+
                 MuscleCategoryChip(category = exercise.category)
             }
 

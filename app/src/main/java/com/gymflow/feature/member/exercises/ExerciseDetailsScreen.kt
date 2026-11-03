@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,10 +36,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.theme.GymFlowBlack
@@ -139,39 +145,143 @@ fun ExerciseDetailsContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Hero Media Container (Video/photo placeholder)
+            // Hero Media Container (Demonstration photo & guide)
+            val demonstrationUrl = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(230.dp)
                     .clip(GymFlowShapesTokens.CardMain)
                     .background(Color(0xFF1E1E22))
                     .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
+                if (!demonstrationUrl.isNullOrBlank()) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(demonstrationUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = uiState.exerciseName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(GymFlowShapesTokens.CardMain),
+                        loading = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        },
+                        error = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    // Scrim gradient at the bottom for readability
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .background(GymFlowWhite.copy(alpha = 0.2f), shape = CircleShape),
-                        contentAlignment = Alignment.Center
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black.copy(alpha = 0.8f)
+                                    ),
+                                    startY = 120f
+                                )
+                            )
+                    )
+
+                    // Overlay bottom bar with play indicator and badge
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = "Play exercise video",
-                            tint = GymFlowWhite,
-                            modifier = Modifier.size(32.dp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(GymFlowWhite.copy(alpha = 0.9f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = GymFlowBlack,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = uiState.videoTitle,
+                                style = GymFlowTheme.typography.BodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = GymFlowWhite
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(GymFlowBlack.copy(alpha = 0.7f))
+                                .border(0.5.dp, GymFlowWhite.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "HD DEMO",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(GymFlowWhite.copy(alpha = 0.2f), shape = CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                tint = GymFlowWhite,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = uiState.videoTitle,
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowWhite.copy(alpha = 0.8f)
                         )
                     }
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = uiState.videoTitle,
-                        style = GymFlowTheme.typography.Caption,
-                        color = GymFlowWhite.copy(alpha = 0.8f)
-                    )
                 }
             }
 

@@ -22,6 +22,7 @@ class ExerciseRepositoryImpl @Inject constructor(
 
     companion object {
         const val FIRESTORE_COLLECTION_EXERCISES = "exercises"
+        const val BASE_IMAGE_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
     }
 
     override fun getExercises(): Flow<List<Exercise>> {
@@ -79,9 +80,12 @@ class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun seedDefaultCatalogIfEmpty() {
         withContext(Dispatchers.IO) {
             val count = exerciseDao.getExerciseCount()
+            val catalog = createComprehensiveExerciseCatalog()
+            val entities = catalog.map { ExerciseEntity.fromDomain(it) }
             if (count == 0) {
-                val catalog = createComprehensiveExerciseCatalog()
-                val entities = catalog.map { ExerciseEntity.fromDomain(it) }
+                exerciseDao.upsertExercises(entities)
+            } else {
+                // Ensure existing catalog exercises are refreshed with demonstration media URLs
                 exerciseDao.upsertExercises(entities)
             }
         }
@@ -181,6 +185,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 8,
                 defaultWeightKg = 60f,
                 defaultRestSeconds = 90,
+                mediaUrl = "${BASE_IMAGE_URL}Barbell_Bench_Press_-_Medium_Grip/0.jpg",
                 coachTip = "Retract scapulae and pin them against the bench throughout the lift to protect rotator cuffs.",
                 instructions = listOf(
                     "Lie flat on the bench with eyes directly below the barbell.",
@@ -201,6 +206,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 22f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Incline_Dumbbell_Press/0.jpg",
                 coachTip = "Set incline to 30 degrees to bias the clavicular head without overloading front delts.",
                 instructions = listOf(
                     "Set bench to a 30-degree incline and sit with dumbbells on your knees.",
@@ -221,6 +227,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 45f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Butterfly/0.jpg",
                 coachTip = "Keep elbows at nipple height and pause for 1 second at full contraction.",
                 instructions = listOf(
                     "Adjust seat height so handles align with mid-chest level.",
@@ -241,6 +248,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 15f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Cable_Crossover/0.jpg",
                 coachTip = "Maintain a steady soft bend in your elbows; do not turn the fly into a press.",
                 instructions = listOf(
                     "Set dual pulleys at chest or shoulder height with single D-handles.",
@@ -261,6 +269,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 35f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Leverage_Incline_Chest_Press/0.jpg",
                 coachTip = "Drive through your palms and keep your lower back pressed firmly into the backrest.",
                 instructions = listOf(
                     "Adjust seat so horizontal handles align with upper clavicle.",
@@ -281,6 +290,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 0f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Dips_-_Chest_Version/0.jpg",
                 coachTip = "Lean torso forward 30 degrees and flare elbows slightly to bias the lower chest over triceps.",
                 instructions = listOf(
                     "Grip parallel dip bars and suspend body with arms locked out.",
@@ -300,6 +310,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 20f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Leverage_Decline_Chest_Press/0.jpg",
                 coachTip = "Press downward and forward at a 45-degree angle to isolate lower pecs.",
                 instructions = listOf(
                     "Set pulleys at the top position with stirrup handles.",
@@ -321,6 +332,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 50f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Wide-Grip_Lat_Pulldown/0.jpg",
                 coachTip = "Pull through your elbows rather than gripping too tightly with your hands.",
                 instructions = listOf(
                     "Adjust thigh pads snugly to prevent your hips from lifting.",
@@ -341,6 +353,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 45f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Seated_Cable_Rows/0.jpg",
                 coachTip = "Keep spine neutral. Avoid rocking backward excessively to gain momentum.",
                 instructions = listOf(
                     "Sit with feet firmly braced on footplates with knees slightly bent.",
@@ -361,6 +374,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 8,
                 defaultWeightKg = 50f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Bent_Over_Barbell_Row/0.jpg",
                 coachTip = "Maintain a rigid 45-degree hip hinge to keep stress off the lumbar spine.",
                 instructions = listOf(
                     "Stand hip-width apart and hinge hips back with a flat back.",
@@ -381,6 +395,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 6,
                 defaultWeightKg = 90f,
                 defaultRestSeconds = 90,
+                mediaUrl = "${BASE_IMAGE_URL}Barbell_Deadlift/0.jpg",
                 coachTip = "Pull the slack out of the barbell before breaking the floor.",
                 instructions = listOf(
                     "Stand with feet hip-width apart, bar touching mid-foot.",
@@ -401,6 +416,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 35f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}T-Bar_Row_with_Handle/0.jpg",
                 coachTip = "Chest pad removes lower back strain, allowing strict isolation of mid-back.",
                 instructions = listOf(
                     "Lie face down on the padded incline with feet secure on footplates.",
@@ -421,6 +437,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 8,
                 defaultWeightKg = 25f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Band_Assisted_Pull-Up/0.jpg",
                 coachTip = "Counterweight assists your bodyweight. Lower counterweight as you get stronger.",
                 instructions = listOf(
                     "Set desired counterweight pin on the machine stack.",
@@ -441,6 +458,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 24f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}One-Arm_Dumbbell_Row/0.jpg",
                 coachTip = "Pull dumbbell toward your hip pocket, not your armpit, to bias the lower lat.",
                 instructions = listOf(
                     "Place one knee and same-side hand firmly on a flat bench.",
@@ -463,6 +481,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 8,
                 defaultWeightKg = 40f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Standing_Military_Press/0.jpg",
                 coachTip = "Squeeze glutes tight to avoid excessive arching in your lower back.",
                 instructions = listOf(
                     "Rest barbell on clavicles with hands just outside shoulders.",
@@ -483,6 +502,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 18f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Dumbbell_Shoulder_Press/0.jpg",
                 coachTip = "Lower dumbbells until upper arms are slightly below parallel to maximize range.",
                 instructions = listOf(
                     "Sit upright with back supported firmly against bench pad.",
@@ -502,6 +522,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 8f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Cable_Seated_Lateral_Raise/0.jpg",
                 coachTip = "Cable maintains constant resistance throughout the movement, unlike dumbbells.",
                 instructions = listOf(
                     "Set cable pulley to lowest position or knee height.",
@@ -522,6 +543,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 10f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Side_Lateral_Raise/0.jpg",
                 coachTip = "Lead with your elbows and imagine pouring water from a pitcher at top.",
                 instructions = listOf(
                     "Stand tall with dumbbells resting at your outer thighs.",
@@ -541,6 +563,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 35f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Cable_Rear_Delt_Fly/0.jpg",
                 coachTip = "Push through the back of your hands and avoid shrugging your traps up.",
                 instructions = listOf(
                     "Sit facing inward toward the machine backrest pad.",
@@ -561,6 +584,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 18f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Face_Pull/0.jpg",
                 coachTip = "Pull rope apart toward eyes and externally rotate hands back like a double bicep pose.",
                 instructions = listOf(
                     "Attach rope to cable pulley set at eye height.",
@@ -583,6 +607,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 25f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Barbell_Curl/0.jpg",
                 coachTip = "Keep elbows pinned against ribs. Do not swing torso to heave the weight.",
                 instructions = listOf(
                     "Stand upright holding bar with shoulder-width underhand grip.",
@@ -603,6 +628,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 12f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Incline_Inner_Biceps_Curl/0.jpg",
                 coachTip = "Incline puts the long head of the bicep in a pre-stretched position.",
                 instructions = listOf(
                     "Sit back on a 45-degree incline bench with arms hanging straight down.",
@@ -622,6 +648,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 30f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Machine_Preacher_Curls/0.jpg",
                 coachTip = "Chest and armpits must rest firmly against the angled pad to eliminate cheating.",
                 instructions = listOf(
                     "Adjust seat so armpits sit comfortably on top of the preacher pad.",
@@ -642,6 +669,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 20f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Cable_Hammer_Curls_-_Rope_Attachment/0.jpg",
                 coachTip = "Neutral grip targets forearm thickness and the brachialis muscle underneath.",
                 instructions = listOf(
                     "Attach rope to lowest cable pulley.",
@@ -662,6 +690,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 12f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Concentration_Curls/0.jpg",
                 coachTip = "Lock the back of your tricep against inner thigh to strictly isolate the curl.",
                 instructions = listOf(
                     "Sit on bench with legs spread wide.",
@@ -684,6 +713,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 22f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Triceps_Pushdown_-_Rope_Attachment/0.jpg",
                 coachTip = "Spread rope handles outward at bottom of pushdown for maximal lateral head squeeze.",
                 instructions = listOf(
                     "Attach rope to high pulley and grip ends firmly.",
@@ -704,6 +734,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 25f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}EZ-Bar_Skullcrusher/0.jpg",
                 coachTip = "Lower bar toward crown of head rather than forehead for greater triceps stretch.",
                 instructions = listOf(
                     "Lie back on bench holding EZ bar with narrow overhand grip.",
@@ -724,6 +755,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 18f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Cable_Rope_Overhead_Triceps_Extension/0.jpg",
                 coachTip = "Overhead arm position places triceps long head on maximum stretch for optimal growth.",
                 instructions = listOf(
                     "Set pulley at chest height with rope attachment.",
@@ -744,6 +776,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 50f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Dip_Machine/0.jpg",
                 coachTip = "Keep back against the pad and lock elbows out completely at the bottom.",
                 instructions = listOf(
                     "Sit on machine and adjust lap belt or thigh rollers securely.",
@@ -764,6 +797,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 8,
                 defaultWeightKg = 50f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Close-Grip_Barbell_Bench_Press/0.jpg",
                 coachTip = "Grip shoulder-width apart. Going narrower puts unnecessary stress on wrists.",
                 instructions = listOf(
                     "Lie on bench and grip bar directly shoulder-width apart.",
@@ -785,6 +819,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 8,
                 defaultWeightKg = 80f,
                 defaultRestSeconds = 90,
+                mediaUrl = "${BASE_IMAGE_URL}Barbell_Full_Squat/0.jpg",
                 coachTip = "Maintain 360-degree abdominal brace and drive through your mid-foot.",
                 instructions = listOf(
                     "Rest bar across upper traps and unrack with a solid stance.",
@@ -805,6 +840,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 120f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Leg_Press/0.jpg",
                 coachTip = "Do not lock out knees violently at top; keep soft bend to protect joints.",
                 instructions = listOf(
                     "Sit with lower back and hips firmly pressed against backrest.",
@@ -825,6 +861,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 45f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Leg_Extensions/0.jpg",
                 coachTip = "Pause for a full second at top of extension to maximize quad peak contraction.",
                 instructions = listOf(
                     "Adjust backrest so knees align with machine pivot axis.",
@@ -845,6 +882,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 40f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Lying_Leg_Curls/0.jpg",
                 coachTip = "Keep hips glued to the bench pad; do not lift lower back to cheat the curl.",
                 instructions = listOf(
                     "Lie face down on contoured bench with knee caps just off pad edge.",
@@ -865,6 +903,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 60f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Romanian_Deadlift/0.jpg",
                 coachTip = "Hinge backward at hips as if trying to touch the wall behind you with your glutes.",
                 instructions = listOf(
                     "Stand tall holding bar in front of thighs with shoulder-width grip.",
@@ -885,6 +924,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 10,
                 defaultWeightKg = 70f,
                 defaultRestSeconds = 60,
+                mediaUrl = "${BASE_IMAGE_URL}Hack_Squat/0.jpg",
                 coachTip = "Guided track supports spine, letting you safely achieve deep knee flexion.",
                 instructions = listOf(
                     "Position shoulders snugly under shoulder pads with back flat on pad.",
@@ -904,6 +944,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 65f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Smith_Machine_Calf_Raise/0.jpg",
                 coachTip = "Descend into a deep bottom stretch for 2 seconds to eliminate Achilles bounce.",
                 instructions = listOf(
                     "Place balls of feet on edge of platform with heels hanging off.",
@@ -926,6 +967,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 25f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Kneeling_Cable_Crunch_With_Alternating_Oblique_Twists/0.jpg",
                 coachTip = "Flex spine and crunch ribs toward hips; do not just sit back on your heels.",
                 instructions = listOf(
                     "Kneel a few feet in front of high pulley with rope held at temple height.",
@@ -946,6 +988,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 0f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Hanging_Leg_Raise/0.jpg",
                 coachTip = "Tilt pelvis upward at top of movement rather than just swinging legs.",
                 instructions = listOf(
                     "Hang from pull-up bar with overhand grip and engaged shoulders.",
@@ -965,6 +1008,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 12,
                 defaultWeightKg = 15f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Standing_Cable_Wood_Chop/0.jpg",
                 coachTip = "Rotate through your core and pivot back foot rather than just using arm strength.",
                 instructions = listOf(
                     "Set pulley at high or shoulder level with single handle.",
@@ -985,6 +1029,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 35f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Ab_Crunch_Machine/0.jpg",
                 coachTip = "Exhale completely as you curl forward to achieve maximal abdominal contraction.",
                 instructions = listOf(
                     "Sit with chest against upper pad and feet hooked under lower rollers.",
@@ -1005,6 +1050,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 15,
                 defaultWeightKg = 0f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Decline_Crunch/0.jpg",
                 coachTip = "Cross hands over chest or lightly touch temples; do not pull on your neck.",
                 instructions = listOf(
                     "Lock legs securely under ankle rollers of decline bench.",
@@ -1024,6 +1070,7 @@ class ExerciseRepositoryImpl @Inject constructor(
                 defaultReps = 45, // 45 seconds
                 defaultWeightKg = 0f,
                 defaultRestSeconds = 45,
+                mediaUrl = "${BASE_IMAGE_URL}Plank/0.jpg",
                 coachTip = "Pull belly button toward spine and squeeze glutes to keep pelvis neutral.",
                 instructions = listOf(
                     "Place forearms on floor with elbows directly under shoulders.",
