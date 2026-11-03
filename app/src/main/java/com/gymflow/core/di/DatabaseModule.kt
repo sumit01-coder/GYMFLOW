@@ -2,6 +2,7 @@ package com.gymflow.core.di
 
 import android.content.Context
 import androidx.room.Room
+import com.gymflow.core.database.ExerciseDao
 import com.gymflow.core.database.GymFlowDatabase
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.SyncQueueDao
@@ -29,7 +30,7 @@ object DatabaseModule {
             GymFlowDatabase::class.java,
             GymFlowDatabase.DATABASE_NAME
         )
-            .addMigrations(GymFlowDatabase.MIGRATION_1_2)
+            .addMigrations(GymFlowDatabase.MIGRATION_1_2, GymFlowDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
     }
@@ -49,4 +50,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSyncQueueDao(database: GymFlowDatabase): SyncQueueDao = database.syncQueueDao()
+
+    @Provides
+    fun provideExerciseDao(database: GymFlowDatabase): ExerciseDao = database.exerciseDao()
 }

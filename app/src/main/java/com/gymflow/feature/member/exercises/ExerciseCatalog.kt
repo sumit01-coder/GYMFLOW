@@ -185,21 +185,21 @@ object ExerciseCatalog {
         // Canonical mapping based on substrings / aliases
         val normalized = id.lowercase().replace("-", "_").replace(" ", "_")
         return when {
-            normalized.contains("lat") || normalized.contains("back") || normalized.contains("bicep") ->
+            normalized.contains("lat") || normalized.contains("back") || normalized.contains("row") ->
                 catalog["ex_lat_pulldown"]!!
-            normalized.contains("squat") || normalized.contains("leg") ->
+            normalized.contains("squat") || normalized.contains("leg") || normalized.contains("leg_") ->
                 catalog["ex_barbell_squat"]!!
-            normalized.contains("shoulder") || normalized.contains("overhead") || normalized.contains("press_shoulder") ->
+            normalized.contains("shoulder") || normalized.contains("overhead") || normalized.contains("press_shoulder") || normalized.contains("sh_") ->
                 catalog["ex_overhead_press"]!!
-            normalized.contains("fly") || normalized.contains("cable") || normalized.contains("abs") ->
+            normalized.contains("fly") || normalized.contains("cable") || normalized.contains("pec") ->
                 catalog["ex_cable_fly"]!!
-            normalized.contains("deadlift") ->
+            normalized.contains("deadlift") || normalized.contains("rdl") ->
                 catalog["ex_deadlift"]!!
-            normalized.contains("curl") ->
+            normalized.contains("curl") || normalized.contains("bi_") ->
                 catalog["ex_barbell_curl"]!!
-            normalized.contains("tricep") || normalized.contains("pushdown") ->
+            normalized.contains("tricep") || normalized.contains("pushdown") || normalized.contains("tri_") || normalized.contains("dip") ->
                 catalog["ex_triceps_pushdown"]!!
-            normalized.contains("raise") || normalized.contains("hanging") ->
+            normalized.contains("raise") || normalized.contains("hanging") || normalized.contains("abs") || normalized.contains("crunch") ->
                 catalog["ex_hanging_leg_raise"]!!
             else ->
                 catalog["ex_chest_press"]!!

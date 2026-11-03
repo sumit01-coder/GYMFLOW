@@ -8,6 +8,7 @@ import com.gymflow.core.database.SyncQueueEntity
 import com.gymflow.core.database.SyncStatus
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.database.WorkoutSessionEntity
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.network.GymFlowApiClient
 import com.gymflow.data.sync.SyncManager
 import com.gymflow.data.sync.SyncWorker
@@ -30,7 +31,8 @@ class WorkoutRepositoryImpl @Inject constructor(
     private val workoutSessionDao: WorkoutSessionDao,
     private val syncQueueDao: SyncQueueDao,
     private val apiClient: GymFlowApiClient,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val firestoreSyncManager: FirestoreSyncManager
 ) : WorkoutRepository {
 
     private val json = Json {
@@ -51,6 +53,13 @@ class WorkoutRepositoryImpl @Inject constructor(
         try {
             // Local persistence first (offline-first)
             planDao.replaceCompletePlan(plan)
+
+            // Direct Firestore synchronization
+            try {
+                firestoreSyncManager.saveWorkoutPlan(plan)
+            } catch (_: Exception) {
+                // Offline fallback - queue below handles eventual consistency
+            }
 
             // Queue for remote synchronization
             syncQueueDao.enqueue(

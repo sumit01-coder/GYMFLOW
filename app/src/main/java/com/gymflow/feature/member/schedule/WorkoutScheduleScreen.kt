@@ -1,5 +1,10 @@
 package com.gymflow.feature.member.schedule
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,16 +29,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Hotel
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +53,9 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +71,11 @@ import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
+import com.gymflow.domain.model.Exercise
+import com.gymflow.domain.model.WorkoutExercise
+import com.gymflow.feature.member.exercises.ExerciseEquipmentBadge
+import com.gymflow.feature.member.exercises.ExerciseSelectorBottomSheet
+import com.gymflow.feature.member.exercises.MuscleCategoryChip
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -83,6 +103,14 @@ fun WorkoutScheduleScreen(
         onDismissCalendar = { viewModel.setDatePickerOpen(false) },
         onDatePicked = { date -> viewModel.selectDate(date) },
         onJumpToToday = { viewModel.jumpToToday() },
+        onOpenExerciseSelector = { entry -> viewModel.openExerciseSelector(entry) },
+        onCloseExerciseSelector = { viewModel.closeExerciseSelector() },
+        onAddExercise = { ex, sets, reps, weight -> viewModel.addExerciseToCurrentDay(ex, sets, reps, weight) },
+        onRemoveExercise = { dayName, idx -> viewModel.removeExerciseFromDay(dayName, idx) },
+        onOpenDayEditor = { entry -> viewModel.openDayEditor(entry) },
+        onCloseDayEditor = { viewModel.closeDayEditor() },
+        onUpdateDayTitle = { dayName, title -> viewModel.updateDayTitle(dayName, title) },
+        onToggleRestDay = { dayName -> viewModel.toggleRestDay(dayName) },
         onNavigateBack = onNavigateBack,
         onNavigateToHome = onNavigateToHome,
         onNavigateToProgress = onNavigateToProgress,
@@ -102,6 +130,14 @@ fun WorkoutScheduleContent(
     onDismissCalendar: () -> Unit,
     onDatePicked: (LocalDate) -> Unit,
     onJumpToToday: () -> Unit,
+    onOpenExerciseSelector: (ScheduleWorkoutEntry) -> Unit,
+    onCloseExerciseSelector: () -> Unit,
+    onAddExercise: (Exercise, Int, Int, Float) -> Unit,
+    onRemoveExercise: (String, Int) -> Unit,
+    onOpenDayEditor: (ScheduleWorkoutEntry) -> Unit,
+    onCloseDayEditor: () -> Unit,
+    onUpdateDayTitle: (String, String) -> Unit,
+    onToggleRestDay: (String) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     onNavigateToProgress: () -> Unit,
@@ -302,34 +338,72 @@ fun WorkoutScheduleContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Column {
+                    Text(
+                        text = "Weekly Routine",
+                        style = GymFlowTheme.typography.Heading2,
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                    Text(
+                        text = "Manage & schedule your muscle groups",
+                        style = GymFlowTheme.typography.Caption,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                }
                 Text(
-                    text = "Weekly Routine",
-                    style = GymFlowTheme.typography.Heading2,
-                    color = GymFlowTheme.colors.textPrimary
-                )
-                Text(
-                    text = "$selectedDayFull",
+                    text = selectedDayFull,
                     style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.SemiBold),
                     color = GymFlowTheme.colors.textSecondary
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
+            // Routine Entries
             uiState.scheduleEntries.forEach { entry ->
                 val isCurrentSelectedDay = entry.dayName.equals(selectedDayShort, ignoreCase = true)
-                ScheduleEntryCard(
+                ScheduleDayCard(
                     entry = entry,
-                    isHighlighted = isCurrentSelectedDay,
-                    onClick = {
-                        if (!entry.isRestDay) {
-                            onSelectWorkout(entry.exerciseId)
+                    isSelected = isCurrentSelectedDay,
+                    onCardClick = {
+                        val dayItem = uiState.weekDays.find { it.dayOfWeek.equals(entry.dayName, ignoreCase = true) }
+                        if (dayItem != null) {
+                            onSelectDay(dayItem)
                         }
-                    }
+                    },
+                    onAddExerciseClick = { onOpenExerciseSelector(entry) },
+                    onEditDayClick = { onOpenDayEditor(entry) },
+                    onDeleteExercise = { idx -> onRemoveExercise(entry.dayName, idx) },
+                    onSelectExercise = { exId -> onSelectWorkout(exId) }
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
+    }
+
+    // Modal: Exercise Selector Sheet
+    if (uiState.isExerciseSelectorOpen) {
+        ExerciseSelectorBottomSheet(
+            exercises = uiState.catalogExercises,
+            onDismissRequest = onCloseExerciseSelector,
+            onExerciseSelected = onAddExercise
+        )
+    }
+
+    // Dialog: Day Editor (Title & Rest Day toggle)
+    val dayToEdit = uiState.dayBeingEdited
+    if (uiState.isDayEditorOpen && dayToEdit != null) {
+        DayEditorDialog(
+            entry = dayToEdit,
+            onDismiss = onCloseDayEditor,
+            onSave = { newTitle ->
+                onUpdateDayTitle(dayToEdit.dayName, newTitle)
+            },
+            onToggleRest = {
+                onToggleRestDay(dayToEdit.dayName)
+                onCloseDayEditor()
+            }
+        )
     }
 
     // Material 3 Calendar Date Picker Dialog
@@ -441,126 +515,372 @@ fun WorkoutScheduleContent(
 }
 
 @Composable
-private fun ScheduleEntryCard(
+private fun ScheduleDayCard(
     entry: ScheduleWorkoutEntry,
-    isHighlighted: Boolean = false,
-    onClick: () -> Unit
+    isSelected: Boolean,
+    onCardClick: () -> Unit,
+    onAddExerciseClick: () -> Unit,
+    onEditDayClick: () -> Unit,
+    onDeleteExercise: (Int) -> Unit,
+    onSelectExercise: (String) -> Unit
 ) {
     GymFlowCard(
         modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
+        onClick = null,
         contentPadding = 14.dp,
-        borderColor = if (isHighlighted) GymFlowBlack else GymFlowBorder,
-        borderWidth = if (isHighlighted) 1.5.dp else 1.dp
+        borderColor = if (isSelected) GymFlowBlack else GymFlowBorder,
+        borderWidth = if (isSelected) 1.5.dp else 1.dp
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onCardClick),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Status Circle: Green check circle (completed) or empty circle (upcoming)
-                if (entry.isCompleted) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(GymFlowGreen),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Completed",
-                            tint = GymFlowWhite,
-                            modifier = Modifier.size(16.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Status Circle
+                    if (entry.isCompleted) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowGreen),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Completed",
+                                tint = GymFlowWhite,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    } else if (entry.isRestDay) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowTheme.colors.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Hotel,
+                                contentDescription = "Rest",
+                                tint = GymFlowTheme.colors.textSecondary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .border(2.dp, GymFlowBorder, CircleShape)
                         )
                     }
-                } else if (entry.isRestDay) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(GymFlowTheme.colors.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Hotel,
-                            contentDescription = "Rest",
-                            tint = GymFlowTheme.colors.textSecondary,
-                            modifier = Modifier.size(14.dp)
-                        )
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = entry.dayName,
+                                style = GymFlowTheme.typography.Caption.copy(
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = if (isSelected) GymFlowBlack else GymFlowTheme.colors.textSecondary
+                            )
+                            Text(
+                                text = " · ${entry.title}",
+                                style = GymFlowTheme.typography.BodyMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+                                ),
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(GymFlowBlack)
+                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                ) {
+                                    Text(
+                                        text = "SELECTED",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GymFlowWhite
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        if (!entry.isRestDay) {
+                            Text(
+                                text = "${entry.exerciseCount} exercises · ${entry.estimatedMinutes} min",
+                                style = GymFlowTheme.typography.Caption,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                        } else {
+                            Text(
+                                text = "Rest & Active Recovery",
+                                style = GymFlowTheme.typography.Caption,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                        }
                     }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .border(2.dp, GymFlowBorder, CircleShape)
-                    )
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
+                // Edit Button
+                IconButton(
+                    onClick = onEditDayClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit Day",
+                        tint = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
 
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+            // Expanded exercise list for selected day
+            AnimatedVisibility(
+                visible = isSelected,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    HorizontalDivider(color = GymFlowBorder)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    if (entry.isRestDay) {
                         Text(
-                            text = entry.dayName,
-                            style = GymFlowTheme.typography.Caption.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = if (isHighlighted) GymFlowBlack else GymFlowTheme.colors.textSecondary
+                            text = "This day is designated as a rest day. Enjoy recovery, hydration and muscle protein synthesis.",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary,
+                            modifier = Modifier.padding(vertical = 6.dp)
                         )
+                    } else if (entry.exercises.isEmpty()) {
                         Text(
-                            text = " · ${entry.title}",
-                            style = GymFlowTheme.typography.BodyMedium.copy(
-                                fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.SemiBold
-                            ),
-                            color = GymFlowTheme.colors.textPrimary
+                            text = "No exercises scheduled yet. Tap '+ Add Exercise' to configure from the machine catalog.",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary,
+                            modifier = Modifier.padding(vertical = 6.dp)
                         )
-                        if (isHighlighted) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(GymFlowBlack)
-                                    .padding(horizontal = 5.dp, vertical = 1.dp)
-                            ) {
+                    } else {
+                        entry.exercises.forEachIndexed { idx, ex ->
+                            ScheduledExerciseItemRow(
+                                exercise = ex,
+                                onDelete = { onDeleteExercise(idx) },
+                                onClick = { onSelectExercise(ex.exerciseId) }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Action buttons row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // "+ Add Exercise" Button
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowBlack)
+                                .clickable(onClick = onAddExerciseClick)
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "SELECTED",
-                                    fontSize = 9.sp,
+                                    text = "Add Exercise",
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = GymFlowWhite
                                 )
                             }
                         }
-                    }
-                    if (!entry.isRestDay) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "${entry.exerciseCount} exercises · ${entry.estimatedMinutes} min",
-                            style = GymFlowTheme.typography.Caption,
-                            color = GymFlowTheme.colors.textSecondary
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Recovery & Hydration focus",
-                            style = GymFlowTheme.typography.Caption,
-                            color = GymFlowTheme.colors.textSecondary
-                        )
+
+                        // Rest Toggle
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, GymFlowBorder, RoundedCornerShape(8.dp))
+                                .clickable(onClick = onEditDayClick)
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (entry.isRestDay) "Set Active" else "Set Rest",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                        }
                     }
                 }
             }
-
-            if (!entry.isRestDay) {
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = GymFlowTheme.colors.textTertiary
-                )
-            }
         }
     }
+}
+
+@Composable
+private fun ScheduledExerciseItemRow(
+    exercise: WorkoutExercise,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(GymFlowTheme.colors.surfaceVariant)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = exercise.exerciseName,
+                    style = GymFlowTheme.typography.BodyMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    ),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+                MuscleCategoryChip(category = exercise.category)
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${exercise.targetSets} sets · ${exercise.targetReps} reps · ${exercise.targetWeightKg} kg" +
+                        if (exercise.notes.isNotBlank()) " · ${exercise.notes}" else "",
+                style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
+                color = GymFlowTheme.colors.textSecondary
+            )
+        }
+
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = "Remove exercise",
+                modifier = Modifier.size(16.dp),
+                tint = GymFlowTheme.colors.textTertiary
+            )
+        }
+    }
+}
+
+@Composable
+private fun DayEditorDialog(
+    entry: ScheduleWorkoutEntry,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+    onToggleRest: () -> Unit
+) {
+    var titleText by remember { mutableStateOf(entry.title) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Edit ${entry.dayOfWeekFull}",
+                style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
+                color = GymFlowTheme.colors.textPrimary
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Workout Focus / Title",
+                    style = GymFlowTheme.typography.Caption,
+                    color = GymFlowTheme.colors.textSecondary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                OutlinedTextField(
+                    value = titleText,
+                    onValueChange = { titleText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = GymFlowBlack,
+                        unfocusedBorderColor = GymFlowBorder
+                    ),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(GymFlowTheme.colors.surfaceVariant)
+                        .clickable(onClick = onToggleRest)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (entry.isRestDay) "Convert to Training Day" else "Mark as Rest Day",
+                        style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (titleText.isNotBlank()) {
+                        onSave(titleText)
+                    }
+                }
+            ) {
+                Text(
+                    text = "Save",
+                    fontWeight = FontWeight.Bold,
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    color = GymFlowTheme.colors.textSecondary
+                )
+            }
+        },
+        containerColor = GymFlowTheme.colors.surface,
+        shape = RoundedCornerShape(20.dp)
+    )
 }

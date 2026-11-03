@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
@@ -384,16 +385,35 @@ private fun TodayExerciseItem(
                 Spacer(modifier = Modifier.width(14.dp))
 
                 Column {
-                    Text(
-                        text = exercise.exerciseName,
-                        style = GymFlowTheme.typography.BodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = GymFlowTheme.colors.textPrimary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = exercise.exerciseName,
+                            style = GymFlowTheme.typography.BodyMedium.copy(
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                        if (exercise.category.isNotBlank()) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(GymFlowBlack)
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = exercise.category.uppercase(),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowWhite
+                                )
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "${exercise.targetSets} sets · ${exercise.targetReps} reps · ${exercise.targetWeightKg.toInt()} kg",
+                        text = "${exercise.targetSets} sets · ${exercise.targetReps} reps · ${exercise.targetWeightKg} kg" +
+                                if (exercise.notes.isNotBlank()) " · ${exercise.notes}" else "",
                         style = GymFlowTheme.typography.Caption,
                         color = GymFlowTheme.colors.textSecondary
                     )

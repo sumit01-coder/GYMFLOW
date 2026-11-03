@@ -47,7 +47,12 @@ data class Exercise(
     val equipment: String, // Barbell, Dumbbell, Machine, Bodyweight
     val instructions: List<String> = emptyList(),
     val defaultRestSeconds: Int = 45,
-    val mediaUrl: String? = null
+    val mediaUrl: String? = null,
+    val machineName: String? = null,
+    val defaultSets: Int = 3,
+    val defaultReps: Int = 12,
+    val defaultWeightKg: Float = 20f,
+    val coachTip: String = ""
 )
 
 @Serializable

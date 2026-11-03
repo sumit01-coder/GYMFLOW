@@ -2,6 +2,7 @@ package com.gymflow.feature.member.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
 import com.gymflow.core.security.TokenManager
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
 
@@ -38,7 +41,8 @@ data class MemberHomeUiState(
 class MemberHomeViewModel @Inject constructor(
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
-    private val weightRepository: WeightRepository
+    private val weightRepository: WeightRepository,
+    private val planDao: PlanDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberHomeUiState())
@@ -48,6 +52,7 @@ class MemberHomeViewModel @Inject constructor(
         loadHomeData()
         observeCurrentUser()
         observeLatestWeight()
+        observeTodayWorkout()
     }
 
     private fun extractInitials(name: String): String {
@@ -56,6 +61,49 @@ class MemberHomeViewModel @Inject constructor(
             parts.isEmpty() -> "GF"
             parts.size == 1 -> parts[0].take(2).uppercase()
             else -> "${parts[0].first().uppercase()}${parts[1].first().uppercase()}"
+        }
+    }
+
+    private fun observeTodayWorkout() {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            planDao.getActivePlanWithDays(userId).collect { planWithDays ->
+                if (planWithDays != null) {
+                    val domainPlan = planWithDays.toDomain()
+                    val today = LocalDate.now()
+                    val currentDayFull = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.US)
+                    val currentDayShort = today.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.US)
+
+                    val todayDay = domainPlan.days.find { day ->
+                        day.dayOfWeek.startsWith(currentDayShort, ignoreCase = true) ||
+                                day.dayOfWeek.equals(currentDayFull, ignoreCase = true)
+                    }
+
+                    if (todayDay != null) {
+                        if (todayDay.isRestDay) {
+                            _uiState.update { current ->
+                                current.copy(
+                                    todayWorkoutTitle = "Rest Day · Active Recovery",
+                                    todayExercises = emptyList(),
+                                    exercisesProgress = "Rest",
+                                    workoutDurationMinutes = "0"
+                                )
+                            }
+                        } else {
+                            val count = todayDay.exercises.size
+                            val estMinutes = (count * 10).coerceAtLeast(30)
+                            _uiState.update { current ->
+                                current.copy(
+                                    todayWorkoutTitle = "${todayDay.title} ($count exercises · $estMinutes min)",
+                                    todayExercises = todayDay.exercises,
+                                    exercisesProgress = "0/$count",
+                                    workoutDurationMinutes = "$estMinutes"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
