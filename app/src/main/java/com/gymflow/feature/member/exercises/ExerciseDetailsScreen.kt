@@ -168,7 +168,7 @@ fun ExerciseDetailsContent(
                     }
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Barbell Bench Press Technique",
+                        text = uiState.videoTitle,
                         style = GymFlowTheme.typography.Caption,
                         color = GymFlowWhite.copy(alpha = 0.8f)
                     )

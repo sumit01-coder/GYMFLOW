@@ -43,13 +43,32 @@ class ActiveWorkoutViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ActiveWorkoutUiState())
+    private val exerciseId: String = savedStateHandle.get<String>("exerciseId") ?: "ex_chest_press"
+
+    private val _uiState = MutableStateFlow(buildInitialUiState(exerciseId))
     val uiState: StateFlow<ActiveWorkoutUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
 
     init {
         startTimer()
+    }
+
+    private fun buildInitialUiState(id: String): ActiveWorkoutUiState {
+        val details = com.gymflow.feature.member.exercises.ExerciseCatalog.getExercise(id)
+        return ActiveWorkoutUiState(
+            workoutTag = details.primaryMuscle.split(" ").firstOrNull()?.replace("(", "") ?: "Workout",
+            exerciseName = details.exerciseName,
+            currentSet = 1,
+            totalSets = 3,
+            targetReps = 12,
+            targetWeightKg = 20f,
+            actualReps = 12,
+            actualWeightKg = 20f,
+            elapsedSeconds = 0,
+            isPaused = false,
+            restDurationSeconds = 45
+        )
     }
 
     private fun startTimer() {

@@ -57,8 +57,8 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToProgress = { navController.navigate(NavRoutes.MEMBER_PROGRESS) },
             onNavigateToActivity = { navController.navigate(NavRoutes.MEMBER_ACTIVITY) },
             onNavigateToProfile = { navController.navigate(NavRoutes.MEMBER_PROFILE) },
-            onSelectWorkout = { workoutTitle ->
-                navController.navigate(NavRoutes.exerciseDetails("ex_chest_press"))
+            onSelectWorkout = { exerciseId ->
+                navController.navigate(NavRoutes.exerciseDetails(exerciseId))
             }
         )
     }

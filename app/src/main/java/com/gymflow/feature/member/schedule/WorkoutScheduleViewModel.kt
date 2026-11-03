@@ -26,6 +26,7 @@ data class ScheduleDayItem(
 data class ScheduleWorkoutEntry(
     val dayName: String,
     val title: String,
+    val exerciseId: String,
     val isCompleted: Boolean,
     val isRestDay: Boolean = false,
     val exerciseCount: Int = 4,
@@ -85,13 +86,13 @@ class WorkoutScheduleViewModel @Inject constructor() : ViewModel() {
         val monthLabel = targetDate.format(monthFormatter)
 
         val routine = listOf(
-            ScheduleWorkoutEntry("Mon", "Chest + Triceps", isCompleted = startOfWeek.isBefore(today), exerciseCount = 5, estimatedMinutes = 50),
-            ScheduleWorkoutEntry("Tue", "Back + Biceps", isCompleted = startOfWeek.plusDays(1).isBefore(today), exerciseCount = 5, estimatedMinutes = 45),
-            ScheduleWorkoutEntry("Wed", "Legs", isCompleted = startOfWeek.plusDays(2).isBefore(today), exerciseCount = 6, estimatedMinutes = 60),
-            ScheduleWorkoutEntry("Thu", "Shoulders", isCompleted = startOfWeek.plusDays(3).isBefore(today), exerciseCount = 4, estimatedMinutes = 40),
-            ScheduleWorkoutEntry("Fri", "Chest + Abs", isCompleted = startOfWeek.plusDays(4).isBefore(today), exerciseCount = 5, estimatedMinutes = 45),
-            ScheduleWorkoutEntry("Sat", "Back + Legs", isCompleted = startOfWeek.plusDays(5).isBefore(today), exerciseCount = 5, estimatedMinutes = 55),
-            ScheduleWorkoutEntry("Sun", "Rest Day", isCompleted = startOfWeek.plusDays(6).isBefore(today), isRestDay = true, exerciseCount = 0, estimatedMinutes = 0)
+            ScheduleWorkoutEntry("Mon", "Chest + Triceps", "ex_chest_press", isCompleted = startOfWeek.isBefore(today), exerciseCount = 5, estimatedMinutes = 50),
+            ScheduleWorkoutEntry("Tue", "Back + Biceps", "ex_lat_pulldown", isCompleted = startOfWeek.plusDays(1).isBefore(today), exerciseCount = 5, estimatedMinutes = 45),
+            ScheduleWorkoutEntry("Wed", "Legs", "ex_barbell_squat", isCompleted = startOfWeek.plusDays(2).isBefore(today), exerciseCount = 6, estimatedMinutes = 60),
+            ScheduleWorkoutEntry("Thu", "Shoulders", "ex_overhead_press", isCompleted = startOfWeek.plusDays(3).isBefore(today), exerciseCount = 4, estimatedMinutes = 40),
+            ScheduleWorkoutEntry("Fri", "Chest + Abs", "ex_cable_fly", isCompleted = startOfWeek.plusDays(4).isBefore(today), exerciseCount = 5, estimatedMinutes = 45),
+            ScheduleWorkoutEntry("Sat", "Back + Legs", "ex_deadlift", isCompleted = startOfWeek.plusDays(5).isBefore(today), exerciseCount = 5, estimatedMinutes = 55),
+            ScheduleWorkoutEntry("Sun", "Rest Day", "rest", isCompleted = startOfWeek.plusDays(6).isBefore(today), isRestDay = true, exerciseCount = 0, estimatedMinutes = 0)
         )
 
         _uiState.update {

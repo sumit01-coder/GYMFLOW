@@ -18,17 +18,13 @@ data class ExerciseDetailsUiState(
     val exerciseId: String = "ex_chest_press",
     val exerciseName: String = "Chest Press",
     val metadataSubhead: String = "3 sets · 12 reps · 20 kg",
+    val videoTitle: String = "Barbell Bench Press Technique",
     val selectedTab: ExerciseTab = ExerciseTab.INSTRUCTIONS,
-    val instructions: List<String> = listOf(
-        "Keep your back flat on the bench.",
-        "Grip the bar slightly wider than shoulder width.",
-        "Lower the bar to your chest.",
-        "Push back up and repeat."
-    ),
-    val primaryMuscle: String = "Pectoralis Major (Middle & Lower Chest)",
-    val secondaryMuscles: List<String> = listOf("Triceps Brachii", "Anterior Deltoid (Shoulders)"),
-    val equipmentRequired: String = "Olympic Barbell & Flat Bench",
-    val coachTip: String = "Retract your scapula and keep your feet planted firmly on the floor for maximum pressing stability."
+    val instructions: List<String> = emptyList(),
+    val primaryMuscle: String = "",
+    val secondaryMuscles: List<String> = emptyList(),
+    val equipmentRequired: String = "",
+    val coachTip: String = ""
 )
 
 @HiltViewModel
@@ -38,10 +34,24 @@ class ExerciseDetailsViewModel @Inject constructor(
 
     private val exerciseId: String = savedStateHandle.get<String>("exerciseId") ?: "ex_chest_press"
 
-    private val _uiState = MutableStateFlow(
-        ExerciseDetailsUiState(exerciseId = exerciseId)
-    )
+    private val _uiState = MutableStateFlow(buildInitialUiState(exerciseId))
     val uiState: StateFlow<ExerciseDetailsUiState> = _uiState.asStateFlow()
+
+    private fun buildInitialUiState(id: String): ExerciseDetailsUiState {
+        val details = ExerciseCatalog.getExercise(id)
+        return ExerciseDetailsUiState(
+            exerciseId = details.exerciseId,
+            exerciseName = details.exerciseName,
+            metadataSubhead = details.metadataSubhead,
+            videoTitle = details.videoTitle,
+            selectedTab = ExerciseTab.INSTRUCTIONS,
+            instructions = details.instructions,
+            primaryMuscle = details.primaryMuscle,
+            secondaryMuscles = details.secondaryMuscles,
+            equipmentRequired = details.equipmentRequired,
+            coachTip = details.coachTip
+        )
+    }
 
     fun onSelectTab(tab: ExerciseTab) {
         _uiState.update { it.copy(selectedTab = tab) }

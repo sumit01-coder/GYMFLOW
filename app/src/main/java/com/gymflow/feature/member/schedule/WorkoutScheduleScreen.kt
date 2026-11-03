@@ -323,7 +323,7 @@ fun WorkoutScheduleContent(
                     isHighlighted = isCurrentSelectedDay,
                     onClick = {
                         if (!entry.isRestDay) {
-                            onSelectWorkout(entry.title)
+                            onSelectWorkout(entry.exerciseId)
                         }
                     }
                 )
