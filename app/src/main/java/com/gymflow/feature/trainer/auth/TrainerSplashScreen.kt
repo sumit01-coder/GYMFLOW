@@ -1,5 +1,6 @@
 package com.gymflow.feature.trainer.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,10 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gymflow.R
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
 import com.gymflow.feature.trainer.theme.TrainerDarkBg
@@ -106,20 +109,19 @@ fun TrainerSplashScreen(
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier.padding(vertical = 32.dp)
                 ) {
-                    // Emblem circle
+                    // Official Brand Emblem
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
+                            .size(104.dp)
                             .clip(CircleShape)
-                            .background(TrainerDarkCard)
-                            .border(1.dp, TrainerDarkBorder, CircleShape),
+                            .background(Color.White)
+                            .border(1.5.dp, Color(0xFFE4E4E7), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.FitnessCenter,
+                        Image(
+                            painter = painterResource(id = R.drawable.gymflow_emblem_transparent),
                             contentDescription = "Trainer Studio Logo",
-                            tint = Color.White,
-                            modifier = Modifier.size(52.dp)
+                            modifier = Modifier.size(68.dp)
                         )
                     }
 

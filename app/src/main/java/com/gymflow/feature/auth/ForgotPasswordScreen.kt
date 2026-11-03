@@ -1,5 +1,6 @@
 package com.gymflow.feature.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,11 +32,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gymflow.R
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
 import com.gymflow.core.components.GymFlowCard
@@ -79,19 +82,12 @@ fun ForgotPasswordScreen(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .background(GymFlowBlack, shape = CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = "GymFlow",
-                        modifier = Modifier.size(22.dp),
-                        tint = Color.White
-                    )
-                }
+                // Official Brand Emblem
+                Image(
+                    painter = painterResource(id = R.drawable.gymflow_emblem_transparent),
+                    contentDescription = "GYMFLOW",
+                    modifier = Modifier.size(46.dp)
+                )
 
                 Spacer(modifier = Modifier.size(48.dp))
             }
