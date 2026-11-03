@@ -1,0 +1,32 @@
+# OS Files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Node
+node_modules/
+dist/
+build/
+.npm/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+
+# IDE & Editor
+.vscode/
+.idea/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
