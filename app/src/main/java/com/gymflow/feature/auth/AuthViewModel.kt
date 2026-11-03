@@ -50,6 +50,22 @@ class AuthViewModel @Inject constructor(
 
     private var cooldownJob: Job? = null
 
+    init {
+        val savedEmail = tokenManager.getEmail() ?: firebaseAuth.currentUser?.email ?: ""
+        val savedName = tokenManager.getName() ?: firebaseAuth.currentUser?.displayName ?: ""
+        val savedRole = tokenManager.getRoleSync() ?: Role.MEMBER
+        val isVerified = tokenManager.isEmailVerifiedSync() || (firebaseAuth.currentUser?.isEmailVerified == true)
+
+        _uiState.update {
+            it.copy(
+                email = savedEmail,
+                name = savedName,
+                role = savedRole,
+                isEmailVerified = isVerified
+            )
+        }
+    }
+
     fun getTokenSync(): String? = tokenManager.getTokenSync()
     fun getRoleSync(): Role? = tokenManager.getRoleSync()
 
@@ -256,17 +272,18 @@ class AuthViewModel @Inject constructor(
                     firebaseUser?.sendEmailVerification()?.await()
                     _uiState.update { it.copy(isVerificationEmailSent = true) }
                     startCooldownTimer(60)
-                } catch (_: Exception) {
-                    // Non-fatal if email provider rate limits or network issues
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "sendEmailVerification error: ${e.message}", e)
                 }
             } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "Firebase createUser failed: ${e.message}", e)
                 // If account exists, attempt sign in to sync
                 try {
                     val signInResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
                     firebaseUid = signInResult.user?.uid
                     emailVerified = signInResult.user?.isEmailVerified ?: false
-                } catch (_: Exception) {
-                    // Offline fallback
+                } catch (e2: Exception) {
+                    android.util.Log.e("AuthViewModel", "Firebase signIn failed: ${e2.message}", e2)
                 }
             }
 
@@ -385,16 +402,24 @@ class AuthViewModel @Inject constructor(
                 val currentUser = firebaseAuth.currentUser
                 if (currentUser != null) {
                     currentUser.sendEmailVerification().await()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isVerificationEmailSent = true,
+                            verificationMessage = "Verification email resent! Check your inbox."
+                        )
+                    }
+                    startCooldownTimer(60)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            verificationError = "Firebase user session not found. Please enable Email/Password provider in the Firebase Console."
+                        )
+                    }
                 }
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isVerificationEmailSent = true,
-                        verificationMessage = "Verification email resent! Check your inbox."
-                    )
-                }
-                startCooldownTimer(60)
             } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "resendVerificationEmail error: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
