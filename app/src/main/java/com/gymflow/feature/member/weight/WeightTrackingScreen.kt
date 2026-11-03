@@ -23,9 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.WaterDrop
+import kotlin.math.abs
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -589,64 +594,397 @@ fun QuickLogWeightDialog(
     onDismiss: () -> Unit,
     onConfirm: (Float, Float, String) -> Unit
 ) {
-    var preText by remember { mutableStateOf(String.format(Locale.US, "%.2f", currentPre)) }
-    var postText by remember { mutableStateOf(String.format(Locale.US, "%.2f", currentPost)) }
+    // Smart default: If 0.0f, baseline to 70.0 kg for realistic adult bodyweight
+    val initialPre = if (currentPre > 0f) currentPre else 70.0f
+    val initialPost = if (currentPost > 0f) currentPost else Math.max(20f, initialPre - 0.35f)
+
+    var preWeight by remember { mutableStateOf(initialPre) }
+    var postWeight by remember { mutableStateOf(initialPost) }
+    var activeTab by remember { mutableStateOf(0) } // 0 = Pre-workout, 1 = Post-workout
     var notesText by remember { mutableStateOf("") }
+    var isManualInput by remember { mutableStateOf(false) }
+    var manualText by remember { mutableStateOf("") }
+
+    fun formatKg(v: Float): String = String.format(Locale.US, "%.2f", v)
+
+    val currentActiveWeight = if (activeTab == 0) preWeight else postWeight
+
+    fun updateActiveWeight(delta: Float) {
+        val updated = Math.round((currentActiveWeight + delta) * 100f) / 100f
+        val clamped = updated.coerceIn(20.0f, 250.0f)
+        if (activeTab == 0) {
+            preWeight = clamped
+            // If post has not been modified independently, keep realistic -0.35 kg delta
+            if (postWeight == initialPost) {
+                postWeight = Math.max(20f, clamped - 0.35f)
+            }
+        } else {
+            postWeight = clamped
+        }
+    }
+
+    val deltaKg = Math.round((postWeight - preWeight) * 100f) / 100f
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                text = "Log Workout Weight",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MemberTextPrimary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(MemberSurfaceSubtle),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Scale,
+                        contentDescription = null,
+                        tint = MemberTextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Log Workout Weight",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MemberTextPrimary
+                    )
+                    Text(
+                        text = "Adjust with the stepper spinner or type directly",
+                        fontSize = 11.sp,
+                        color = MemberTextSecondary
+                    )
+                }
+            }
         },
         text = {
-            Column {
-                Text(
-                    text = "Record your pre and post session weight to track fluid shifts.",
-                    fontSize = 13.sp,
-                    color = MemberTextSecondary
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // 1. Pre / Post Segmented Switcher Tabs
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MemberSurfaceSubtle)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Pre Tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (activeTab == 0) MemberBtnPrimaryBg else Color.Transparent)
+                            .clickable {
+                                activeTab = 0
+                                isManualInput = false
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "PRE-WORKOUT",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (activeTab == 0) Color.White else MemberTextSecondary,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${formatKg(preWeight)} kg",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (activeTab == 0) Color.White else MemberTextPrimary
+                            )
+                        }
+                    }
+
+                    // Post Tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(if (activeTab == 1) MemberBtnPrimaryBg else Color.Transparent)
+                            .clickable {
+                                activeTab = 1
+                                isManualInput = false
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "POST-WORKOUT",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (activeTab == 1) Color.White else MemberTextSecondary,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "${formatKg(postWeight)} kg",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (activeTab == 1) Color.White else MemberTextPrimary
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. Interactive Weight Stepper Spinner Hub
+                GymFlowCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = 16.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (activeTab == 0) "ADJUST PRE-SESSION WEIGHT" else "ADJUST POST-SESSION WEIGHT",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp,
+                            color = MemberTextSecondary
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        if (!isManualInput) {
+                            // Stepper Controls with Big Number
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // Decrement -0.1
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(MemberSurfaceSubtle)
+                                        .clickable { updateActiveWeight(-0.1f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Remove,
+                                        contentDescription = "Minus 0.1 kg",
+                                        tint = MemberTextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                // Center Value Display
+                                Row(
+                                    verticalAlignment = Alignment.Bottom,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            manualText = formatKg(currentActiveWeight)
+                                            isManualInput = true
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = formatKg(currentActiveWeight),
+                                        fontSize = 34.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = MemberTextPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "kg",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MemberTextTertiary,
+                                        modifier = Modifier.padding(bottom = 5.dp)
+                                    )
+                                }
+
+                                // Increment +0.1
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .clip(CircleShape)
+                                        .background(MemberSurfaceSubtle)
+                                        .clickable { updateActiveWeight(+0.1f) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Plus 0.1 kg",
+                                        tint = MemberTextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Quick adjustment chip pills
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(-1.0f, -0.5f, 0.5f, 1.0f).forEach { step ->
+                                    val label = if (step > 0) "+${step}kg" else "${step}kg"
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(MemberSurfaceSubtle)
+                                            .clickable { updateActiveWeight(step) }
+                                            .padding(vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MemberTextPrimary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Manual entry hint button
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        manualText = formatKg(currentActiveWeight)
+                                        isManualInput = true
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = MemberTextSecondary,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Type exact weight with keyboard",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MemberTextSecondary
+                                )
+                            }
+                        } else {
+                            // Direct manual typing mode
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                GymFlowTextField(
+                                    value = manualText,
+                                    onValueChange = { manualText = it },
+                                    label = "Enter Exact Weight",
+                                    suffixText = "kg",
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(MemberBtnPrimaryBg)
+                                        .clickable {
+                                            manualText.toFloatOrNull()?.let { typed ->
+                                                if (activeTab == 0) preWeight = typed.coerceIn(20f, 250f)
+                                                else postWeight = typed.coerceIn(20f, 250f)
+                                            }
+                                            isManualInput = false
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Confirm Manual Entry",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
 
-                GymFlowTextField(
-                    value = preText,
-                    onValueChange = { preText = it },
-                    label = "Pre-workout Weight (kg)",
-                    suffixText = "kg",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
+                // 3. Live Fluid Shift & Deficit Preview Card
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (deltaKg < 0) Color(0xFFEFF6FF) else Color(0xFFF3F4F6))
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (deltaKg < 0) Icons.Default.WaterDrop else Icons.Default.Scale,
+                        contentDescription = null,
+                        tint = if (deltaKg < 0) Color(0xFF2563EB) else MemberTextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        val diffText = if (deltaKg > 0) "+${formatKg(deltaKg)}" else "${formatKg(deltaKg)}"
+                        Text(
+                            text = "Shift: $diffText kg",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (deltaKg < 0) Color(0xFF1D4ED8) else MemberTextPrimary
+                        )
+                        if (deltaKg < 0) {
+                            val fluidLossMl = abs((deltaKg * 1000).toInt())
+                            val replenishTargetMl = (fluidLossMl * 1.25f).toInt()
+                            Text(
+                                text = "Lost ~$fluidLossMl ml fluid · Recommended intake: ~$replenishTargetMl ml",
+                                fontSize = 11.sp,
+                                color = Color(0xFF3B82F6)
+                            )
+                        } else {
+                            Text(
+                                text = "Stable fluid balance · No acute deficit detected",
+                                fontSize = 11.sp,
+                                color = MemberTextSecondary
+                            )
+                        }
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                GymFlowTextField(
-                    value = postText,
-                    onValueChange = { postText = it },
-                    label = "Post-workout Weight (kg)",
-                    suffixText = "kg",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
+                // 4. Session Notes Input
                 GymFlowTextField(
                     value = notesText,
                     onValueChange = { notesText = it },
                     label = "Session Notes (Optional)",
-                    placeholder = "e.g. Chest day, sauna"
+                    placeholder = "e.g. Chest day, sauna, heavy sweat"
                 )
             }
         },
         confirmButton = {
             GymFlowPrimaryButton(
-                text = "Save",
+                text = "Save (${formatKg(preWeight)} → ${formatKg(postWeight)} kg)",
                 onClick = {
-                    val pre = preText.toFloatOrNull() ?: currentPre
-                    val post = postText.toFloatOrNull() ?: currentPost
-                    onConfirm(pre, post, notesText)
+                    onConfirm(preWeight, postWeight, notesText)
                 }
             )
         },

@@ -336,11 +336,11 @@ private fun LogMeasurementsDialog(
     onDismiss: () -> Unit,
     onConfirm: (Float, Float, Float, Float, Float) -> Unit
 ) {
-    var chestText by remember { mutableStateOf(initialChest.toString()) }
-    var waistText by remember { mutableStateOf(initialWaist.toString()) }
-    var armsText by remember { mutableStateOf(initialArms.toString()) }
-    var thighsText by remember { mutableStateOf(initialThighs.toString()) }
-    var hipsText by remember { mutableStateOf(initialHips.toString()) }
+    var chestText by remember { mutableStateOf(if (initialChest > 0f) initialChest.toString() else "") }
+    var waistText by remember { mutableStateOf(if (initialWaist > 0f) initialWaist.toString() else "") }
+    var armsText by remember { mutableStateOf(if (initialArms > 0f) initialArms.toString() else "") }
+    var thighsText by remember { mutableStateOf(if (initialThighs > 0f) initialThighs.toString() else "") }
+    var hipsText by remember { mutableStateOf(if (initialHips > 0f) initialHips.toString() else "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
