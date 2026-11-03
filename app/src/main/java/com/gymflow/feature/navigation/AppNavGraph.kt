@@ -13,6 +13,8 @@ import com.gymflow.feature.auth.ForgotPasswordScreen
 import com.gymflow.feature.auth.LoginScreen
 import com.gymflow.feature.auth.RegisterScreen
 import com.gymflow.feature.auth.SplashScreen
+import com.gymflow.feature.trainer.navigation.TrainerRoute
+import com.gymflow.feature.trainer.navigation.trainerNavGraph
 
 @Composable
 fun AppNavGraph(
@@ -37,6 +39,11 @@ fun AppNavGraph(
                     navController.navigate(NavRoutes.MEMBER_HOME) {
                         popUpTo(NavRoutes.SPLASH) { inclusive = true }
                     }
+                },
+                onNavigateToTrainerDashboard = {
+                    navController.navigate(TrainerRoute.Dashboard) {
+                        popUpTo(NavRoutes.SPLASH) { inclusive = true }
+                    }
                 }
             )
         }
@@ -54,12 +61,11 @@ fun AppNavGraph(
                     navController.navigate(NavRoutes.FORGOT_PASSWORD)
                 },
                 onLoginSuccess = { role ->
-                    if (role == Role.MEMBER) {
-                        navController.navigate(NavRoutes.MEMBER_HOME) {
+                    if (role == Role.TRAINER) {
+                        navController.navigate(TrainerRoute.Dashboard) {
                             popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         }
                     } else {
-                        // Future Trainer flow or Member Home fallback
                         navController.navigate(NavRoutes.MEMBER_HOME) {
                             popUpTo(NavRoutes.LOGIN) { inclusive = true }
                         }
@@ -76,8 +82,14 @@ fun AppNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLogin = { navController.popBackStack() },
                 onRegisterSuccess = { role ->
-                    navController.navigate(NavRoutes.MEMBER_HOME) {
-                        popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                    if (role == Role.TRAINER) {
+                        navController.navigate(TrainerRoute.Dashboard) {
+                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(NavRoutes.MEMBER_HOME) {
+                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                        }
                     }
                 }
             )
@@ -92,7 +104,17 @@ fun AppNavGraph(
             )
         }
 
-        // Member Subgraph (Screens 3 to 7)
+        // Member Subgraph (Screens 03 to 14)
         memberNavGraph(navController = navController)
+
+        // Trainer Studio Subgraph (Screens 15 to 25)
+        trainerNavGraph(
+            navController = navController,
+            onLogout = {
+                navController.navigate(NavRoutes.LOGIN) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        )
     }
 }

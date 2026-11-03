@@ -6,11 +6,13 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.gymflow.feature.member.achievements.AchievementsScreen
 import com.gymflow.feature.member.activity.MemberActivityScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsViewModel
 import com.gymflow.feature.member.home.MemberHomeScreen
 import com.gymflow.feature.member.home.MemberHomeViewModel
+import com.gymflow.feature.member.hydration.HydrationScreen
 import com.gymflow.feature.member.measurements.BodyMeasurementsScreen
 import com.gymflow.feature.member.profile.MemberProfileScreen
 import com.gymflow.feature.member.profile.MemberSettingsScreen
@@ -34,6 +36,8 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToProgress = { navController.navigate(NavRoutes.MEMBER_PROGRESS) },
             onNavigateToActivity = { navController.navigate(NavRoutes.MEMBER_ACTIVITY) },
             onNavigateToProfile = { navController.navigate(NavRoutes.MEMBER_PROFILE) },
+            onNavigateToWeight = { navController.navigate(NavRoutes.MEMBER_WEIGHT) },
+            onNavigateToAchievements = { navController.navigate(NavRoutes.MEMBER_ACHIEVEMENTS) },
             onNavigateToExerciseDetails = { exerciseId ->
                 navController.navigate(NavRoutes.exerciseDetails(exerciseId))
             },
@@ -136,7 +140,9 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToHome = { navController.navigate(NavRoutes.MEMBER_HOME) },
             onNavigateToSchedule = { navController.navigate(NavRoutes.WORKOUT_SCHEDULE) },
             onNavigateToProgress = { navController.navigate(NavRoutes.MEMBER_PROGRESS) },
-            onNavigateToProfile = { navController.navigate(NavRoutes.MEMBER_PROFILE) }
+            onNavigateToProfile = { navController.navigate(NavRoutes.MEMBER_PROFILE) },
+            onNavigateToHydration = { navController.navigate(NavRoutes.MEMBER_HYDRATION) },
+            onNavigateToAchievements = { navController.navigate(NavRoutes.MEMBER_ACHIEVEMENTS) }
         )
     }
 
@@ -188,6 +194,20 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
     // Weight Tracking
     composable(NavRoutes.MEMBER_WEIGHT) {
         WeightTrackingScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    // Hydration Tracking
+    composable(NavRoutes.MEMBER_HYDRATION) {
+        HydrationScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    // Achievements & Badges
+    composable(NavRoutes.MEMBER_ACHIEVEMENTS) {
+        AchievementsScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

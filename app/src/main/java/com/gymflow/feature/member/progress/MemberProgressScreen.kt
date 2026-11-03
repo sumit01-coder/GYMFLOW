@@ -1,6 +1,9 @@
 package com.gymflow.feature.member.progress
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,32 +11,51 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.MetricCard
+import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowTheme
+import com.gymflow.core.theme.GymFlowWhite
+import java.text.NumberFormat
+import java.util.Locale
 
 @Composable
 fun MemberProgressScreen(
@@ -41,10 +63,11 @@ fun MemberProgressScreen(
     onNavigateToSchedule: () -> Unit,
     onNavigateToActivity: () -> Unit,
     onNavigateToProfile: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ProgressViewModel = viewModel()
 ) {
-    var selectedRangeIndex by remember { mutableIntStateOf(0) }
-    val ranges = listOf("7D", "30D", "3M", "6M", "1Y")
+    val state by viewModel.uiState.collectAsState()
+    val numberFormat = NumberFormat.getNumberInstance(Locale.US)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -72,20 +95,20 @@ fun MemberProgressScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             Text(
-                text = "Progress",
+                text = "Progress & Analytics",
                 style = GymFlowTheme.typography.Heading1.copy(fontSize = 26.sp),
                 color = GymFlowTheme.colors.textPrimary
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Time Range Selector
+            // Time Range Tabs
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                ranges.forEachIndexed { index, range ->
+                TimeRangeTab.entries.forEachIndexed { index, tab ->
                     SegmentedButton(
-                        selected = selectedRangeIndex == index,
-                        onClick = { selectedRangeIndex = index },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = ranges.size),
+                        selected = state.selectedTab == tab,
+                        onClick = { viewModel.selectTimeRange(tab) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = TimeRangeTab.entries.size),
                         colors = SegmentedButtonDefaults.colors(
                             activeContainerColor = GymFlowTheme.colors.primaryButtonBg,
                             activeContentColor = GymFlowTheme.colors.primaryButtonFg,
@@ -93,7 +116,7 @@ fun MemberProgressScreen(
                             inactiveContentColor = GymFlowTheme.colors.textSecondary
                         )
                     ) {
-                        Text(text = range, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(text = tab.label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -107,13 +130,13 @@ fun MemberProgressScreen(
             ) {
                 MetricCard(
                     label = "Total Workouts",
-                    value = "18",
+                    value = "${state.totalWorkouts}",
                     icon = Icons.Default.FitnessCenter,
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
                     label = "Total Sets",
-                    value = "342",
+                    value = "${state.totalSets}",
                     icon = Icons.Default.Repeat,
                     modifier = Modifier.weight(1f)
                 )
@@ -127,13 +150,13 @@ fun MemberProgressScreen(
             ) {
                 MetricCard(
                     label = "Total Reps",
-                    value = "4,126",
+                    value = numberFormat.format(state.totalReps),
                     icon = Icons.Default.Repeat,
                     modifier = Modifier.weight(1f)
                 )
                 MetricCard(
                     label = "Calories Burned",
-                    value = "5,480",
+                    value = numberFormat.format(state.caloriesBurned),
                     unit = "kcal",
                     icon = Icons.Default.LocalFireDepartment,
                     modifier = Modifier.weight(1f)
@@ -142,50 +165,124 @@ fun MemberProgressScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = "Weight Trend",
-                style = GymFlowTheme.typography.Heading2,
-                color = GymFlowTheme.colors.textPrimary
-            )
+            // Chart Section Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Weight Progression Curve",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+
+                GymFlowBadge(
+                    text = "${state.selectedTab.label} TREND",
+                    backgroundColor = GymFlowTheme.colors.surfaceVariant,
+                    textColor = GymFlowTheme.colors.textSecondary
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            GymFlowCard(modifier = Modifier.fillMaxWidth()) {
-                Column {
+            // Canvas Bézier Weight Curve Chart
+            ProgressWeightChart(
+                points = state.weightProgressPoints,
+                minY = state.minY,
+                maxY = state.maxY,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Personal Records Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Personal Records (PRs)",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+                Text(
+                    text = "ESTIMATED 1RM",
+                    style = GymFlowTheme.typography.Caption.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    color = GymFlowTheme.colors.textTertiary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            state.personalRecords.forEach { pr ->
+                GymFlowCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    contentPadding = 14.dp
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "Current",
-                                style = GymFlowTheme.typography.Caption,
-                                color = GymFlowTheme.colors.textSecondary
-                            )
-                            Text(
-                                text = "67.8 kg",
-                                style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
-                                color = GymFlowTheme.colors.textPrimary
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowTheme.colors.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    tint = GymFlowTheme.colors.textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = pr.exerciseName,
+                                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = GymFlowTheme.colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Best: ${pr.bestSet} · ${pr.achievedDate}",
+                                    style = GymFlowTheme.typography.Caption,
+                                    color = GymFlowTheme.colors.textSecondary
+                                )
+                            }
                         }
 
-                        Column {
+                        Column(horizontalAlignment = Alignment.End) {
                             Text(
-                                text = "Change (7 Days)",
-                                style = GymFlowTheme.typography.Caption,
-                                color = GymFlowTheme.colors.textSecondary
+                                text = "${pr.oneRepMaxKg.toInt()} kg",
+                                style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = GymFlowTheme.colors.textPrimary
                             )
                             Text(
-                                text = "-0.4 kg",
-                                style = GymFlowTheme.typography.Heading2.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = GymFlowTheme.colors.accentActive
-                                )
+                                text = "1RM Peak",
+                                style = GymFlowTheme.typography.Caption,
+                                color = GymFlowTheme.colors.textTertiary
                             )
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }

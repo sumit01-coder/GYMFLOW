@@ -32,19 +32,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
 import com.gymflow.core.theme.GymFlowPureBlack
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
+import com.gymflow.domain.model.Role
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToHome: () -> Unit,
+    onNavigateToTrainerDashboard: () -> Unit = {},
     modifier: Modifier = Modifier,
-    isAuthenticated: Boolean = false
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
     val alphaAnim = remember { Animatable(0f) }
 
@@ -53,9 +56,17 @@ fun SplashScreen(
             targetValue = 1f,
             animationSpec = tween(durationMillis = 800)
         )
-        delay(1400)
-        if (isAuthenticated) {
-            onNavigateToHome()
+        delay(1200)
+
+        val token = viewModel.getTokenSync()
+        val role = viewModel.getRoleSync()
+
+        if (!token.isNullOrBlank()) {
+            if (role == Role.TRAINER) {
+                onNavigateToTrainerDashboard()
+            } else {
+                onNavigateToHome()
+            }
         } else {
             onNavigateToLogin()
         }

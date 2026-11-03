@@ -38,6 +38,9 @@ class AuthViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
+    fun getTokenSync(): String? = tokenManager.getTokenSync()
+    fun getRoleSync(): Role? = tokenManager.getRoleSync()
+
     fun onEmailChange(email: String) {
         _uiState.update { it.copy(email = email, error = null) }
     }

@@ -63,6 +63,8 @@ fun MemberHomeScreen(
     onNavigateToProfile: () -> Unit,
     onNavigateToExerciseDetails: (String) -> Unit,
     onStartWorkout: (String) -> Unit,
+    onNavigateToWeight: () -> Unit = {},
+    onNavigateToAchievements: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -74,6 +76,8 @@ fun MemberHomeScreen(
         onNavigateToActivity = onNavigateToActivity,
         onNavigateToProfile = onNavigateToProfile,
         onNavigateToExerciseDetails = onNavigateToExerciseDetails,
+        onNavigateToWeight = onNavigateToWeight,
+        onNavigateToAchievements = onNavigateToAchievements,
         onStartWorkout = {
             val firstExerciseId = uiState.todayExercises.firstOrNull()?.exerciseId ?: "ex_chest_press"
             onStartWorkout(firstExerciseId)
@@ -91,6 +95,8 @@ fun MemberHomeContent(
     onNavigateToProfile: () -> Unit,
     onNavigateToExerciseDetails: (String) -> Unit,
     onStartWorkout: () -> Unit,
+    onNavigateToWeight: () -> Unit = {},
+    onNavigateToAchievements: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -221,14 +227,18 @@ fun MemberHomeContent(
                     value = uiState.currentWeightKg,
                     unit = "kg",
                     icon = Icons.Default.MonitorWeight,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToWeight() }
                 )
                 MetricCard(
                     label = "Calories Today",
                     value = uiState.caloriesToday,
                     unit = "kcal",
                     icon = Icons.Default.LocalFireDepartment,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToProgress() }
                 )
             }
 
@@ -242,14 +252,18 @@ fun MemberHomeContent(
                     label = "Exercises",
                     value = uiState.exercisesProgress,
                     icon = Icons.Default.FitnessCenter,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToSchedule() }
                 )
                 MetricCard(
                     label = "Workout Duration",
                     value = uiState.workoutDurationMinutes,
                     unit = "min",
                     icon = Icons.Default.Timer,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToActivity() }
                 )
             }
 
