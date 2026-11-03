@@ -146,11 +146,11 @@ class AuthViewModel @Inject constructor(
                         email = email,
                         role = role,
                         token = token,
-                        heightCm = 178f,
-                        currentWeightKg = 67.8f,
-                        fitnessGoal = "Build Muscle",
-                        age = 28,
-                        syncStatus = "Connected",
+                        heightCm = 0f,
+                        currentWeightKg = 0f,
+                        fitnessGoal = "General Fitness",
+                        age = 0,
+                        syncStatus = "Not Connected",
                         isEmailVerified = verifiedStatus,
                         lastUpdated = System.currentTimeMillis()
                     )
@@ -316,11 +316,11 @@ class AuthViewModel @Inject constructor(
                     email = email,
                     role = role,
                     token = token,
-                    heightCm = 178f,
-                    currentWeightKg = 67.8f,
-                    fitnessGoal = "Build Muscle",
-                    age = 28,
-                    syncStatus = "Connected",
+                    heightCm = 0f,
+                    currentWeightKg = 0f,
+                    fitnessGoal = "General Fitness",
+                    age = 0,
+                    syncStatus = "Not Connected",
                     isEmailVerified = emailVerified,
                     lastUpdated = System.currentTimeMillis()
                 )

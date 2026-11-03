@@ -19,13 +19,13 @@ data class MemberHomeUiState(
     val memberName: String = "Member",
     val greeting: String = "Good morning!",
     val motivationalSubtext: String = "Ready to achieve your goals?",
-    val currentWeightKg: String = "67.8",
-    val caloriesToday: String = "320",
-    val exercisesProgress: String = "4/5",
-    val workoutDurationMinutes: String = "48",
-    val todayWorkoutTitle: String = "Chest Day",
+    val currentWeightKg: String = "0.0",
+    val caloriesToday: String = "0",
+    val exercisesProgress: String = "0/0",
+    val workoutDurationMinutes: String = "0",
+    val todayWorkoutTitle: String = "No Workout Scheduled",
     val todayExercises: List<WorkoutExercise> = emptyList(),
-    val hasUnreadNotifications: Boolean = true,
+    val hasUnreadNotifications: Boolean = false,
     val isLoading: Boolean = false,
     val userInitials: String = "GF"
 )
@@ -79,7 +79,7 @@ class MemberHomeViewModel @Inject constructor(
                             memberName = firstName,
                             greeting = "Good morning, $firstName!",
                             userInitials = initials,
-                            currentWeightKg = String.format("%.1f", userEntity.currentWeightKg)
+                            currentWeightKg = if (userEntity.currentWeightKg > 0f) String.format("%.1f", userEntity.currentWeightKg) else "0.0"
                         )
                     }
                 }
@@ -88,41 +88,10 @@ class MemberHomeViewModel @Inject constructor(
     }
 
     private fun loadHomeData() {
-        val sampleExercises = listOf(
-            WorkoutExercise(
-                exerciseId = "ex_chest_press",
-                exerciseName = "Chest Press",
-                category = "Chest",
-                targetSets = 3,
-                targetReps = 12,
-                targetWeightKg = 20f,
-                restDurationSeconds = 45,
-                sets = listOf(
-                    ExerciseSet(1, 12, 20f, actualReps = 12, actualWeightKg = 20f, isCompleted = true),
-                    ExerciseSet(2, 12, 20f, actualReps = 12, actualWeightKg = 20f, isCompleted = true),
-                    ExerciseSet(3, 12, 20f, actualReps = null, actualWeightKg = null, isCompleted = false)
-                )
-            ),
-            WorkoutExercise(
-                exerciseId = "ex_cable_fly",
-                exerciseName = "Cable Fly",
-                category = "Chest",
-                targetSets = 3,
-                targetReps = 12,
-                targetWeightKg = 10f,
-                restDurationSeconds = 45,
-                sets = listOf(
-                    ExerciseSet(1, 12, 10f, actualReps = 12, actualWeightKg = 10f, isCompleted = true),
-                    ExerciseSet(2, 12, 10f, actualReps = 12, actualWeightKg = 10f, isCompleted = true),
-                    ExerciseSet(3, 12, 10f, actualReps = null, actualWeightKg = null, isCompleted = false)
-                )
-            )
-        )
-
         _uiState.update {
             it.copy(
-                todayWorkoutTitle = "Chest Day",
-                todayExercises = sampleExercises,
+                todayWorkoutTitle = "No Workout Scheduled",
+                todayExercises = emptyList(),
                 isLoading = false
             )
         }

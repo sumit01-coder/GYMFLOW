@@ -17,46 +17,11 @@ data class MeasurementDelta(
 )
 
 data class MeasurementsUiState(
-    val history: List<BodyMeasurement> = defaultMeasurementsHistory,
-    val latestMeasurement: BodyMeasurement? = defaultMeasurementsHistory.firstOrNull(),
+    val history: List<BodyMeasurement> = emptyList(),
+    val latestMeasurement: BodyMeasurement? = null,
     val deltas: List<MeasurementDelta> = emptyList(),
     val isLogDialogOpen: Boolean = false
-) {
-    companion object {
-        val defaultMeasurementsHistory = listOf(
-            BodyMeasurement(
-                id = "bm-1",
-                memberId = "alex-1",
-                chestCm = 104.5f,
-                waistCm = 81.0f,
-                armsCm = 38.5f,
-                thighsCm = 58.0f,
-                hipsCm = 96.0f,
-                recordedAtEpochMs = System.currentTimeMillis() - 86400000L * 2
-            ),
-            BodyMeasurement(
-                id = "bm-2",
-                memberId = "alex-1",
-                chestCm = 103.5f,
-                waistCm = 82.0f,
-                armsCm = 38.0f,
-                thighsCm = 57.5f,
-                hipsCm = 96.5f,
-                recordedAtEpochMs = System.currentTimeMillis() - 86400000L * 16
-            ),
-            BodyMeasurement(
-                id = "bm-3",
-                memberId = "alex-1",
-                chestCm = 102.0f,
-                waistCm = 83.5f,
-                armsCm = 37.0f,
-                thighsCm = 56.5f,
-                hipsCm = 97.0f,
-                recordedAtEpochMs = System.currentTimeMillis() - 86400000L * 30
-            )
-        )
-    }
-}
+)
 
 class MeasurementsViewModel : ViewModel() {
 
@@ -85,7 +50,7 @@ class MeasurementsViewModel : ViewModel() {
         viewModelScope.launch {
             val newEntry = BodyMeasurement(
                 id = UUID.randomUUID().toString(),
-                memberId = "alex-1",
+                memberId = "current_user",
                 chestCm = chestCm,
                 waistCm = waistCm,
                 armsCm = armsCm,

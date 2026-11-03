@@ -47,12 +47,12 @@ class AuthRepositoryImpl @Inject constructor(
                 email = user.email,
                 role = user.role,
                 token = authData.token,
-                heightCm = authData.memberProfile?.heightCm ?: 178f,
-                currentWeightKg = authData.memberProfile?.currentWeightKg ?: 67.8f,
-                fitnessGoal = authData.memberProfile?.fitnessGoal ?: "Build Muscle",
-                age = authData.memberProfile?.age ?: 28,
+                heightCm = authData.memberProfile?.heightCm ?: 0f,
+                currentWeightKg = authData.memberProfile?.currentWeightKg ?: 0f,
+                fitnessGoal = authData.memberProfile?.fitnessGoal ?: "General Fitness",
+                age = authData.memberProfile?.age ?: 0,
                 connectedTrainerId = authData.memberProfile?.connectedTrainerId,
-                syncStatus = authData.memberProfile?.syncStatus ?: "Connected"
+                syncStatus = authData.memberProfile?.syncStatus ?: "Not Connected"
             )
             userDao.upsertUser(userEntity)
 

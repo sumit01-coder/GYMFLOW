@@ -11,47 +11,14 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 
 data class HydrationUiState(
-    val currentIntakeMl: Int = 2250,
+    val currentIntakeMl: Int = 0,
     val dailyGoalMl: Int = 3000,
-    val todayLogs: List<HydrationLog> = defaultTodayLogs,
-    val postWorkoutDeficitMl: Int = 375, // deficit from weight loss calculation
+    val todayLogs: List<HydrationLog> = emptyList(),
+    val postWorkoutDeficitMl: Int = 0,
     val isCustomDialogOpen: Boolean = false
 ) {
     val progressPercent: Float
         get() = if (dailyGoalMl > 0) (currentIntakeMl.toFloat() / dailyGoalMl.toFloat()).coerceIn(0f, 1f) else 0f
-
-    companion object {
-        val defaultTodayLogs = listOf(
-            HydrationLog(
-                id = "hyd-1",
-                memberId = "alex-1",
-                amountMl = 500,
-                dailyGoalMl = 3000,
-                recordedAtEpochMs = System.currentTimeMillis() - 3600000L * 7
-            ),
-            HydrationLog(
-                id = "hyd-2",
-                memberId = "alex-1",
-                amountMl = 250,
-                dailyGoalMl = 3000,
-                recordedAtEpochMs = System.currentTimeMillis() - 3600000L * 5
-            ),
-            HydrationLog(
-                id = "hyd-3",
-                memberId = "alex-1",
-                amountMl = 750,
-                dailyGoalMl = 3000,
-                recordedAtEpochMs = System.currentTimeMillis() - 3600000L * 3
-            ),
-            HydrationLog(
-                id = "hyd-4",
-                memberId = "alex-1",
-                amountMl = 750,
-                dailyGoalMl = 3000,
-                recordedAtEpochMs = System.currentTimeMillis() - 3600000L * 1
-            )
-        )
-    }
 }
 
 class HydrationViewModel : ViewModel() {
@@ -63,7 +30,7 @@ class HydrationViewModel : ViewModel() {
         viewModelScope.launch {
             val newLog = HydrationLog(
                 id = UUID.randomUUID().toString(),
-                memberId = "alex-1",
+                memberId = "current_user",
                 amountMl = amountMl,
                 dailyGoalMl = _uiState.value.dailyGoalMl,
                 recordedAtEpochMs = System.currentTimeMillis()

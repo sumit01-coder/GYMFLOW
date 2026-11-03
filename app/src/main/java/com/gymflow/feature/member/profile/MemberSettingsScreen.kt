@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
@@ -115,6 +116,7 @@ fun MemberSettingsScreen(
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
+                        val isConnected = state.profile.connectedTrainerId != null
                         Column {
                             Text(
                                 text = "Trainer Studio Sync",
@@ -123,9 +125,9 @@ fun MemberSettingsScreen(
                                 color = MemberTextPrimary
                             )
                             Text(
-                                text = "Connected to Marcus Vance",
+                                text = if (isConnected) "Connected with Trainer" else "Not Connected (Tap to link)",
                                 fontSize = 12.sp,
-                                color = StatusActive
+                                color = if (isConnected) StatusActive else MemberTextTertiary
                             )
                         }
                     }
@@ -204,6 +206,12 @@ fun MemberSettingsScreen(
                 )
                 HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
                 SettingClickableRow(
+                    icon = Icons.Default.Code,
+                    title = "Developer",
+                    value = "Sumit Patel"
+                )
+                HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
+                SettingClickableRow(
                     icon = Icons.Default.Info,
                     title = "GYMFLOW Version",
                     value = "1.0.0 (Build 42)"
@@ -218,6 +226,27 @@ fun MemberSettingsScreen(
                 onClick = { viewModel.showLogoutDialog() },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Developed by Sumit Patel",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MemberTextPrimary
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = "GYMFLOW High-Performance Athletic Suite",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MemberTextTertiary
+                )
+            }
 
             Spacer(modifier = Modifier.height(28.dp))
         }

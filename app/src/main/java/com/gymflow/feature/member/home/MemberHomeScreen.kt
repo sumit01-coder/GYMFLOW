@@ -301,12 +301,28 @@ fun MemberHomeContent(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Exercise items
-            uiState.todayExercises.forEach { exercise ->
-                TodayExerciseItem(
-                    exercise = exercise,
-                    onClick = { onNavigateToExerciseDetails(exercise.exerciseId) }
-                )
-                Spacer(modifier = Modifier.height(10.dp))
+            if (uiState.todayExercises.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No workouts scheduled for today. Check your schedule or start an open training session.",
+                        style = GymFlowTheme.typography.BodyRegular,
+                        color = GymFlowTheme.colors.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            } else {
+                uiState.todayExercises.forEach { exercise ->
+                    TodayExerciseItem(
+                        exercise = exercise,
+                        onClick = { onNavigateToExerciseDetails(exercise.exerciseId) }
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))

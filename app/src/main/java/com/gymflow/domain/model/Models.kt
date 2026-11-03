@@ -21,21 +21,21 @@ data class User(
 @Serializable
 data class MemberProfile(
     val userId: String,
-    val heightCm: Float = 178f,
-    val currentWeightKg: Float = 67.8f,
-    val fitnessGoal: String = "Build Muscle",
-    val age: Int = 28,
+    val heightCm: Float = 0f,
+    val currentWeightKg: Float = 0f,
+    val fitnessGoal: String = "General Fitness",
+    val age: Int = 0,
     val connectedTrainerId: String? = null,
-    val syncStatus: String = "Connected"
+    val syncStatus: String = "Not Connected"
 )
 
 @Serializable
 data class TrainerProfile(
     val userId: String,
-    val experienceYears: Int = 5,
-    val specialization: String = "Hypertrophy & Strength",
-    val activeMembersCount: Int = 24,
-    val totalMembersCount: Int = 32
+    val experienceYears: Int = 0,
+    val specialization: String = "Strength & Conditioning",
+    val activeMembersCount: Int = 0,
+    val totalMembersCount: Int = 0
 )
 
 @Serializable

@@ -80,7 +80,7 @@ class TrainerAuthViewModel @Inject constructor(
                 val prefix = email.substringBefore("@").replace(".", " ").replace("_", " ")
                 val clean = prefix.split(" ").filter { it.isNotBlank() }
                     .joinToString(" ") { part -> part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } }
-                if (clean.isBlank()) "Coach Marcus Vance" else "Coach $clean"
+                if (clean.isBlank()) "Coach" else "Coach $clean"
             }
             val userId = existing?.id ?: "trainer_${System.currentTimeMillis()}"
             val token = existing?.token ?: "jwt-trainer-$userId"

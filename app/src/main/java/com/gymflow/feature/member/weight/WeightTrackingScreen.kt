@@ -334,58 +334,85 @@ fun WeightTrackingScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            state.recentLogs.forEach { log ->
-                val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(log.recordedAtEpochMs))
+            if (state.recentLogs.isEmpty()) {
                 GymFlowCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    contentPadding = 12.dp
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = 20.dp
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column {
-                            Text(
-                                text = dateStr,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MemberTextPrimary
-                            )
-                            if (log.notes.isNotEmpty()) {
+                        Text(
+                            text = "No Weight Logs Recorded Yet",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MemberTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tap the + button above to log your pre & post-workout weigh-in to calculate acute fluid loss.",
+                            fontSize = 12.sp,
+                            color = MemberTextSecondary,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                    }
+                }
+            } else {
+                state.recentLogs.forEach { log ->
+                    val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(log.recordedAtEpochMs))
+                    GymFlowCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        contentPadding = 12.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
                                 Text(
-                                    text = log.notes,
-                                    fontSize = 12.sp,
-                                    color = MemberTextSecondary
-                                )
-                            }
-                        }
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${String.format(Locale.US, "%.2f", log.preWeightKg)} → ${String.format(Locale.US, "%.2f", log.postWeightKg)} kg",
-                                fontSize = 13.sp,
-                                color = MemberTextSecondary
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            val diff = log.deltaKg
-                            val diffLabel = if (diff > 0) "+${String.format(Locale.US, "%.2f", diff)}"
-                            else String.format(Locale.US, "%.2f", diff)
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFFF3F4F6))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "$diffLabel kg",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    text = dateStr,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = MemberTextPrimary
                                 )
+                                if (log.notes.isNotEmpty()) {
+                                    Text(
+                                        text = log.notes,
+                                        fontSize = 12.sp,
+                                        color = MemberTextSecondary
+                                    )
+                                }
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${String.format(Locale.US, "%.2f", log.preWeightKg)} → ${String.format(Locale.US, "%.2f", log.postWeightKg)} kg",
+                                    fontSize = 13.sp,
+                                    color = MemberTextSecondary
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                val diff = log.deltaKg
+                                val diffLabel = if (diff > 0) "+${String.format(Locale.US, "%.2f", diff)}"
+                                else String.format(Locale.US, "%.2f", diff)
+
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFF3F4F6))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "$diffLabel kg",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MemberTextPrimary
+                                    )
+                                }
                             }
                         }
                     }

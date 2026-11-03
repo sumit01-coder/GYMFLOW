@@ -28,26 +28,14 @@ data class TrainerDetails(
 )
 
 data class JoinTrainerUiState(
-    val codeInput: String = "GYM-82K91",
-    val connectionStatus: TrainerConnectionStatus = TrainerConnectionStatus.CONNECTED,
-    val activeTrainer: TrainerDetails? = defaultTrainer,
+    val codeInput: String = "",
+    val connectionStatus: TrainerConnectionStatus = TrainerConnectionStatus.NOT_CONNECTED,
+    val activeTrainer: TrainerDetails? = null,
     val previewTrainer: TrainerDetails? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
-) {
-    companion object {
-        val defaultTrainer = TrainerDetails(
-            id = "trainer-1",
-            name = "Marcus Vance",
-            specialization = "Hypertrophy & Strength",
-            experienceYears = 5,
-            activeMembersCount = 24,
-            gymName = "MetroFlex Performance Center",
-            invitationCode = "GYM-82K91"
-        )
-    }
-}
+)
 
 class TrainerConnectionViewModel : ViewModel() {
 
@@ -63,11 +51,11 @@ class TrainerConnectionViewModel : ViewModel() {
                 previewTrainer = if (formatted.startsWith("GYM-") && formatted.length >= 7) {
                     TrainerDetails(
                         id = "trainer-new",
-                        name = "Marcus Vance",
-                        specialization = "Hypertrophy & Strength",
-                        experienceYears = 5,
-                        activeMembersCount = 24,
-                        gymName = "MetroFlex Performance Center",
+                        name = "Coach",
+                        specialization = "Strength & Conditioning",
+                        experienceYears = 3,
+                        activeMembersCount = 10,
+                        gymName = "Partner Athletic Facility",
                         invitationCode = formatted
                     )
                 } else null
@@ -88,12 +76,12 @@ class TrainerConnectionViewModel : ViewModel() {
 
             if (code.contains("GYM")) {
                 val connected = TrainerDetails(
-                    id = "trainer-marcus",
-                    name = "Marcus Vance",
-                    specialization = "Hypertrophy & Strength",
-                    experienceYears = 5,
-                    activeMembersCount = 24,
-                    gymName = "MetroFlex Performance Center",
+                    id = "trainer-verified",
+                    name = "Coach Verified",
+                    specialization = "Strength & Conditioning",
+                    experienceYears = 3,
+                    activeMembersCount = 10,
+                    gymName = "Partner Athletic Facility",
                     invitationCode = code
                 )
                 _uiState.update {
@@ -101,7 +89,7 @@ class TrainerConnectionViewModel : ViewModel() {
                         isLoading = false,
                         connectionStatus = TrainerConnectionStatus.CONNECTED,
                         activeTrainer = connected,
-                        successMessage = "Successfully connected to Coach Marcus Vance!"
+                        successMessage = "Successfully connected to your Coach!"
                     )
                 }
             } else {

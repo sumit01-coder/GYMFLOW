@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -114,79 +115,121 @@ fun BodyMeasurementsScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Measurement cards grid
-            state.deltas.chunked(2).forEach { rowItems ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowItems.forEach { delta ->
-                        MeasurementCard(
-                            delta = delta,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                    if (rowItems.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // History Log Section
-            Text(
-                text = "Measurement History",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MemberTextPrimary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            state.history.forEach { entry ->
-                val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(entry.recordedAtEpochMs))
+            if (state.history.isEmpty()) {
                 GymFlowCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 10.dp),
-                    contentPadding = 14.dp
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = 24.dp
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(MemberSurfaceSubtle),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Straighten,
                                 contentDescription = null,
-                                tint = MemberTextSecondary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = dateStr,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MemberTextPrimary
+                                tint = MemberTextPrimary,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "No Measurements Recorded Yet",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MemberTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Tap the + button in the top right to log your first physical check-in (Chest, Waist, Arms, Thighs, Hips).",
+                            fontSize = 12.sp,
+                            color = MemberTextSecondary,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-                    HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
-                    Spacer(modifier = Modifier.height(10.dp))
-
+                }
+            } else {
+                // Measurement cards grid
+                state.deltas.chunked(2).forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        HistoryItem(label = "Chest", value = "${entry.chestCm} cm")
-                        HistoryItem(label = "Waist", value = "${entry.waistCm} cm")
-                        HistoryItem(label = "Arms", value = "${entry.armsCm} cm")
-                        HistoryItem(label = "Thighs", value = "${entry.thighsCm} cm")
-                        HistoryItem(label = "Hips", value = "${entry.hipsCm} cm")
+                        rowItems.forEach { delta ->
+                            MeasurementCard(
+                                delta = delta,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // History Log Section
+                Text(
+                    text = "Measurement History",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MemberTextPrimary
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                state.history.forEach { entry ->
+                    val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(entry.recordedAtEpochMs))
+                    GymFlowCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 10.dp),
+                        contentPadding = 14.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                 imageVector = Icons.Default.Straighten,
+                                 contentDescription = null,
+                                 tint = MemberTextSecondary,
+                                 modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = dateStr,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MemberTextPrimary
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            HistoryItem(label = "Chest", value = "${entry.chestCm} cm")
+                            HistoryItem(label = "Waist", value = "${entry.waistCm} cm")
+                            HistoryItem(label = "Arms", value = "${entry.armsCm} cm")
+                            HistoryItem(label = "Thighs", value = "${entry.thighsCm} cm")
+                            HistoryItem(label = "Hips", value = "${entry.hipsCm} cm")
+                        }
                     }
                 }
             }

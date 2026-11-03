@@ -35,6 +35,24 @@ interface UserDao {
         now: Long = System.currentTimeMillis()
     )
 
+    @Query("UPDATE users SET heightCm = :heightCm, currentWeightKg = :weightKg, fitnessGoal = :goal, age = :age, lastUpdated = :now WHERE id = :id")
+    suspend fun updateFullMemberProfile(
+        id: String,
+        heightCm: Float,
+        weightKg: Float,
+        goal: String,
+        age: Int,
+        now: Long = System.currentTimeMillis()
+    )
+
+    @Query("UPDATE users SET connectedTrainerId = :trainerId, syncStatus = :syncStatus, lastUpdated = :now WHERE id = :id")
+    suspend fun updateTrainerConnection(
+        id: String,
+        trainerId: String?,
+        syncStatus: String,
+        now: Long = System.currentTimeMillis()
+    )
+
     @Query("UPDATE users SET isEmailVerified = :isVerified, lastUpdated = :now WHERE id = :id")
     suspend fun updateEmailVerified(id: String, isVerified: Boolean, now: Long = System.currentTimeMillis())
 

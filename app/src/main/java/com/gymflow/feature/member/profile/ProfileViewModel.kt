@@ -30,12 +30,12 @@ data class ProfileUiState(
     ),
     val profile: MemberProfile = MemberProfile(
         userId = "default_member",
-        heightCm = 178f,
-        currentWeightKg = 67.8f,
-        fitnessGoal = "Build Muscle",
-        age = 28,
-        connectedTrainerId = "trainer_1",
-        syncStatus = "Connected"
+        heightCm = 0f,
+        currentWeightKg = 0f,
+        fitnessGoal = "General Fitness",
+        age = 0,
+        connectedTrainerId = null,
+        syncStatus = "Not Connected"
     ),
     val initials: String = "GF",
     val joinedDateFormatted: String = "Joined Recently",
@@ -126,6 +126,14 @@ class ProfileViewModel @Inject constructor(
             // Observe reactive Room changes
             userDao.getCurrentUserFlow().collect { userEntity ->
                 if (userEntity != null) {
+                    // Purge legacy mock seed data if present
+                    if (userEntity.age == 28 && userEntity.heightCm == 178f && userEntity.currentWeightKg == 67.8f) {
+                        userDao.updateFullMemberProfile(userEntity.id, 0f, 0f, "General Fitness", 0)
+                    }
+                    if (userEntity.syncStatus == "Connected" && userEntity.connectedTrainerId == null) {
+                        userDao.updateTrainerConnection(userEntity.id, null, "Not Connected")
+                    }
+
                     val initials = extractInitials(userEntity.name)
                     val joinedDate = SimpleDateFormat("MMM yyyy", Locale.getDefault())
                         .format(Date(userEntity.lastUpdated))

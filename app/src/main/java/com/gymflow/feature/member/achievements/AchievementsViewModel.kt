@@ -18,8 +18,8 @@ data class AchievementUiItem(
 }
 
 data class AchievementsUiState(
-    val currentStreakDays: Int = 5,
-    val longestStreakDays: Int = 14,
+    val currentStreakDays: Int = 0,
+    val longestStreakDays: Int = 0,
     val achievements: List<AchievementUiItem> = defaultAchievements,
     val selectedAchievement: AchievementUiItem? = null
 ) {
@@ -31,11 +31,11 @@ data class AchievementsUiState(
                     title = "First Step",
                     description = "Completed your very first workout in GYMFLOW.",
                     iconName = "emoji_events",
-                    isUnlocked = true,
-                    unlockedAtEpochMs = System.currentTimeMillis() - 86400000L * 25
+                    isUnlocked = false,
+                    unlockedAtEpochMs = null
                 ),
                 category = "Milestones",
-                progressCurrent = 1,
+                progressCurrent = 0,
                 progressTarget = 1
             ),
             AchievementUiItem(
@@ -44,11 +44,11 @@ data class AchievementsUiState(
                     title = "Iron Habit",
                     description = "Completed 10 workouts with uncompromising discipline.",
                     iconName = "fitness_center",
-                    isUnlocked = true,
-                    unlockedAtEpochMs = System.currentTimeMillis() - 86400000L * 6
+                    isUnlocked = false,
+                    unlockedAtEpochMs = null
                 ),
                 category = "Milestones",
-                progressCurrent = 18,
+                progressCurrent = 0,
                 progressTarget = 10
             ),
             AchievementUiItem(
@@ -57,11 +57,11 @@ data class AchievementsUiState(
                     title = "PR Crusher",
                     description = "Unlocked a new Personal Record on compound lifts.",
                     iconName = "trending_up",
-                    isUnlocked = true,
-                    unlockedAtEpochMs = System.currentTimeMillis() - 86400000L * 3
+                    isUnlocked = false,
+                    unlockedAtEpochMs = null
                 ),
                 category = "Strength",
-                progressCurrent = 4,
+                progressCurrent = 0,
                 progressTarget = 1
             ),
             AchievementUiItem(
@@ -70,11 +70,11 @@ data class AchievementsUiState(
                     title = "Weekly Warrior",
                     description = "Completed all scheduled workouts in a single calendar week.",
                     iconName = "calendar_month",
-                    isUnlocked = true,
-                    unlockedAtEpochMs = System.currentTimeMillis() - 86400000L * 1
+                    isUnlocked = false,
+                    unlockedAtEpochMs = null
                 ),
                 category = "Streaks",
-                progressCurrent = 4,
+                progressCurrent = 0,
                 progressTarget = 4
             ),
             AchievementUiItem(
@@ -87,7 +87,7 @@ data class AchievementsUiState(
                     unlockedAtEpochMs = null
                 ),
                 category = "Hydration",
-                progressCurrent = 5,
+                progressCurrent = 0,
                 progressTarget = 7
             ),
             AchievementUiItem(
@@ -96,11 +96,11 @@ data class AchievementsUiState(
                     title = "Century Club",
                     description = "Log 100 total completed sets in the GYMFLOW engine.",
                     iconName = "military_tech",
-                    isUnlocked = true,
-                    unlockedAtEpochMs = System.currentTimeMillis() - 86400000L * 8
+                    isUnlocked = false,
+                    unlockedAtEpochMs = null
                 ),
                 category = "Milestones",
-                progressCurrent = 342,
+                progressCurrent = 0,
                 progressTarget = 100
             ),
             AchievementUiItem(
@@ -113,7 +113,7 @@ data class AchievementsUiState(
                     unlockedAtEpochMs = null
                 ),
                 category = "Strength",
-                progressCurrent = 48250,
+                progressCurrent = 0,
                 progressTarget = 100000
             )
         )

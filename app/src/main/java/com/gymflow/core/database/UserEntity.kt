@@ -13,12 +13,12 @@ data class UserEntity(
     val email: String,
     val role: Role,
     val token: String? = null,
-    val heightCm: Float = 178f,
-    val currentWeightKg: Float = 67.8f,
-    val fitnessGoal: String = "Build Muscle",
-    val age: Int = 28,
+    val heightCm: Float = 0f,
+    val currentWeightKg: Float = 0f,
+    val fitnessGoal: String = "General Fitness",
+    val age: Int = 0,
     val connectedTrainerId: String? = null,
-    val syncStatus: String = "Connected",
+    val syncStatus: String = "Not Connected",
     val isEmailVerified: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis()
 ) {

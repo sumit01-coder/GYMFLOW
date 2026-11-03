@@ -132,6 +132,13 @@ fun SplashScreen(
                     style = GymFlowTheme.typography.Caption,
                     color = Color(0xFF71717A)
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Developed by Sumit Patel",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF52525B)
+                )
             }
         }
     }

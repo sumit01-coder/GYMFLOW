@@ -14,14 +14,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TrainerSettingsUiState(
-    val coachName: String = "Coach Marcus Vance",
-    val title: String = "Certified Strength & Conditioning Specialist (CSCS)",
-    val email: String = "marcus.vance@gymflow.com",
-    val experienceYears: Int = 5,
-    val specialization: String = "Hypertrophy & Strength Conditioning",
-    val gymAffiliation: String = "MetroFlex Pro Studio",
-    val totalMembers: Int = 32,
-    val activePlansCount: Int = 18,
+    val coachName: String = "Coach",
+    val title: String = "Strength & Conditioning Specialist",
+    val email: String = "",
+    val experienceYears: Int = 0,
+    val specialization: String = "General Strength & Conditioning",
+    val gymAffiliation: String = "",
+    val totalMembers: Int = 0,
+    val activePlansCount: Int = 0,
     val workoutCompletionNotifications: Boolean = true,
     val joinRequestNotifications: Boolean = true,
     val soundAndHaptics: Boolean = true,

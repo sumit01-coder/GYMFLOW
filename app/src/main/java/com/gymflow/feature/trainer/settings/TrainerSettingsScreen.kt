@@ -365,8 +365,16 @@ fun TrainerSettingsScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
+                Text(
+                    text = "Developed by Sumit Patel",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TrainerDarkTextSecondary,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "GYMFLOW Trainer Studio Pro v1.0.0 (OLED Studio Build)",
                     fontSize = 11.sp,

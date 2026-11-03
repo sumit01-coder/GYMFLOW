@@ -256,7 +256,7 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${uiState.profile.age}",
+                            text = if (uiState.profile.age > 0) "${uiState.profile.age}" else "--",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
@@ -270,7 +270,7 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${uiState.profile.heightCm.toInt()} cm",
+                            text = if (uiState.profile.heightCm > 0f) "${uiState.profile.heightCm.toInt()} cm" else "--",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
@@ -290,7 +290,7 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = uiState.profile.fitnessGoal,
+                            text = uiState.profile.fitnessGoal.ifBlank { "Set Goal" },
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
