@@ -1,10 +1,18 @@
 package com.gymflow.feature.trainer.dashboard
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ConnectedMember
+import com.gymflow.domain.model.Role
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class TrainerDashboardKpis(
     val totalMembers: Int = 32,
@@ -44,7 +52,43 @@ data class TrainerDashboardUiState(
     val unreadNotificationsCount: Int = 3
 )
 
-class TrainerDashboardViewModel : ViewModel() {
+@HiltViewModel
+class TrainerDashboardViewModel @Inject constructor(
+    private val tokenManager: TokenManager,
+    private val userDao: UserDao
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(TrainerDashboardUiState())
     val uiState: StateFlow<TrainerDashboardUiState> = _uiState.asStateFlow()
+
+    init {
+        observeCoachData()
+    }
+
+    private fun observeCoachData() {
+        viewModelScope.launch {
+            val cachedName = tokenManager.getName()
+            if (!cachedName.isNullOrBlank()) {
+                val formattedName = if (cachedName.startsWith("Coach", ignoreCase = true)) cachedName else "Coach $cachedName"
+                _uiState.update {
+                    it.copy(
+                        coachName = formattedName,
+                        greeting = "Good morning, $formattedName!"
+                    )
+                }
+            }
+
+            userDao.getCurrentUserFlow().collect { userEntity ->
+                if (userEntity != null && userEntity.role == Role.TRAINER && userEntity.name.isNotBlank()) {
+                    val formattedName = if (userEntity.name.startsWith("Coach", ignoreCase = true)) userEntity.name else "Coach ${userEntity.name}"
+                    _uiState.update {
+                        it.copy(
+                            coachName = formattedName,
+                            greeting = "Good morning, $formattedName!"
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

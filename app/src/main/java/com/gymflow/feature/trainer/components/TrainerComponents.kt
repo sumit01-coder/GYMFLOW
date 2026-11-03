@@ -32,6 +32,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -491,78 +497,70 @@ fun TrainerBottomNavBar(
     onTabSelected: (TrainerBottomNavTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    NavigationBar(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .border(BorderStroke(1.dp, TrainerDarkBorder)),
-        containerColor = TrainerDarkBg,
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = TrainerDarkBg,
         tonalElevation = 0.dp
     ) {
-        NavigationBarItem(
-            selected = selectedTab == TrainerBottomNavTab.DASHBOARD,
-            onClick = { onTabSelected(TrainerBottomNavTab.DASHBOARD) },
-            icon = { Icon(Icons.Default.Grid3x3, contentDescription = "Dashboard", modifier = Modifier.size(20.dp)) },
-            label = { Text("Dashboard", fontSize = 11.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = TrainerDarkTextPrimary,
-                selectedTextColor = TrainerDarkTextPrimary,
-                unselectedIconColor = TrainerDarkTextSecondary,
-                unselectedTextColor = TrainerDarkTextSecondary,
-                indicatorColor = TrainerDarkCard
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+        ) {
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = TrainerDarkBorder
             )
-        )
-        NavigationBarItem(
-            selected = selectedTab == TrainerBottomNavTab.MEMBERS,
-            onClick = { onTabSelected(TrainerBottomNavTab.MEMBERS) },
-            icon = { Icon(Icons.Default.People, contentDescription = "Members", modifier = Modifier.size(20.dp)) },
-            label = { Text("Members", fontSize = 11.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = TrainerDarkTextPrimary,
-                selectedTextColor = TrainerDarkTextPrimary,
-                unselectedIconColor = TrainerDarkTextSecondary,
-                unselectedTextColor = TrainerDarkTextSecondary,
-                indicatorColor = TrainerDarkCard
-            )
-        )
-        NavigationBarItem(
-            selected = selectedTab == TrainerBottomNavTab.PLANS,
-            onClick = { onTabSelected(TrainerBottomNavTab.PLANS) },
-            icon = { Icon(Icons.Default.FitnessCenter, contentDescription = "Plans", modifier = Modifier.size(20.dp)) },
-            label = { Text("Plans", fontSize = 11.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = TrainerDarkTextPrimary,
-                selectedTextColor = TrainerDarkTextPrimary,
-                unselectedIconColor = TrainerDarkTextSecondary,
-                unselectedTextColor = TrainerDarkTextSecondary,
-                indicatorColor = TrainerDarkCard
-            )
-        )
-        NavigationBarItem(
-            selected = selectedTab == TrainerBottomNavTab.ANALYTICS,
-            onClick = { onTabSelected(TrainerBottomNavTab.ANALYTICS) },
-            icon = { Icon(Icons.Default.Analytics, contentDescription = "Analytics", modifier = Modifier.size(20.dp)) },
-            label = { Text("Analytics", fontSize = 11.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = TrainerDarkTextPrimary,
-                selectedTextColor = TrainerDarkTextPrimary,
-                unselectedIconColor = TrainerDarkTextSecondary,
-                unselectedTextColor = TrainerDarkTextSecondary,
-                indicatorColor = TrainerDarkCard
-            )
-        )
-        NavigationBarItem(
-            selected = selectedTab == TrainerBottomNavTab.SETTINGS,
-            onClick = { onTabSelected(TrainerBottomNavTab.SETTINGS) },
-            icon = { Icon(Icons.Default.Settings, contentDescription = "Settings", modifier = Modifier.size(20.dp)) },
-            label = { Text("Settings", fontSize = 11.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = TrainerDarkTextPrimary,
-                selectedTextColor = TrainerDarkTextPrimary,
-                unselectedIconColor = TrainerDarkTextSecondary,
-                unselectedTextColor = TrainerDarkTextSecondary,
-                indicatorColor = TrainerDarkCard
-            )
-        )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val tabs = listOf(
+                    Triple(TrainerBottomNavTab.DASHBOARD, "Dashboard", Icons.Default.Grid3x3),
+                    Triple(TrainerBottomNavTab.MEMBERS, "Members", Icons.Default.People),
+                    Triple(TrainerBottomNavTab.PLANS, "Plans", Icons.Default.FitnessCenter),
+                    Triple(TrainerBottomNavTab.ANALYTICS, "Analytics", Icons.Default.Analytics),
+                    Triple(TrainerBottomNavTab.SETTINGS, "Settings", Icons.Default.Settings)
+                )
+
+                for ((tab, label, icon) in tabs) {
+                    val isSelected = selectedTab == tab
+                    val interactionSource = remember { MutableInteractionSource() }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = ripple(bounded = false, radius = 28.dp),
+                                onClick = { onTabSelected(tab) }
+                            )
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            modifier = Modifier.size(24.dp),
+                            tint = if (isSelected) TrainerDarkTextPrimary else TrainerDarkTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isSelected) TrainerDarkTextPrimary else TrainerDarkTextSecondary
+                        )
+                    }
+                }
+            }
+        }
     }
 }

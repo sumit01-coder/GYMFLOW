@@ -184,7 +184,7 @@ fun MemberHomeContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "AJ",
+                            text = uiState.userInitials,
                             style = GymFlowTheme.typography.Caption.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = GymFlowWhite

@@ -1,7 +1,6 @@
 package com.gymflow.feature.member.profile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,16 +18,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowButton
@@ -45,8 +49,11 @@ fun MemberProfileScreen(
     onNavigateToProgress: () -> Unit,
     onNavigateToActivity: () -> Unit,
     onLogout: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -86,7 +93,7 @@ fun MemberProfileScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Avatar & Name
+            // Avatar & Real Name
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -95,7 +102,7 @@ fun MemberProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "AJ",
+                    text = uiState.initials,
                     style = GymFlowTheme.typography.Heading1.copy(
                         color = GymFlowWhite,
                         fontSize = 28.sp
@@ -106,15 +113,24 @@ fun MemberProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Alex Johnson",
+                text = uiState.user.name.ifBlank { "GymFlow Member" },
                 style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
                 color = GymFlowTheme.colors.textPrimary
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            if (uiState.user.email.isNotBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = uiState.user.email,
+                    style = GymFlowTheme.typography.BodyRegular,
+                    color = GymFlowTheme.colors.textSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             GymFlowBadge(
-                text = "MEMBER · JOINED APR 2025",
+                text = "MEMBER · ${uiState.joinedDateFormatted.uppercase()}",
                 backgroundColor = GymFlowTheme.colors.surfaceVariant,
                 textColor = GymFlowTheme.colors.textSecondary
             )
@@ -136,7 +152,7 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "28",
+                            text = "${uiState.profile.age}",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
@@ -150,7 +166,7 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "178 cm",
+                            text = "${uiState.profile.heightCm.toInt()} cm",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
@@ -164,7 +180,7 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Muscle",
+                            text = uiState.profile.fitnessGoal,
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
@@ -212,7 +228,7 @@ fun MemberProfileScreen(
 
             GymFlowButton(
                 text = "Log Out",
-                onClick = onLogout,
+                onClick = { viewModel.showLogoutDialog() },
                 style = GymFlowButtonStyle.DESTRUCTIVE,
                 leadingIcon = {
                     Icon(
@@ -225,5 +241,32 @@ fun MemberProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
+    }
+
+    if (uiState.isLogoutDialogOpen) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissLogoutDialog() },
+            title = {
+                Text(text = "Log Out", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(text = "Are you sure you want to log out of GYMFLOW?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.confirmLogout(onLogout)
+                    }
+                ) {
+                    Text(text = "Log Out", color = GymFlowTheme.colors.accentDestructive, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissLogoutDialog() }) {
+                    Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface
+        )
     }
 }

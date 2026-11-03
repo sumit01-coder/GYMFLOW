@@ -43,7 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.feature.trainer.components.TrainerBadge
 import com.gymflow.feature.trainer.components.TrainerBottomNavBar
 import com.gymflow.feature.trainer.components.TrainerBottomNavTab
@@ -70,7 +70,7 @@ fun TrainerDashboardScreen(
     onNavigateToJoinCode: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TrainerDashboardViewModel = viewModel()
+    viewModel: TrainerDashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 

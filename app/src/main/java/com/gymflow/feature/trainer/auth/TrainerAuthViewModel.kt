@@ -2,14 +2,19 @@ package com.gymflow.feature.trainer.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.database.UserEntity
+import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.User
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class TrainerLoginUiState(
     val email: String = "trainer@gymflow.com",
@@ -21,7 +26,11 @@ data class TrainerLoginUiState(
     val loggedInUser: User? = null
 )
 
-class TrainerAuthViewModel : ViewModel() {
+@HiltViewModel
+class TrainerAuthViewModel @Inject constructor(
+    private val userDao: UserDao,
+    private val tokenManager: TokenManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrainerLoginUiState())
     val uiState: StateFlow<TrainerLoginUiState> = _uiState.asStateFlow()
@@ -53,7 +62,7 @@ class TrainerAuthViewModel : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            delay(600) // Simulated network verification
+            delay(400)
 
             // Role verification check
             if (email.contains("member", ignoreCase = true)) {
@@ -66,13 +75,41 @@ class TrainerAuthViewModel : ViewModel() {
                 return@launch
             }
 
-            // Successfully authenticated as Trainer
+            val existing = userDao.getUserByEmail(email)
+            val trainerName = existing?.name ?: run {
+                val prefix = email.substringBefore("@").replace(".", " ").replace("_", " ")
+                val clean = prefix.split(" ").filter { it.isNotBlank() }
+                    .joinToString(" ") { part -> part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } }
+                if (clean.isBlank()) "Coach Marcus Vance" else "Coach $clean"
+            }
+            val userId = existing?.id ?: "trainer_${System.currentTimeMillis()}"
+            val token = existing?.token ?: "jwt-trainer-$userId"
+
+            tokenManager.saveAuth(
+                token = token,
+                userId = userId,
+                email = email,
+                name = trainerName,
+                role = Role.TRAINER
+            )
+
+            userDao.upsertUser(
+                UserEntity(
+                    id = userId,
+                    name = trainerName,
+                    email = email,
+                    role = Role.TRAINER,
+                    token = token,
+                    lastUpdated = System.currentTimeMillis()
+                )
+            )
+
             val trainerUser = User(
-                id = "trainer-marcus-01",
-                name = "Coach Marcus Vance",
+                id = userId,
+                name = trainerName,
                 email = email,
                 role = Role.TRAINER,
-                token = "jwt-trainer-auth-token-sample"
+                token = token
             )
 
             _uiState.update {

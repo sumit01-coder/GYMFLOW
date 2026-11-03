@@ -2,6 +2,9 @@ package com.gymflow.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.database.UserEntity
+import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.User
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +30,10 @@ data class AuthUiState(
 )
 
 @HiltViewModel
-class AuthViewModel @Inject constructor() : ViewModel() {
+class AuthViewModel @Inject constructor(
+    private val userDao: UserDao,
+    private val tokenManager: TokenManager
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -63,15 +69,56 @@ class AuthViewModel @Inject constructor() : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            delay(600) // Simulating network auth
+            delay(400)
 
             val role = if (email.contains("trainer", ignoreCase = true)) Role.TRAINER else Role.MEMBER
+            
+            // Check if user already exists in local database
+            val existingUser = userDao.getUserByEmail(email)
+            val userId = existingUser?.id ?: "usr_${System.currentTimeMillis()}"
+            val userName = existingUser?.name ?: run {
+                val prefix = email.substringBefore("@").replace(".", " ").replace("_", " ")
+                prefix.split(" ").filter { it.isNotBlank() }
+                    .joinToString(" ") { part -> part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } }
+                    .ifBlank { if (role == Role.TRAINER) "Coach Marcus" else "Alex Johnson" }
+            }
+            val token = existingUser?.token ?: "jwt_${userId}_token"
+
+            // Persist to Room & DataStore
+            tokenManager.saveAuth(
+                token = token,
+                userId = userId,
+                email = email,
+                name = userName,
+                role = role
+            )
+
+            if (existingUser == null) {
+                userDao.upsertUser(
+                    UserEntity(
+                        id = userId,
+                        name = userName,
+                        email = email,
+                        role = role,
+                        token = token,
+                        heightCm = 178f,
+                        currentWeightKg = 67.8f,
+                        fitnessGoal = "Build Muscle",
+                        age = 28,
+                        syncStatus = "Connected",
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                userDao.upsertUser(existingUser.copy(lastUpdated = System.currentTimeMillis()))
+            }
+
             val user = User(
-                id = "usr_${System.currentTimeMillis()}",
-                name = if (role == Role.TRAINER) "Marcus Vance" else "Alex Johnson",
+                id = userId,
+                name = userName,
                 email = email,
                 role = role,
-                token = "jwt_mock_token"
+                token = token
             )
 
             _uiState.update {
@@ -94,14 +141,37 @@ class AuthViewModel @Inject constructor() : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            delay(600)
+            delay(400)
 
+            val userId = "usr_code_${System.currentTimeMillis()}"
+            val token = "jwt_join_token"
             val user = User(
-                id = "usr_code_member",
-                name = "Alex Johnson",
-                email = "alex.johnson@gymflow.com",
+                id = userId,
+                name = "Member $code",
+                email = "member.$code@gymflow.com",
                 role = Role.MEMBER,
-                token = "jwt_join_token"
+                token = token
+            )
+
+            tokenManager.saveAuth(
+                token = token,
+                userId = user.id,
+                email = user.email,
+                name = user.name,
+                role = user.role
+            )
+
+            userDao.upsertUser(
+                UserEntity(
+                    id = user.id,
+                    name = user.name,
+                    email = user.email,
+                    role = user.role,
+                    token = token,
+                    connectedTrainerId = "trainer_gym82k91",
+                    syncStatus = "Connected",
+                    lastUpdated = System.currentTimeMillis()
+                )
             )
 
             _uiState.update {
@@ -127,14 +197,43 @@ class AuthViewModel @Inject constructor() : ViewModel() {
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            delay(600)
+            delay(400)
+
+            val role = _uiState.value.role
+            val userId = "usr_${System.currentTimeMillis()}"
+            val token = "jwt_new_${userId}_token"
 
             val user = User(
-                id = "usr_new_${System.currentTimeMillis()}",
+                id = userId,
                 name = name,
                 email = email,
-                role = _uiState.value.role,
-                token = "jwt_mock_token"
+                role = role,
+                token = token
+            )
+
+            // Persist the real registered credentials immediately in TokenManager & Room!
+            tokenManager.saveAuth(
+                token = token,
+                userId = userId,
+                email = email,
+                name = name,
+                role = role
+            )
+
+            userDao.upsertUser(
+                UserEntity(
+                    id = userId,
+                    name = name,
+                    email = email,
+                    role = role,
+                    token = token,
+                    heightCm = 178f,
+                    currentWeightKg = 67.8f,
+                    fitnessGoal = "Build Muscle",
+                    age = 28,
+                    syncStatus = "Connected",
+                    lastUpdated = System.currentTimeMillis()
+                )
             )
 
             _uiState.update {

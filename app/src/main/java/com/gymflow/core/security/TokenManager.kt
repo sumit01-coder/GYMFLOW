@@ -103,6 +103,10 @@ class TokenManager @Inject constructor(
 
     fun getUserEmail(): Flow<String?> = _userEmailFlow.asStateFlow()
 
+    fun getEmail(): String? = _userEmailFlow.value ?: prefs.getString(KEY_USER_EMAIL, null)
+
+    fun getUserEmailSync(): String? = getEmail()
+
     // User Name Operations
     fun saveUserName(name: String) {
         prefs.edit().putString(KEY_USER_NAME, name).apply()
@@ -110,6 +114,10 @@ class TokenManager @Inject constructor(
     }
 
     fun getUserName(): Flow<String?> = _userNameFlow.asStateFlow()
+
+    fun getName(): String? = _userNameFlow.value ?: prefs.getString(KEY_USER_NAME, null)
+
+    fun getUserNameSync(): String? = getName()
 
     // Combined Auth Persistence
     fun saveAuth(
