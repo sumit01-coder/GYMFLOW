@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.72"
+        android:scaleY="0.72"
+        android:translateX="15.12"
+        android:translateY="15.12">
+
+        <!-- Left Weight Plate Outer -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M33,38 C31.34,38 30,39.34 30,41 L30,67 C30,68.66 31.34,70 33,70 C34.66,70 36,68.66 36,67 L36,41 C36,39.34 34.66,38 33,38 Z" />
+
+        <!-- Left Weight Plate Inner -->
+        <path
+            android:fillColor="#E5E7EB"
+            android:pathData="M40,43 C38.9,43 38,43.9 38,45 L38,63 C38,64.1 38.9,65 40,65 C41.1,65 42,64.1 42,63 L42,45 C42,43.9 41.1,43 40,43 Z" />
+
+        <!-- Barbell Bar -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M36,52 L72,52 L72,56 L36,56 Z" />
+
+        <!-- Right Weight Plate Inner -->
+        <path
+            android:fillColor="#E5E7EB"
+            android:pathData="M68,43 C66.9,43 66,43.9 66,45 L66,63 C66,64.1 66.9,65 68,65 C69.1,65 70,64.1 70,63 L70,45 C70,43.9 69.1,43 68,43 Z" />
+
+        <!-- Right Weight Plate Outer -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M75,38 C73.34,38 72,39.34 72,41 L72,67 C72,68.66 73.34,70 75,70 C76.66,70 78,68.66 78,67 L78,41 C78,39.34 76.66,38 75,38 Z" />
+
+        <!-- Kinetic 'G' Flow Arc Top -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="3.5"
+            android:strokeLineCap="round"
+            android:pathData="M65,34 C58,29 46,30 40,36 C34,42 34,54 38,62" />
+
+        <!-- Kinetic 'Flow' Arc Bottom with Emerald Accent -->
+        <path
+            android:strokeColor="#10B981"
+            android:strokeWidth="3.5"
+            android:strokeLineCap="round"
+            android:pathData="M43,74 C50,79 62,78 68,72 C74,66 74,54 70,46" />
+
+        <!-- Center Cross Bar Core Glow -->
+        <path
+            android:fillColor="#10B981"
+            android:pathData="M52,51 L56,51 L56,57 L52,57 Z" />
+    </group>
+</vector>

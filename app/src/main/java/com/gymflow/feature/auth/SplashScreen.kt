@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
+import com.gymflow.core.components.GymFlowLogo
+import com.gymflow.core.components.GymFlowLogoSize
+import com.gymflow.core.components.GymFlowLogoVariant
 import com.gymflow.core.theme.GymFlowPureBlack
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
@@ -93,46 +96,12 @@ fun SplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Dumbbell Emblem Badge
-                Box(
-                    modifier = Modifier
-                        .size(76.dp)
-                        .background(
-                            color = Color(0xFF1E1E22),
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = "GymFlow Dumbbell Logo",
-                        modifier = Modifier.size(40.dp),
-                        tint = GymFlowWhite
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Text(
-                    text = "GYMFLOW",
-                    style = GymFlowTheme.typography.DisplayHero.copy(
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
-                    ),
-                    color = GymFlowWhite
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "TRAIN · TRACK · IMPROVE",
-                    style = GymFlowTheme.typography.Caption.copy(
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 2.5.sp
-                    ),
-                    color = Color(0xFFA1A1AA)
+                GymFlowLogo(
+                    size = GymFlowLogoSize.HERO,
+                    variant = GymFlowLogoVariant.VERTICAL,
+                    showTagline = true,
+                    animated = true,
+                    isDark = true
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
