@@ -24,10 +24,12 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -45,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -69,6 +72,7 @@ fun MemberProfileScreen(
     onNavigateToMeasurements: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
     onNavigateToJoinTrainer: () -> Unit = {},
+    onNavigateToEmailVerification: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
@@ -134,11 +138,25 @@ fun MemberProfileScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text(
-                text = uiState.user.name.ifBlank { "GymFlow Member" },
-                style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
-                color = GymFlowTheme.colors.textPrimary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = uiState.user.name.ifBlank { "GymFlow Member" },
+                    style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+                if (uiState.user.isEmailVerified) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = "Verified Email",
+                        tint = Color(0xFF10B981),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
 
             if (uiState.user.email.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -151,11 +169,75 @@ fun MemberProfileScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            GymFlowBadge(
-                text = "MEMBER · ${uiState.joinedDateFormatted.uppercase()}",
-                backgroundColor = GymFlowTheme.colors.surfaceVariant,
-                textColor = GymFlowTheme.colors.textSecondary
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                GymFlowBadge(
+                    text = "MEMBER · ${uiState.joinedDateFormatted.uppercase()}",
+                    backgroundColor = GymFlowTheme.colors.surfaceVariant,
+                    textColor = GymFlowTheme.colors.textSecondary
+                )
+                if (uiState.user.isEmailVerified) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    GymFlowBadge(
+                        text = "VERIFIED",
+                        backgroundColor = Color(0xFFECFDF5),
+                        textColor = Color(0xFF059669)
+                    )
+                }
+            }
+
+            if (!uiState.user.isEmailVerified) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFFBEB))
+                        .border(1.dp, Color(0xFFFDE68A), RoundedCornerShape(12.dp))
+                        .clickable { onNavigateToEmailVerification() }
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MarkEmailUnread,
+                                contentDescription = null,
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Verify Email Address",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF92400E)
+                                )
+                                Text(
+                                    text = "Tap to verify ${uiState.user.email.ifBlank { "your email" }}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFB45309)
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

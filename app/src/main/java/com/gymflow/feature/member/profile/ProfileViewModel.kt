@@ -2,6 +2,7 @@ package com.gymflow.feature.member.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.MemberProfile
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,7 +50,8 @@ data class ProfileUiState(
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userDao: UserDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val firebaseAuth: FirebaseAuth
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -57,12 +60,14 @@ class ProfileViewModel @Inject constructor(
             val email = tokenManager.getEmail() ?: ""
             val id = tokenManager.getUserIdSync() ?: "default_member"
             val inits = if (name.isNotBlank()) extractInitials(name) else "GF"
+            val isVerified = tokenManager.isEmailVerifiedSync() || (firebaseAuth.currentUser?.isEmailVerified == true)
             ProfileUiState(
                 user = User(
                     id = id,
                     name = name,
                     email = email,
-                    role = Role.MEMBER
+                    role = Role.MEMBER,
+                    isEmailVerified = isVerified
                 ),
                 initials = inits
             )
@@ -72,6 +77,29 @@ class ProfileViewModel @Inject constructor(
 
     init {
         observeUserData()
+        refreshVerificationStatus()
+    }
+
+    fun refreshVerificationStatus() {
+        viewModelScope.launch {
+            try {
+                val fbUser = firebaseAuth.currentUser
+                if (fbUser != null) {
+                    fbUser.reload().await()
+                    val verified = fbUser.isEmailVerified
+                    if (verified) {
+                        val userId = tokenManager.getUserIdSync() ?: fbUser.uid
+                        userDao.updateEmailVerified(userId, true)
+                        tokenManager.setEmailVerified(true)
+                        _uiState.update { current ->
+                            current.copy(
+                                user = current.user.copy(isEmailVerified = true)
+                            )
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun observeUserData() {

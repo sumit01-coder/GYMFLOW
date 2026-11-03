@@ -158,6 +158,7 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToMeasurements = { navController.navigate(NavRoutes.MEMBER_MEASUREMENTS) },
             onNavigateToSettings = { navController.navigate(NavRoutes.MEMBER_SETTINGS) },
             onNavigateToJoinTrainer = { navController.navigate(NavRoutes.MEMBER_JOIN_TRAINER) },
+            onNavigateToEmailVerification = { navController.navigate(NavRoutes.EMAIL_VERIFICATION) },
             onLogout = {
                 navController.navigate(NavRoutes.LOGIN) {
                     popUpTo(0) { inclusive = true }
