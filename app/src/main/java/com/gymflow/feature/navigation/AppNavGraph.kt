@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.gymflow.domain.model.Role
 import com.gymflow.feature.auth.AuthViewModel
+import com.gymflow.feature.auth.EmailVerificationScreen
 import com.gymflow.feature.auth.ForgotPasswordScreen
 import com.gymflow.feature.auth.LoginScreen
 import com.gymflow.feature.auth.RegisterScreen
@@ -81,14 +82,32 @@ fun AppNavGraph(
                 viewModel = authViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLogin = { navController.popBackStack() },
-                onRegisterSuccess = { role ->
+                onRegisterSuccess = { _ ->
+                    navController.navigate(NavRoutes.EMAIL_VERIFICATION) {
+                        popUpTo(NavRoutes.REGISTER) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Auth: Email Verification Screen
+        composable(NavRoutes.EMAIL_VERIFICATION) {
+            val authViewModel: AuthViewModel = hiltViewModel()
+            EmailVerificationScreen(
+                viewModel = authViewModel,
+                onNavigateBack = {
+                    navController.navigate(NavRoutes.LOGIN) {
+                        popUpTo(NavRoutes.EMAIL_VERIFICATION) { inclusive = true }
+                    }
+                },
+                onVerificationSuccess = { role ->
                     if (role == Role.TRAINER) {
                         navController.navigate(TrainerRoute.Dashboard) {
-                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                            popUpTo(NavRoutes.EMAIL_VERIFICATION) { inclusive = true }
                         }
                     } else {
                         navController.navigate(NavRoutes.MEMBER_HOME) {
-                            popUpTo(NavRoutes.LOGIN) { inclusive = true }
+                            popUpTo(NavRoutes.EMAIL_VERIFICATION) { inclusive = true }
                         }
                     }
                 }

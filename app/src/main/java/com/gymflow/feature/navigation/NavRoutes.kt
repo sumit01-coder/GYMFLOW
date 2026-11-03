@@ -5,6 +5,7 @@ object NavRoutes {
     const val LOGIN = "auth/login"
     const val REGISTER = "auth/register"
     const val FORGOT_PASSWORD = "auth/forgot_password"
+    const val EMAIL_VERIFICATION = "auth/email_verification"
 
     const val MEMBER_HOME = "member/home"
     const val WORKOUT_SCHEDULE = "member/schedule"

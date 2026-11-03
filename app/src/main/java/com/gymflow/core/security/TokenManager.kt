@@ -29,6 +29,7 @@ class TokenManager @Inject constructor(
     private val _userIdFlow = MutableStateFlow<String?>(null)
     private val _userEmailFlow = MutableStateFlow<String?>(null)
     private val _userNameFlow = MutableStateFlow<String?>(null)
+    private val _emailVerifiedFlow = MutableStateFlow<Boolean>(false)
 
     init {
         // Initialize reactive cache from secure storage
@@ -36,6 +37,7 @@ class TokenManager @Inject constructor(
         _userIdFlow.value = prefs.getString(KEY_USER_ID, null)
         _userEmailFlow.value = prefs.getString(KEY_USER_EMAIL, null)
         _userNameFlow.value = prefs.getString(KEY_USER_NAME, null)
+        _emailVerifiedFlow.value = prefs.getBoolean(KEY_EMAIL_VERIFIED, false)
         val roleStr = prefs.getString(KEY_USER_ROLE, null)
         _roleFlow.value = roleStr?.let {
             try {
@@ -125,7 +127,8 @@ class TokenManager @Inject constructor(
         userId: String,
         email: String,
         name: String,
-        role: Role
+        role: Role,
+        isEmailVerified: Boolean = false
     ) {
         prefs.edit()
             .putString(KEY_AUTH_TOKEN, token)
@@ -133,6 +136,7 @@ class TokenManager @Inject constructor(
             .putString(KEY_USER_EMAIL, email)
             .putString(KEY_USER_NAME, name)
             .putString(KEY_USER_ROLE, role.name)
+            .putBoolean(KEY_EMAIL_VERIFIED, isEmailVerified)
             .apply()
 
         _tokenFlow.value = token
@@ -140,7 +144,18 @@ class TokenManager @Inject constructor(
         _userEmailFlow.value = email
         _userNameFlow.value = name
         _roleFlow.value = role
+        _emailVerifiedFlow.value = isEmailVerified
     }
+
+    // Email Verification Operations
+    fun setEmailVerified(verified: Boolean) {
+        prefs.edit().putBoolean(KEY_EMAIL_VERIFIED, verified).apply()
+        _emailVerifiedFlow.value = verified
+    }
+
+    fun isEmailVerified(): Flow<Boolean> = _emailVerifiedFlow.asStateFlow()
+
+    fun isEmailVerifiedSync(): Boolean = _emailVerifiedFlow.value
 
     // Auth state check
     fun isAuthenticated(): Flow<Boolean> = _tokenFlow.map { !it.isNullOrBlank() }
@@ -155,6 +170,7 @@ class TokenManager @Inject constructor(
         _userEmailFlow.value = null
         _userNameFlow.value = null
         _roleFlow.value = null
+        _emailVerifiedFlow.value = false
     }
 
     companion object {
@@ -165,5 +181,6 @@ class TokenManager @Inject constructor(
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME = "user_name"
+        private const val KEY_EMAIL_VERIFIED = "email_verified"
     }
 }

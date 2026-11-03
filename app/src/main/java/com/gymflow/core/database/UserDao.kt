@@ -35,6 +35,9 @@ interface UserDao {
         now: Long = System.currentTimeMillis()
     )
 
+    @Query("UPDATE users SET isEmailVerified = :isVerified, lastUpdated = :now WHERE id = :id")
+    suspend fun updateEmailVerified(id: String, isVerified: Boolean, now: Long = System.currentTimeMillis())
+
     @Query("DELETE FROM users WHERE id = :id")
     suspend fun deleteUser(id: String)
 

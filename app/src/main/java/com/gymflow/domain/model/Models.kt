@@ -14,7 +14,8 @@ data class User(
     val name: String,
     val email: String,
     val role: Role,
-    val token: String? = null
+    val token: String? = null,
+    val isEmailVerified: Boolean = false
 )
 
 @Serializable

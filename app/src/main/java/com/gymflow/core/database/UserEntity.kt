@@ -19,6 +19,7 @@ data class UserEntity(
     val age: Int = 28,
     val connectedTrainerId: String? = null,
     val syncStatus: String = "Connected",
+    val isEmailVerified: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis()
 ) {
     fun toDomain(): User = User(
@@ -26,7 +27,8 @@ data class UserEntity(
         name = name,
         email = email,
         role = role,
-        token = token
+        token = token,
+        isEmailVerified = isEmailVerified
     )
 
     fun toMemberProfile(): MemberProfile = MemberProfile(
@@ -45,7 +47,8 @@ data class UserEntity(
             name = user.name,
             email = user.email,
             role = user.role,
-            token = token
+            token = token,
+            isEmailVerified = user.isEmailVerified
         )
     }
 }
