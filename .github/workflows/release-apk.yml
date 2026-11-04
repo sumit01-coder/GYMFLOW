@@ -39,9 +39,6 @@ jobs:
           java-version: '21'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Prepare google-services.json
         run: |
           if [ ! -f "app/google-services.json" ]; then
