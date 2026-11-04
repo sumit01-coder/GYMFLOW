@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GYMFLOW — Email Verification & Account Security</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/logo.png">
+
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #08080B;
+      --card-bg: rgba(16, 16, 22, 0.92);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #FFFFFF;
+      --text-secondary: #94A3B8;
+      --text-muted: #64748B;
+      --accent-green: #22C55E;
+      --accent-green-glow: rgba(34, 197, 94, 0.35);
+      --accent-green-soft: rgba(34, 197, 94, 0.12);
+      --accent-amber: #F59E0B;
+      --accent-red: #EF4444;
+      --radius-card: 26px;
+      --radius-pill: 9999px;
+      --radius-input: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 50% 12%, rgba(34, 197, 94, 0.12) 0%, transparent 55%),
+        radial-gradient(circle at 85% 85%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+        linear-gradient(180deg, #070709 0%, #0E0E14 100%);
+      color: var(--text-primary);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-size: 40px 40px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .card-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 460px;
+      animation: cardAppear 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-card);
+      padding: 42px 32px;
+      box-shadow: 
+        0 24px 60px -12px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 15%;
+      right: 15%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    }
+
+    /* Brand Header */
+    .brand-header {
+      margin-bottom: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-container {
+      width: 76px;
+      height: 76px;
+      background: #000000;
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 20px rgba(34, 197, 94, 0.15);
+    }
+
+    .brand-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: #FFFFFF;
+      text-transform: uppercase;
+      line-height: 1.1;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--accent-green);
+      text-transform: uppercase;
+      background: var(--accent-green-soft);
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    /* State Panels */
+    .state-panel {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .state-panel.active {
+      display: flex;
+    }
+
+    /* Icons */
+    .status-icon-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      margin-bottom: 2px;
+    }
+
+    .status-icon-circle.loading {
+      background: rgba(255, 255, 255, 0.03);
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      animation: rotateDash 3s linear infinite;
+    }
+
+    .status-icon-circle.success {
+      background: var(--accent-green-soft);
+      border: 2px solid var(--accent-green);
+      box-shadow: 0 0 32px var(--accent-green-glow);
+    }
+
+    .status-icon-circle.error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 2px solid var(--accent-red);
+      box-shadow: 0 0 32px rgba(239, 68, 68, 0.3);
+    }
+
+    .status-icon-circle.reset {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 0 24px rgba(255, 255, 255, 0.1);
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent-green);
+      border-radius: 50%;
+      animation: spin 0.8s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+    }
+
+    .state-heading {
+      font-size: 22px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.3px;
+      line-height: 1.3;
+    }
+
+    .state-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 360px;
+    }
+
+    /* Email badge */
+    .email-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 600;
+      color: #F8FAFC;
+      word-break: break-all;
+    }
+
+    .email-chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 16px 24px;
+      border-radius: var(--radius-pill);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      text-decoration: none;
+      outline: none;
+      border: none;
+      letter-spacing: 0.3px;
+    }
+
+    .btn-accent {
+      background: #22C55E !important;
+      color: #042210 !important;
+      font-weight: 800 !important;
+      box-shadow: 0 8px 24px rgba(34, 197, 94, 0.4);
+    }
+
+    .btn-accent:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(34, 197, 94, 0.6);
+      background: #4ADE80 !important;
+    }
+
+    .btn-primary {
+      background: #FFFFFF;
+      color: #000000;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(255, 255, 255, 0.25);
+      background: #F1F5F9;
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: #E2E8F0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Form Fields */
+    .form-group {
+      width: 100%;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-input);
+      color: #FFFFFF;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .input-field:focus {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Footer */
+    .footer-bar {
+      margin-top: 26px;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer-badge svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--accent-green);
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes rotateDash { to { transform: rotate(360deg); } }
+    @keyframes cardAppear {
+      from { opacity: 0; transform: translateY(20px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .checkmark-path {
+      stroke-dasharray: 50;
+      stroke-dashoffset: 50;
+      animation: drawCheck 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+    }
+    @keyframes drawCheck { to { stroke-dashoffset: 0; } }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <div class="card-wrapper">
+    <div class="card">
+      <!-- Brand Header -->
+      <div class="brand-header">
+        <div class="brand-logo-container">
+          <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
+            <!-- Dumbbell Plates -->
+            <rect x="8" y="16" width="3.5" height="16" rx="1.75" fill="#FFFFFF"/>
+            <rect x="13" y="19" width="2.5" height="10" rx="1.25" fill="#A1A1AA"/>
+            <!-- Barbell Bar -->
+            <rect x="15" y="22.5" width="18" height="3" rx="1.5" fill="#FFFFFF"/>
+            <!-- Center grip mark -->
+            <circle cx="24" cy="24" r="2" fill="#22C55E"/>
+            <!-- Right Plates -->
+            <rect x="32.5" y="19" width="2.5" height="10" rx="1.25" fill="#A1A1AA"/>
+            <rect x="36.5" y="16" width="3.5" height="16" rx="1.75" fill="#FFFFFF"/>
+            <!-- Dynamic Neon Arc -->
+            <path d="M12 33C16 38 32 38 36 33" stroke="#22C55E" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1 class="brand-title">GYMFLOW</h1>
+        <div class="brand-subtitle">TRAIN · TRACK · IMPROVE</div>
+      </div>
+
+      <!-- PANEL 1: LOADING STATE -->
+      <div id="panel-loading" class="state-panel active">
+        <div class="status-icon-circle loading">
+          <div class="spinner"></div>
+        </div>
+        <h2 class="state-heading">Verifying Security Credentials...</h2>
+        <p class="state-desc">Authenticating with GymFlow Cloud Services. This takes just a moment.</p>
+      </div>
+
+      <!-- PANEL 2: EMAIL VERIFIED SUCCESS -->
+      <div id="panel-verify-success" class="state-panel">
+        <div class="status-icon-circle success">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <h2 class="state-heading">Email Verified Successfully!</h2>
+        <div id="user-email-chip" class="email-chip">
+          <span class="email-chip-dot"></span>
+          <span id="user-email-text">member@gymflow.com</span>
+        </div>
+        <p class="state-desc">
+          Your GymFlow account is now verified and active. You are fully set to schedule workouts, track sets, and train with discipline.
+        </p>
+
+        <a id="btn-open-app" href="gymflow://auth" class="btn btn-accent" style="margin-top: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+          Open GymFlow App
+        </a>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: -6px;">
+          You can safely close this browser window.
+        </p>
+      </div>
+
+      <!-- PANEL 3: PASSWORD RESET FORM -->
+      <div id="panel-reset-password" class="state-panel">
+        <div class="status-icon-circle reset">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h2 class="state-heading">Reset Your Password</h2>
+        <p class="state-desc" id="reset-email-desc">Create a new secure password for your GymFlow account.</p>
+
+        <div class="form-group" style="margin-top: 6px;">
+          <label class="form-label" for="new-password">New Password</label>
+          <input type="password" id="new-password" class="input-field" placeholder="Minimum 6 characters">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" class="input-field" placeholder="Re-enter new password">
+        </div>
+
+        <div id="reset-error-msg" style="color: var(--accent-red); font-size: 13px; display: none; width: 100%; text-align: left;"></div>
+
+        <button id="btn-save-password" class="btn btn-primary" style="margin-top: 8px;">
+          Update Password
+        </button>
+      </div>
+
+      <!-- PANEL 4: PASSWORD RESET SUCCESS -->
+      <div id="panel-reset-success" class="state-panel">
+        <div class="status-icon-circle success">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path class="checkmark-path" d="M20 6L9 17l-5-5"/>
+          </svg>
+        </div>
+        <h2 class="state-heading">Password Updated!</h2>
+        <p class="state-desc">Your password has been securely reset. You can now log into GymFlow using your new credentials.</p>
+        <a href="gymflow://auth" class="btn btn-accent" style="margin-top: 8px;">
+          Open GymFlow App
+        </a>
+      </div>
+
+      <!-- PANEL 5: ERROR OR EXPIRED LINK -->
+      <div id="panel-error" class="state-panel">
+        <div class="status-icon-circle error">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h2 class="state-heading" id="error-title">Link Already Used or Expired</h2>
+        <p class="state-desc" id="error-desc">
+          This verification link has already been used or has expired. If you've already verified your account, you can open the app directly.
+        </p>
+
+        <a href="gymflow://auth" class="btn btn-primary" style="margin-top: 8px;">
+          Open GymFlow App
+        </a>
+        <a href="/" class="btn btn-secondary">
+          Return to Portal
+        </a>
+      </div>
+
+      <!-- PANEL 6: DEFAULT PORTAL WELCOME -->
+      <div id="panel-welcome" class="state-panel">
+        <div class="status-icon-circle reset">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+          </svg>
+        </div>
+        <h2 class="state-heading">GymFlow Account Portal</h2>
+        <p class="state-desc">
+          Manage your fitness journey, workout schedules, and dual-experience training ecosystem.
+        </p>
+        <a href="gymflow://auth" class="btn btn-accent" style="margin-top: 8px;">
+          Launch GymFlow App
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer-bar">
+    <div class="footer-badge">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+      </svg>
+      Secured with GymFlow End-to-End Encryption
+    </div>
+  </footer>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const mode = urlParams.get('mode');
+    const oobCode = urlParams.get('oobCode');
+    const preview = urlParams.get('preview');
+    const apiKey = urlParams.get('apiKey') || "AIzaSyBaABE1ZF9KMcbMOea4WPndeLZEDBnJNNI";
+
+    const firebaseConfig = {
+      apiKey: apiKey,
+      authDomain: "gymflow-fitness-app.firebaseapp.com",
+      projectId: "gymflow-fitness-app",
+      storageBucket: "gymflow-fitness-app.firebasestorage.app",
+      appId: "1:1042647692515:android:43f6b09b5cc13e3aa401d6"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const auth = firebase.auth();
+
+    function showPanel(panelId) {
+      document.querySelectorAll('.state-panel').forEach(el => el.classList.remove('active'));
+      const activeEl = document.getElementById(panelId);
+      if (activeEl) activeEl.classList.add('active');
+    }
+
+    function setupAppLinks(verifiedEmail) {
+      const appUrl = verifiedEmail ? `gymflow://auth?verified=true&email=${encodeURIComponent(verifiedEmail)}` : `gymflow://auth`;
+      const btn = document.getElementById('btn-open-app');
+      if (btn) btn.href = appUrl;
+    }
+
+    async function handleAuthAction() {
+      // 1. Preview mode overrides for visual testing
+      if (preview === 'success') {
+        document.getElementById('user-email-text').textContent = "liam.vance@gymflow.com";
+        showPanel('panel-verify-success');
+        return;
+      }
+      if (preview === 'reset') {
+        document.getElementById('reset-email-desc').textContent = "Create a new password for liam.vance@gymflow.com";
+        showPanel('panel-reset-password');
+        return;
+      }
+      if (preview === 'error') {
+        showPanel('panel-error');
+        return;
+      }
+
+      // 2. Production handling
+      if (!mode || !oobCode) {
+        showPanel('panel-welcome');
+        return;
+      }
+
+      switch (mode) {
+        case 'verifyEmail':
+          try {
+            let userEmail = "";
+            try {
+              const info = await auth.checkActionCode(oobCode);
+              userEmail = info && info.data && info.data.email ? info.data.email : "";
+            } catch (inspectErr) {
+              console.warn("checkActionCode fallback:", inspectErr);
+            }
+
+            await auth.applyActionCode(oobCode);
+
+            if (userEmail) {
+              document.getElementById('user-email-text').textContent = userEmail;
+            }
+            setupAppLinks(userEmail);
+            showPanel('panel-verify-success');
+
+            if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+              setTimeout(() => {
+                window.location.href = `gymflow://auth?verified=true`;
+              }, 1200);
+            }
+          } catch (err) {
+            console.error("Verification error:", err);
+            const errorTitle = document.getElementById('error-title');
+            const errorDesc = document.getElementById('error-desc');
+            
+            if (err.code === 'auth/invalid-action-code') {
+              errorTitle.textContent = "Link Already Used or Expired";
+              errorDesc.textContent = "This email verification link is no longer valid. If you already verified your email, simply open the GymFlow app to continue.";
+            } else {
+              errorTitle.textContent = "Verification Failed";
+              errorDesc.textContent = err.message || "Unable to complete verification. Please request a new link from the GymFlow app.";
+            }
+            showPanel('panel-error');
+          }
+          break;
+
+        case 'resetPassword':
+          try {
+            const userEmail = await auth.verifyPasswordResetCode(oobCode);
+            document.getElementById('reset-email-desc').textContent = `Create a new password for ${userEmail}`;
+            showPanel('panel-reset-password');
+
+            const saveBtn = document.getElementById('btn-save-password');
+            const newPassInput = document.getElementById('new-password');
+            const confirmPassInput = document.getElementById('confirm-password');
+            const errorMsg = document.getElementById('reset-error-msg');
+
+            saveBtn.onclick = async function() {
+              const newPassword = newPassInput.value.trim();
+              const confirmPassword = confirmPassInput.value.trim();
+
+              errorMsg.style.display = 'none';
+
+              if (newPassword.length < 6) {
+                errorMsg.textContent = "Password must be at least 6 characters long.";
+                errorMsg.style.display = 'block';
+                return;
+              }
+
+              if (newPassword !== confirmPassword) {
+                errorMsg.textContent = "Passwords do not match.";
+                errorMsg.style.display = 'block';
+                return;
+              }
+
+              saveBtn.disabled = true;
+              saveBtn.textContent = "Updating...";
+
+              try {
+                await auth.confirmPasswordReset(oobCode, newPassword);
+                showPanel('panel-reset-success');
+              } catch (confirmErr) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = "Update Password";
+                errorMsg.textContent = confirmErr.message || "Failed to update password.";
+                errorMsg.style.display = 'block';
+              }
+            };
+          } catch (resetErr) {
+            console.error("Password reset error:", resetErr);
+            showPanel('panel-error');
+          }
+          break;
+
+        case 'recoverEmail':
+          try {
+            await auth.applyActionCode(oobCode);
+            document.getElementById('error-title').textContent = "Email Change Reverted";
+            document.getElementById('error-desc').textContent = "Your previous email address has been restored.";
+            showPanel('panel-error');
+          } catch (recErr) {
+            showPanel('panel-error');
+          }
+          break;
+
+        default:
+          showPanel('panel-welcome');
+          break;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', handleAuthAction);
+  </script>
+</body>
+</html>

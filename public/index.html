@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GYMFLOW — Train · Track · Improve</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="/logo.png">
+
+  <script>
+    // Immediate redirect to action.html if query params like mode=verifyEmail are present
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('mode') || params.has('oobCode')) {
+      window.location.replace('/action.html' + window.location.search);
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-dark: #0A0A0E;
+      --card-bg: rgba(18, 18, 24, 0.88);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #FFFFFF;
+      --text-secondary: #94A3B8;
+      --accent-green: #22C55E;
+      --accent-green-soft: rgba(34, 197, 94, 0.12);
+      --radius-pill: 9999px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 50% 20%, rgba(34, 197, 94, 0.12) 0%, transparent 60%),
+        linear-gradient(180deg, #09090C 0%, #0E0E14 100%);
+      color: var(--text-primary);
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 520px;
+      width: 100%;
+      background: var(--card-bg);
+      backdrop-filter: blur(28px);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      padding: 48px 36px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+    }
+
+    .logo-box {
+      width: 80px;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .logo-box img {
+      width: 52px;
+      height: 52px;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .tagline {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--accent-green);
+      text-transform: uppercase;
+      background: var(--accent-green-soft);
+      padding: 4px 14px;
+      border-radius: var(--radius-pill);
+      display: inline-block;
+      margin-bottom: 24px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px 28px;
+      background: #FFFFFF;
+      color: #000000;
+      border-radius: var(--radius-pill);
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.15);
+    }
+
+    .btn:hover {
+      background: #F1F5F9;
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(255, 255, 255, 0.25);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo-box">
+      <img src="/logo.png" alt="GymFlow Logo">
+    </div>
+    <h1>GYMFLOW</h1>
+    <div class="tagline">TRAIN · TRACK · IMPROVE</div>
+    <p>Your fitness discipline companion. Plan routines, perform multi-muscle exercises with live animated demonstration loops, and track hydration & weights seamlessly.</p>
+    <a href="gymflow://auth" class="btn">Open GymFlow App</a>
+  </div>
+</body>
+</html>
