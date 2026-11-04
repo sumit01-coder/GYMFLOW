@@ -50,7 +50,11 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          CLEAN_VERSION="${TAG#v}"
+          echo "Building GymFlow APK for version: $CLEAN_VERSION (Tag: $TAG)"
+          ./gradlew :app:assembleDebug -PappVersionName="$CLEAN_VERSION" --stacktrace
 
       - name: Rename APK Asset
         id: rename_apk

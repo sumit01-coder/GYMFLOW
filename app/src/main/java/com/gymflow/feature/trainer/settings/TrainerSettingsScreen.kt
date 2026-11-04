@@ -420,7 +420,7 @@ fun TrainerSettingsScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "GYMFLOW Trainer Studio Pro v1.0.0 (OLED Studio Build)",
+                    text = "GYMFLOW Trainer Studio Pro v${com.gymflow.BuildConfig.VERSION_NAME} (Build ${com.gymflow.BuildConfig.VERSION_CODE})",
                     fontSize = 11.sp,
                     color = TrainerDarkTextTertiary,
                     modifier = Modifier.align(Alignment.CenterHorizontally)

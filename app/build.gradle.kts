@@ -12,12 +12,28 @@ android {
     namespace = "com.gymflow"
     compileSdk = 35
 
+    val rawVersionName = project.findProperty("appVersionName") as? String
+        ?: System.getenv("APP_VERSION_NAME")
+        ?: "1.0.2"
+
+    val cleanVersionName = rawVersionName.removePrefix("v").removePrefix("V").trim()
+
+    val versionParts = cleanVersionName.split('-', '_', '+')[0].split('.').mapNotNull { it.toIntOrNull() }
+    val major = versionParts.getOrElse(0) { 1 }
+    val minor = versionParts.getOrElse(1) { 0 }
+    val patch = versionParts.getOrElse(2) { 2 }
+    val calculatedVersionCode = major * 10000 + minor * 100 + patch
+
+    val appVersionCode = (project.findProperty("appVersionCode") as? String)?.toIntOrNull()
+        ?: System.getenv("APP_VERSION_CODE")?.toIntOrNull()
+        ?: calculatedVersionCode
+
     defaultConfig {
         applicationId = "com.gymflow"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = cleanVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
