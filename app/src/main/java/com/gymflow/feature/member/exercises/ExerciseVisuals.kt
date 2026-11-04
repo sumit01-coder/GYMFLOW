@@ -123,6 +123,16 @@ object ExerciseVisuals {
 
     fun getGifUrl(exerciseId: String?): String? {
         if (exerciseId == null) return null
+
+        if (exerciseId.startsWith("ex_")) {
+            val parts = exerciseId.removePrefix("ex_").split("_", limit = 2)
+            if (parts.size == 2) {
+                val muscle = parts[0]
+                val slug = parts[1].replace("_", "-")
+                return "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/$muscle/$slug.gif"
+            }
+        }
+
         val directId = EXERCISE_GIF_IDS[exerciseId]
         if (directId != null) return "$BASE_GIF_URL$directId.gif"
 
@@ -228,16 +238,15 @@ object ExerciseVisuals {
                 return "$BASE_IMAGE_URL$path"
             }
         }
-        return null
+        return getGifUrl(exerciseId)
     }
 
     fun getEquipmentIcon(equipment: String): ImageVector {
         return when (equipment.lowercase()) {
-            "machine" -> Icons.Default.Tune
+            "machine", "smith machine" -> Icons.Default.Tune
             "cable" -> Icons.Default.Build
-            "barbell" -> Icons.Default.FitnessCenter
-            "dumbbell" -> Icons.Default.FitnessCenter
-            "bodyweight" -> Icons.Default.AccessibilityNew
+            "barbell", "dumbbell", "kettlebell" -> Icons.Default.FitnessCenter
+            "bodyweight", "resistance band" -> Icons.Default.AccessibilityNew
             else -> Icons.Default.Speed
         }
     }
@@ -251,6 +260,7 @@ object ExerciseVisuals {
             "triceps" -> Color(0xFF27272A)
             "legs" -> Color(0xFF18181B)
             "abs" -> Color(0xFF09090B)
+            "cardio" -> Color(0xFF0B2014)
             else -> GymFlowBlack
         }
     }

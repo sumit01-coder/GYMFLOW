@@ -6,6 +6,8 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -18,6 +20,17 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
                 } else {
                     add(GifDecoder.Factory())
                 }
+            }
+            .memoryCache {
+                MemoryCache.Builder(this)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(cacheDir.resolve("exercise_visuals_cache"))
+                    .maxSizeBytes(250L * 1024 * 1024) // 250 MB LRU disk cache for exercise GIFs
+                    .build()
             }
             .crossfade(true)
             .build()

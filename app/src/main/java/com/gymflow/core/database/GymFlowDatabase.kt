@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SyncQueueEntity::class,
         ExerciseEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -60,6 +60,15 @@ abstract class GymFlowDatabase : RoomDatabase() {
                         coachTip TEXT NOT NULL DEFAULT ''
                     )
                 """.trimIndent())
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE exercises ADD COLUMN gifUrl TEXT")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_category ON exercises (category)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_equipment ON exercises (equipment)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_name ON exercises (name)")
             }
         }
     }

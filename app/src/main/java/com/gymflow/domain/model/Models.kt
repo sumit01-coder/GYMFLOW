@@ -52,7 +52,8 @@ data class Exercise(
     val defaultSets: Int = 3,
     val defaultReps: Int = 12,
     val defaultWeightKg: Float = 20f,
-    val coachTip: String = ""
+    val coachTip: String = "",
+    val gifUrl: String? = null
 )
 
 @Serializable

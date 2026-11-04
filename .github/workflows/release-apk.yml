@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: 'Release Tag (e.g. v1.0.1)'
+        description: 'Release Tag (e.g. v1.0.4)'
         required: true
-        default: 'v1.0.1'
+        default: 'v1.0.4'
       release_name:
         description: 'Release Title'
         required: false
@@ -17,7 +17,7 @@ on:
       release_notes:
         description: 'Changelog / Release Notes'
         required: false
-        default: 'Performance improvements, bug fixes, and enhanced workout tracking.'
+        default: 'Performance improvements, expanded exercise catalog with 1,323+ movements and animated GIFs, bug fixes, and enhanced workout tracking.'
 
 permissions:
   contents: write
@@ -68,14 +68,24 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release and Upload APK
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.rename_apk.outputs.tag }}
-          name: ${{ github.event.inputs.release_name || format('GymFlow {0}', steps.rename_apk.outputs.tag) }}
-          body: ${{ github.event.inputs.release_notes || github.event.head_commit.message }}
-          draft: false
-          prerelease: false
-          files: ${{ steps.rename_apk.outputs.apk_path }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.rename_apk.outputs.tag }}"
+          APK_FILE="${{ steps.rename_apk.outputs.apk_path }}"
+          TITLE="${{ github.event.inputs.release_name || format('GymFlow {0}', steps.rename_apk.outputs.tag) }}"
+          NOTES="${{ github.event.inputs.release_notes || github.event.head_commit.message }}"
+          
+          echo "Release Tag: $TAG"
+          echo "APK File: $APK_FILE"
+          
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists, uploading asset..."
+            gh release upload "$TAG" "$APK_FILE" --clobber
+          else
+            echo "Creating new release $TAG and uploading asset..."
+            gh release create "$TAG" "$APK_FILE" --title "$TITLE" --notes "$NOTES"
+          fi
+          
+          echo "Verifying release assets..."
+          gh release view "$TAG"

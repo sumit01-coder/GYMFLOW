@@ -20,7 +20,7 @@ class AppUpdateRepository @Inject constructor(
     companion object {
         const val GITHUB_OWNER = "sumit01-coder"
         const val GITHUB_REPO = "GYMFLOW"
-        const val LATEST_RELEASE_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
+        const val RELEASES_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases"
     }
 
     private val json = Json {
@@ -33,7 +33,7 @@ class AppUpdateRepository @Inject constructor(
         customEndpoint: String? = null
     ): Result<AppUpdateInfo?> = withContext(Dispatchers.IO) {
         try {
-            val endpoint = customEndpoint ?: LATEST_RELEASE_URL
+            val endpoint = customEndpoint ?: RELEASES_URL
             val url = URL(endpoint)
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
@@ -59,45 +59,51 @@ class AppUpdateRepository @Inject constructor(
                 it.readText()
             }
 
-            val release = json.decodeFromString<GitHubReleaseDto>(responseBody)
-
-            if (release.draft) {
-                return@withContext Result.success(null)
+            val releases = try {
+                json.decodeFromString<List<GitHubReleaseDto>>(responseBody)
+            } catch (_: Exception) {
+                // If customEndpoint was a single release endpoint (e.g. /releases/latest)
+                listOfNotNull(json.decodeFromString<GitHubReleaseDto>(responseBody))
             }
 
             val currentVersion = BuildConfig.VERSION_NAME
-            val remoteTag = release.tagName.ifEmpty { release.name ?: "" }
 
-            val isNewer = VersionComparator.isNewerVersion(remoteTag, currentVersion)
-            if (!isNewer) {
-                return@withContext Result.success(null)
+            for (release in releases) {
+                if (release.draft) continue
+
+                val remoteTag = release.tagName.ifEmpty { release.name ?: "" }
+                val isNewer = VersionComparator.isNewerVersion(remoteTag, currentVersion)
+                if (!isNewer) continue
+
+                // Locate valid APK asset
+                val apkAsset = release.assets.firstOrNull {
+                    it.name.endsWith(".apk", ignoreCase = true) ||
+                            it.contentType == "application/vnd.android.package-archive"
+                }
+
+                // If this release has no APK asset uploaded, skip to next candidate
+                if (apkAsset == null) continue
+
+                val downloadUrl = apkAsset.downloadUrl.ifEmpty { release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases" }
+                val fileName = apkAsset.name.ifEmpty { "GymFlow-$remoteTag.apk" }
+                val fileSizeBytes = apkAsset.size
+
+                val info = AppUpdateInfo(
+                    currentVersion = currentVersion,
+                    latestVersion = remoteTag.removePrefix("v").removePrefix("V"),
+                    releaseTitle = release.name ?: "GymFlow $remoteTag",
+                    changelog = release.body ?: "Performance improvements, UI refinements, and stability fixes.",
+                    downloadUrl = downloadUrl,
+                    fileName = fileName,
+                    fileSizeBytes = fileSizeBytes,
+                    releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
+                )
+                return@withContext Result.success(info)
             }
 
-            // Locate APK asset
-            val apkAsset = release.assets.firstOrNull {
-                it.name.endsWith(".apk", ignoreCase = true) ||
-                        it.contentType == "application/vnd.android.package-archive"
-            }
-
-            val downloadUrl = apkAsset?.downloadUrl ?: release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
-            val fileName = apkAsset?.name ?: "GymFlow-$remoteTag.apk"
-            val fileSizeBytes = apkAsset?.size ?: 0L
-
-            val info = AppUpdateInfo(
-                currentVersion = currentVersion,
-                latestVersion = remoteTag.removePrefix("v").removePrefix("V"),
-                releaseTitle = release.name ?: "GymFlow $remoteTag",
-                changelog = release.body ?: "Performance improvements, UI refinements, and stability fixes.",
-                downloadUrl = downloadUrl,
-                fileName = fileName,
-                fileSizeBytes = fileSizeBytes,
-                releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
-            )
-
-            Result.success(info)
+            Result.success(null)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 }
-

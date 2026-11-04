@@ -6,13 +6,22 @@ import com.gymflow.domain.model.Exercise
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-@Entity(tableName = "exercises")
+import androidx.room.Index
+
+@Entity(
+    tableName = "exercises",
+    indices = [
+        Index("category"),
+        Index("equipment"),
+        Index("name")
+    ]
+)
 data class ExerciseEntity(
     @PrimaryKey val id: String,
     val name: String,
-    val category: String, // Chest, Back, Shoulders, Biceps, Triceps, Abs, Legs
+    val category: String, // Chest, Back, Shoulders, Biceps, Triceps, Abs, Legs, Cardio
     val muscleGroup: String,
-    val equipment: String, // Barbell, Dumbbell, Cable, Machine, Bodyweight
+    val equipment: String, // Barbell, Dumbbell, Cable, Machine, Bodyweight, etc.
     val machineName: String? = null,
     val defaultSets: Int = 3,
     val defaultReps: Int = 12,
@@ -20,7 +29,8 @@ data class ExerciseEntity(
     val defaultRestSeconds: Int = 45,
     val mediaUrl: String? = null,
     val instructionsJson: String = "[]",
-    val coachTip: String = ""
+    val coachTip: String = "",
+    val gifUrl: String? = null
 ) {
     fun toDomain(): Exercise {
         val instructions = try {
@@ -41,7 +51,8 @@ data class ExerciseEntity(
             defaultSets = defaultSets,
             defaultReps = defaultReps,
             defaultWeightKg = defaultWeightKg,
-            coachTip = coachTip
+            coachTip = coachTip,
+            gifUrl = gifUrl ?: mediaUrl
         )
     }
 
@@ -65,7 +76,8 @@ data class ExerciseEntity(
                 defaultRestSeconds = exercise.defaultRestSeconds,
                 mediaUrl = exercise.mediaUrl,
                 instructionsJson = jsonStr,
-                coachTip = exercise.coachTip
+                coachTip = exercise.coachTip,
+                gifUrl = exercise.gifUrl ?: exercise.mediaUrl
             )
         }
     }

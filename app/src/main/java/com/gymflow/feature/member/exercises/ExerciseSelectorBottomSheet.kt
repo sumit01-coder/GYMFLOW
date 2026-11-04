@@ -78,8 +78,8 @@ fun ExerciseSelectorBottomSheet(
     var targetReps by remember { mutableIntStateOf(12) }
     var targetWeightKg by remember { mutableFloatStateOf(20f) }
 
-    val categories = listOf("All", "Chest", "Back", "Shoulders", "Biceps", "Triceps", "Legs", "Abs")
-    val equipmentList = listOf("All", "Machine", "Cable", "Dumbbell", "Barbell", "Bodyweight")
+    val categories = listOf("All", "Chest", "Back", "Shoulders", "Biceps", "Triceps", "Legs", "Abs", "Cardio")
+    val equipmentList = listOf("All", "Machine", "Cable", "Dumbbell", "Barbell", "Bodyweight", "Resistance Band", "Smith Machine", "Kettlebell")
 
     val filteredExercises = exercises.filter { ex ->
         val matchesCategory = selectedCategory == "All" || ex.category.equals(selectedCategory, ignoreCase = true)
@@ -251,6 +251,13 @@ fun ExerciseSelectorBottomSheet(
                     onCancel = { selectedExercise = null }
                 )
             } else {
+                Text(
+                    text = "${filteredExercises.size} exercises available",
+                    style = GymFlowTheme.typography.Caption.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                    color = GymFlowTheme.colors.textSecondary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+
                 // Exercise List
                 LazyColumn(
                     modifier = Modifier.fillMaxWidth().weight(1f),
@@ -305,9 +312,10 @@ private fun ExerciseCatalogItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             ExerciseThumbnail(
-                imageUrl = exercise.mediaUrl ?: ExerciseVisuals.getImageUrl(exercise.id),
+                imageUrl = exercise.gifUrl ?: exercise.mediaUrl ?: ExerciseVisuals.getImageUrl(exercise.id),
                 category = exercise.category,
                 equipment = exercise.equipment,
+                preferGif = true,
                 modifier = Modifier.size(48.dp)
             )
 

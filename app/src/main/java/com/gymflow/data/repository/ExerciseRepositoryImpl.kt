@@ -1,5 +1,6 @@
 package com.gymflow.data.repository
 
+import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.gymflow.core.database.ExerciseDao
@@ -11,18 +12,38 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class ExerciseRepositoryImpl @Inject constructor(
     private val exerciseDao: ExerciseDao,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    @ApplicationContext private val context: Context
 ) : ExerciseRepository {
 
     companion object {
         const val FIRESTORE_COLLECTION_EXERCISES = "exercises"
         const val BASE_IMAGE_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
+    }
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
+
+    private fun loadCatalogFromAssets(): List<Exercise> {
+        return try {
+            context.assets.open("exercises_catalog.json").use { stream ->
+                val text = stream.bufferedReader().use { it.readText() }
+                json.decodeFromString<List<Exercise>>(text)
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     override fun getExercises(): Flow<List<Exercise>> {
@@ -80,12 +101,10 @@ class ExerciseRepositoryImpl @Inject constructor(
     override suspend fun seedDefaultCatalogIfEmpty() {
         withContext(Dispatchers.IO) {
             val count = exerciseDao.getExerciseCount()
-            val catalog = createComprehensiveExerciseCatalog()
-            val entities = catalog.map { ExerciseEntity.fromDomain(it) }
-            if (count == 0) {
-                exerciseDao.upsertExercises(entities)
-            } else {
-                // Ensure existing catalog exercises are refreshed with demonstration media URLs
+            if (count < 1000) {
+                val assetExercises = loadCatalogFromAssets()
+                val catalog = if (assetExercises.isNotEmpty()) assetExercises else createComprehensiveExerciseCatalog()
+                val entities = catalog.map { ExerciseEntity.fromDomain(it) }
                 exerciseDao.upsertExercises(entities)
             }
         }
@@ -98,10 +117,10 @@ class ExerciseRepositoryImpl @Inject constructor(
                 seedDefaultCatalogIfEmpty()
 
                 // Try fetching remote exercises from Firestore
-                val snapshot = firestore.collection(FIRESTORE_COLLECTION_EXERCISES).get().await()
+                val snapshot = firestore.collection(FIRESTORE_COLLECTION_EXERCISES).limit(50).get().await()
                 if (snapshot.isEmpty) {
-                    // Seed Firestore from local catalog if cloud collection is empty
-                    val localExercises = createComprehensiveExerciseCatalog()
+                    // Seed Firestore from local catalog if cloud collection is empty (first 20 to avoid write spikes)
+                    val localExercises = createComprehensiveExerciseCatalog().take(20)
                     for (ex in localExercises) {
                         firestore.collection(FIRESTORE_COLLECTION_EXERCISES)
                             .document(ex.id)
