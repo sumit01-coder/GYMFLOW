@@ -48,7 +48,7 @@ class ExerciseDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             exerciseRepository.getExerciseById(exerciseId).collect { ex ->
                 if (ex != null) {
-                    val resolvedGif = ExerciseVisuals.getGifUrl(ex.id)
+                    val resolvedGif = ex.gifUrl ?: ExerciseVisuals.getGifUrl(ex.id)
                     _uiState.update { current ->
                         current.copy(
                             exerciseId = ex.id,
@@ -70,16 +70,16 @@ class ExerciseDetailsViewModel @Inject constructor(
 
     private fun buildInitialUiState(id: String): ExerciseDetailsUiState {
         val details = ExerciseCatalog.getExercise(id)
-        val photoUrl = ExerciseVisuals.getImageUrl(details.exerciseId)
-        val gifUrl = ExerciseVisuals.getGifUrl(details.exerciseId)
+        val photoUrl = ExerciseVisuals.getImageUrl(id) ?: ExerciseVisuals.getImageUrl(details.exerciseId)
+        val gifUrl = ExerciseVisuals.getGifUrl(id) ?: ExerciseVisuals.getGifUrl(details.exerciseId)
         return ExerciseDetailsUiState(
-            exerciseId = details.exerciseId,
+            exerciseId = id,
             exerciseName = details.exerciseName,
             metadataSubhead = details.metadataSubhead,
             videoTitle = details.videoTitle,
             mediaUrl = photoUrl,
             gifUrl = gifUrl,
-            isPlayingGif = gifUrl != null,
+            isPlayingGif = false,
             selectedTab = ExerciseTab.INSTRUCTIONS,
             instructions = details.instructions,
             primaryMuscle = details.primaryMuscle,

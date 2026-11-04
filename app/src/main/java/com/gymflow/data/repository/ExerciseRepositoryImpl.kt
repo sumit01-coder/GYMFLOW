@@ -103,8 +103,9 @@ class ExerciseRepositoryImpl @Inject constructor(
             val count = exerciseDao.getExerciseCount()
             if (count < 1000) {
                 val assetExercises = loadCatalogFromAssets()
-                val catalog = if (assetExercises.isNotEmpty()) assetExercises else createComprehensiveExerciseCatalog()
-                val entities = catalog.map { ExerciseEntity.fromDomain(it) }
+                val coreCatalog = createComprehensiveExerciseCatalog()
+                val combined = (coreCatalog + assetExercises).distinctBy { it.id }
+                val entities = combined.map { ExerciseEntity.fromDomain(it) }
                 exerciseDao.upsertExercises(entities)
             }
         }
@@ -1098,7 +1099,13 @@ class ExerciseRepositoryImpl @Inject constructor(
                     "Hold rigid posture with continuous abdominal bracing."
                 )
             )
-        )
+        ).map { ex ->
+            if (ex.gifUrl.isNullOrBlank()) {
+                ex.copy(gifUrl = com.gymflow.feature.member.exercises.ExerciseVisuals.getGifUrl(ex.id))
+            } else {
+                ex
+            }
+        }
     }
 }
 

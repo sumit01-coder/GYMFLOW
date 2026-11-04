@@ -192,16 +192,28 @@ fun ExerciseDetailsContent(
                             }
                         },
                         error = {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FitnessCenter,
-                                    contentDescription = null,
-                                    tint = GymFlowWhite.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(36.dp)
+                            if (isGifActive && !uiState.mediaUrl.isNullOrBlank()) {
+                                SubcomposeAsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(uiState.mediaUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = uiState.exerciseName,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FitnessCenter,
+                                        contentDescription = null,
+                                        tint = GymFlowWhite.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
                             }
                         }
                     )

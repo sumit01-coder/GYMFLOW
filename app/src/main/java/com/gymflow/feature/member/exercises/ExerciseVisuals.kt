@@ -124,25 +124,36 @@ object ExerciseVisuals {
     fun getGifUrl(exerciseId: String?): String? {
         if (exerciseId == null) return null
 
-        if (exerciseId.startsWith("ex_")) {
-            val parts = exerciseId.removePrefix("ex_").split("_", limit = 2)
-            if (parts.size == 2) {
-                val muscle = parts[0]
-                val slug = parts[1].replace("_", "-")
-                return "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/$muscle/$slug.gif"
-            }
-        }
-
+        // 1. Direct match in curated core exercise map (FIRST PRIORITY)
         val directId = EXERCISE_GIF_IDS[exerciseId]
         if (directId != null) return "$BASE_GIF_URL$directId.gif"
 
+        // 2. Normalized match in curated core map
         val norm = exerciseId.lowercase().replace("-", "_").replace(" ", "_")
         for ((key, gid) in EXERCISE_GIF_IDS) {
             val keyNorm = key.lowercase().replace("-", "_").replace(" ", "_")
-            if (norm.contains(keyNorm) || keyNorm.contains(norm)) {
+            if (norm == keyNorm || norm.contains(keyNorm) || keyNorm.contains(norm)) {
                 return "$BASE_GIF_URL$gid.gif"
             }
         }
+
+        // 3. Dynamic mapping for catalog exercises: ex_<muscle>_<slug>
+        val validMuscles = setOf(
+            "abs", "biceps", "calves", "chest", "forearms", "glutes", "hamstrings",
+            "lats", "lower-back", "middle-back", "neck", "quadriceps", "shoulders",
+            "traps", "triceps", "cardio", "upper-back"
+        )
+        if (exerciseId.startsWith("ex_")) {
+            val parts = exerciseId.removePrefix("ex_").split("_", limit = 2)
+            if (parts.size == 2) {
+                val muscle = parts[0].replace("_", "-")
+                val slug = parts[1].replace("_", "-")
+                if (muscle in validMuscles) {
+                    return "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/$muscle/$slug.gif"
+                }
+            }
+        }
+
         return null
     }
 
