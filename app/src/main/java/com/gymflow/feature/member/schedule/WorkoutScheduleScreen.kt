@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gymflow.core.components.GymFlowBottomBar
@@ -596,7 +597,7 @@ private fun ScheduleDayCard(
                                 color = if (isSelected) GymFlowBlack else GymFlowTheme.colors.textSecondary
                             )
                             Text(
-                                text = " · ${entry.title}",
+                                text = " · ${entry.title.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }}",
                                 style = GymFlowTheme.typography.BodyMedium.copy(
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
                                 ),
@@ -687,11 +688,13 @@ private fun ScheduleDayCard(
                                 onDelete = { onDeleteExercise(idx) },
                                 onClick = { onSelectExercise(ex.exerciseId) }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            if (idx < entry.exercises.lastIndex) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Action buttons row
                     Row(
@@ -754,47 +757,78 @@ private fun ScheduledExerciseItemRow(
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
+    val cleanName = exercise.exerciseName.replace("\r", " ").replace("\n", " ").trim()
+    val cleanCategory = exercise.category.replace("\r", " ").replace("\n", " ").trim()
+    val cleanNotes = exercise.notes.replace("\r", " ").replace("\n", " ").trim()
+
+    val formattedWeight = if (exercise.targetWeightKg % 1f == 0f) {
+        "${exercise.targetWeightKg.toInt()} kg"
+    } else {
+        "${exercise.targetWeightKg} kg"
+    }
+
+    val subtitleText = buildString {
+        append("${exercise.targetSets} sets · ${exercise.targetReps} reps · $formattedWeight")
+        if (cleanNotes.isNotBlank()) {
+            append(" · $cleanNotes")
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(GymFlowTheme.colors.surfaceVariant)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         ExerciseThumbnail(
             imageUrl = ExerciseVisuals.getImageUrl(exercise.exerciseId),
-            category = exercise.category,
-            equipment = "Machine",
-            modifier = Modifier.size(42.dp)
+            category = cleanCategory.ifBlank { "Shoulders" },
+            equipment = cleanNotes.ifBlank { "Machine" },
+            modifier = Modifier.size(44.dp)
         )
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = exercise.exerciseName,
+                    text = cleanName,
                     style = GymFlowTheme.typography.BodyMedium.copy(
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 13.sp
                     ),
-                    color = GymFlowTheme.colors.textPrimary
+                    color = GymFlowTheme.colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
                 )
-                MuscleCategoryChip(category = exercise.category)
+                if (cleanCategory.isNotBlank()) {
+                    MuscleCategoryChip(category = cleanCategory)
+                }
             }
-            Spacer(modifier = Modifier.height(2.dp))
+
+            Spacer(modifier = Modifier.height(3.dp))
+
             Text(
-                text = "${exercise.targetSets} sets · ${exercise.targetReps} reps · ${exercise.targetWeightKg} kg" +
-                        if (exercise.notes.isNotBlank()) " · ${exercise.notes}" else "",
+                text = subtitleText,
                 style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
-                color = GymFlowTheme.colors.textSecondary
+                color = GymFlowTheme.colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
+
+        Spacer(modifier = Modifier.width(8.dp))
 
         IconButton(
             onClick = onDelete,
