@@ -1,3 +1,21 @@
+# Security & Credentials
+app/google-services.json
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.env
+*.env.*
+!.env.example
+local.properties
+
+# AI Agents, Tools & Skills
+.agents/
+.agent/
+skills/
+.gemini/
+
 # Firebase
 .firebase/
 firebase-debug.log*
@@ -13,7 +31,8 @@ Desktop.ini
 .kotlin/
 build/
 **/build/
-local.properties
+bin/
+**/bin/
 
 # Node
 node_modules/
@@ -33,11 +52,6 @@ ENV/
 .idea/
 *.iml
 .navigation/
-
-# Environment Variables
-.env
-.env.local
-.env.*.local
 
 # Logs
 npm-debug.log*
