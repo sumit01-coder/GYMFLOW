@@ -38,6 +38,9 @@ interface ExerciseDao {
     @Query("SELECT COUNT(*) FROM exercises")
     suspend fun getExerciseCount(): Int
 
+    @Query("SELECT * FROM exercises WHERE gifUrl IS NOT NULL AND gifUrl != '' ORDER BY id ASC")
+    suspend fun getExercisesWithGifs(): List<ExerciseEntity>
+
     @Query("DELETE FROM exercises")
     suspend fun clearAll()
 }

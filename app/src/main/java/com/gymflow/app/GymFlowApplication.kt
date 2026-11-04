@@ -8,10 +8,38 @@ import coil.decode.GifDecoder
 import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.gymflow.data.sync.ExerciseGifPreloadWorker
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class GymFlowApplication : Application(), ImageLoaderFactory {
+
+    override fun onCreate() {
+        super.onCreate()
+        // 1. Enqueue background WorkManager task to pre-download and cache exercise catalog GIFs
+        ExerciseGifPreloadWorker.enqueue(this)
+
+        // 2. Eagerly preheat the core workout routine GIFs in background so today's workout has 0ms load time
+        CoroutineScope(Dispatchers.IO).launch {
+            val loader = newImageLoader()
+            for ((_, gid) in ExerciseVisuals.EXERCISE_GIF_IDS) {
+                val url = "https://raw.githubusercontent.com/omercotkd/exercises-gifs/master/assets/$gid.gif"
+                val req = ImageRequest.Builder(this@GymFlowApplication)
+                    .data(url)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .memoryCachePolicy(CachePolicy.DISABLED)
+                    .build()
+                loader.enqueue(req)
+            }
+        }
+    }
+
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)
             .components {

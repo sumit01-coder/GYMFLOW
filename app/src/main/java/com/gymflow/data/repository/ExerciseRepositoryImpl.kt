@@ -107,7 +107,14 @@ class ExerciseRepositoryImpl @Inject constructor(
                 val combined = (coreCatalog + assetExercises).distinctBy { it.id }
                 val entities = combined.map { ExerciseEntity.fromDomain(it) }
                 exerciseDao.upsertExercises(entities)
+            } else {
+                // Ensure existing core workout exercises have their verified gifUrls refreshed in SQLite
+                val coreCatalog = createComprehensiveExerciseCatalog()
+                val entities = coreCatalog.map { ExerciseEntity.fromDomain(it) }
+                exerciseDao.upsertExercises(entities)
             }
+            // Trigger background WorkManager preloader to cache all exercise GIFs locally
+            com.gymflow.data.sync.ExerciseGifPreloadWorker.enqueue(context)
         }
     }
 
