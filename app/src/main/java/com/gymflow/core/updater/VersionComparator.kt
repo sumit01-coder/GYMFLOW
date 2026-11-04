@@ -30,3 +30,4 @@ object VersionComparator {
             .mapNotNull { it.toIntOrNull() }
     }
 }
+

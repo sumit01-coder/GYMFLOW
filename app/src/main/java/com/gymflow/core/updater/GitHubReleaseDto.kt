@@ -25,3 +25,4 @@ data class GitHubAssetDto(
     @SerialName("content_type") val contentType: String? = null,
     @SerialName("download_count") val downloadCount: Int = 0
 )
+

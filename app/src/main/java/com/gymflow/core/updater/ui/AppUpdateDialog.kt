@@ -580,3 +580,4 @@ private fun formatBytes(bytes: Long): String {
     val mb = bytes.toDouble() / (1024 * 1024)
     return String.format(Locale.US, "%.1f MB", mb)
 }
+

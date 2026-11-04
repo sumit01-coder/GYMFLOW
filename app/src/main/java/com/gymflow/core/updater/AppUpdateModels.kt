@@ -32,3 +32,4 @@ sealed interface AppUpdateState {
     ) : AppUpdateState
     data class Error(val message: String) : AppUpdateState
 }
+

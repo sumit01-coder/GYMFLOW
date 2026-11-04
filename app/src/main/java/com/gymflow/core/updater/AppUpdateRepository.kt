@@ -100,3 +100,4 @@ class AppUpdateRepository @Inject constructor(
         }
     }
 }
+
