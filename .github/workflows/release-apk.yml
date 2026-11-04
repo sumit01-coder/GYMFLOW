@@ -1,0 +1,79 @@
+name: Build and Release GymFlow APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.1)'
+        required: true
+        default: 'v1.0.1'
+      release_name:
+        description: 'Release Title'
+        required: false
+        default: 'GymFlow Software Update'
+      release_notes:
+        description: 'Changelog / Release Notes'
+        required: false
+        default: 'Performance improvements, bug fixes, and enhanced workout tracking.'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare google-services.json
+        run: |
+          if [ ! -f "app/google-services.json" ]; then
+            echo "Copying template to app/google-services.json for build..."
+            cp app/google-services.json.template app/google-services.json
+          fi
+
+      - name: Grant Execute Permission for Gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Rename APK Asset
+        id: rename_apk
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          TARGET_NAME="GymFlow-${TAG}.apk"
+          TARGET_PATH="app/build/outputs/apk/debug/${TARGET_NAME}"
+          cp "$APK_PATH" "$TARGET_PATH"
+          echo "apk_path=$TARGET_PATH" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release and Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.rename_apk.outputs.tag }}
+          name: ${{ github.event.inputs.release_name || format('GymFlow {0}', steps.rename_apk.outputs.tag) }}
+          body: ${{ github.event.inputs.release_notes || github.event.head_commit.message }}
+          draft: false
+          prerelease: false
+          files: ${{ steps.rename_apk.outputs.apk_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

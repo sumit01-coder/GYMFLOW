@@ -51,8 +51,13 @@ class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager
 ) : ViewModel() {
+
+    fun checkForUpdates() {
+        appUpdateManager.checkForUpdate(isManualCheck = true)
+    }
 
     private val _uiState = MutableStateFlow(
         run {

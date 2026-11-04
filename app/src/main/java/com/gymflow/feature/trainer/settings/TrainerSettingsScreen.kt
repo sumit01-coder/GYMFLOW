@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -345,6 +346,49 @@ fun TrainerSettingsScreen(
                                 )
                             )
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // App Update Card
+                TrainerCard(
+                    contentPadding = 14.dp,
+                    onClick = { viewModel.checkForUpdates() }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = null,
+                                tint = Color(0xFF22C55E),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Check for Updates",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TrainerDarkTextPrimary
+                                )
+                                Text(
+                                    text = "Version ${com.gymflow.BuildConfig.VERSION_NAME} (Build ${com.gymflow.BuildConfig.VERSION_CODE})",
+                                    fontSize = 11.sp,
+                                    color = TrainerDarkTextSecondary
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = TrainerDarkTextTertiary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
 

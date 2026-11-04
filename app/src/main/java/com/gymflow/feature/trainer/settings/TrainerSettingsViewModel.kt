@@ -33,8 +33,13 @@ data class TrainerSettingsUiState(
 @HiltViewModel
 class TrainerSettingsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager
 ) : ViewModel() {
+
+    fun checkForUpdates() {
+        appUpdateManager.checkForUpdate(isManualCheck = true)
+    }
 
     private val _uiState = MutableStateFlow(TrainerSettingsUiState())
     val uiState: StateFlow<TrainerSettingsUiState> = _uiState.asStateFlow()

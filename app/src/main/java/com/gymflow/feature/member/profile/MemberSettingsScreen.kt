@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -212,9 +213,16 @@ fun MemberSettingsScreen(
                 )
                 HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
                 SettingClickableRow(
+                    icon = Icons.Default.SystemUpdate,
+                    title = "Check for Updates",
+                    value = "v${com.gymflow.BuildConfig.VERSION_NAME}",
+                    onClick = { viewModel.checkForUpdates() }
+                )
+                HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
+                SettingClickableRow(
                     icon = Icons.Default.Info,
                     title = "GYMFLOW Version",
-                    value = "1.0.0 (Build 42)"
+                    value = "${com.gymflow.BuildConfig.VERSION_NAME} (Build ${com.gymflow.BuildConfig.VERSION_CODE})"
                 )
             }
 
@@ -332,11 +340,13 @@ private fun SettingSwitchRow(
 private fun SettingClickableRow(
     icon: ImageVector,
     title: String,
-    value: String
+    value: String,
+    onClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

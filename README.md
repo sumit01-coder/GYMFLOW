@@ -45,6 +45,12 @@
 - High-end dark glassmorphic design system matching GymFlow brand aesthetics.
 - Seamless mobile deep linking (`gymflow://auth`) to return users directly to the native app upon email verification.
 
+### 6. Autonomous In-App Software Updater via GitHub Releases
+- Queries GitHub Releases API directly (`api.github.com/repos/sumit01-coder/GYMFLOW/releases/latest`) on startup or on-demand from Settings.
+- Semantic Version comparator automatically detects newer versions and displays a branded update modal with release changelog notes.
+- In-app progress downloader streams the latest APK with byte progress and invokes Android's system package installer via `FileProvider`.
+- Automated GitHub Actions release pipeline (`.github/workflows/release-apk.yml`) that builds APKs and attaches them to GitHub Releases on push tags (`v*`).
+
 ---
 
 ## 🛠️ Architecture & Tech Stack
