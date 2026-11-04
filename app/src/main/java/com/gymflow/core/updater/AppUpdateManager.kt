@@ -31,13 +31,16 @@ class AppUpdateManager @Inject constructor(
     private val _updateState = MutableStateFlow<AppUpdateState>(AppUpdateState.Idle)
     val updateState: StateFlow<AppUpdateState> = _updateState.asStateFlow()
 
+    private var lastUpdateInfo: AppUpdateInfo? = null
+
     fun checkForUpdate(isManualCheck: Boolean = false) {
         scope.launch {
             _updateState.value = AppUpdateState.Checking
-            val result = repository.checkForUpdate()
+            val result = repository.checkForUpdate(forceRefresh = isManualCheck)
 
             result.fold(
                 onSuccess = { updateInfo ->
+                    lastUpdateInfo = updateInfo
                     if (updateInfo != null) {
                         _updateState.value = AppUpdateState.UpdateAvailable(updateInfo)
                     } else {
@@ -47,7 +50,7 @@ class AppUpdateManager @Inject constructor(
                 onFailure = { error ->
                     if (isManualCheck) {
                         _updateState.value = AppUpdateState.Error(
-                            error.message ?: "Failed to check for updates"
+                            error.message ?: "Failed to check for updates. Please try again."
                         )
                     } else {
                         // Silent fallback for automatic startup check
@@ -59,6 +62,7 @@ class AppUpdateManager @Inject constructor(
     }
 
     fun startDownload(info: AppUpdateInfo) {
+        lastUpdateInfo = info
         scope.launch {
             _updateState.value = AppUpdateState.Downloading(
                 info = info,
@@ -88,20 +92,38 @@ class AppUpdateManager @Inject constructor(
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 _updateState.value = AppUpdateState.Error(
-                    e.message ?: "Download failed. Please try again."
+                    e.message ?: "Download could not be completed. Please tap Retry."
                 )
             }
         }
     }
 
     fun installUpdate(apkFile: File) {
+        if (!apkFile.exists() || apkFile.length() < 1000000L) {
+            _updateState.value = AppUpdateState.Error("Downloaded update file is missing or corrupted. Please retry download.")
+            return
+        }
+
         if (!AppInstallHelper.canInstallApks(context)) {
             AppInstallHelper.openInstallPermissionSettings(context)
             return
         }
+
         val result = AppInstallHelper.installApk(context, apkFile)
         result.onFailure {
             _updateState.value = AppUpdateState.Error("Installation could not be started: ${it.message}")
+        }
+    }
+
+    fun retry() {
+        val current = _updateState.value
+        when {
+            lastUpdateInfo != null -> {
+                startDownload(lastUpdateInfo!!)
+            }
+            else -> {
+                checkForUpdate(isManualCheck = true)
+            }
         }
     }
 
@@ -114,7 +136,6 @@ class AppUpdateManager @Inject constructor(
         fileName: String,
         onProgress: (progress: Float, downloaded: Long, total: Long) -> Unit
     ): File = withContext(Dispatchers.IO) {
-        // Destination directory in app external downloads
         val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             ?: context.cacheDir
         if (!downloadDir.exists()) downloadDir.mkdirs()
@@ -122,29 +143,43 @@ class AppUpdateManager @Inject constructor(
         val destinationFile = File(downloadDir, fileName)
         if (destinationFile.exists()) destinationFile.delete()
 
-        val url = URL(downloadUrl)
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 15000
-            readTimeout = 15000
-            instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "GymFlow-Android-App")
-        }
+        // Robust multi-redirect follower (handles GitHub -> S3 CDN redirects)
+        var currentUrl = downloadUrl
+        var effectiveConnection: HttpURLConnection
+        var redirects = 0
+        val maxRedirects = 8
 
-        // Handle possible GitHub 302 redirects to Amazon S3 CDN
-        val responseCode = connection.responseCode
-        val effectiveConnection = if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
-            responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
-            responseCode == 307 || responseCode == 308
-        ) {
-            val redirectUrl = connection.getHeaderField("Location")
-            (URL(redirectUrl).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 15000
-                readTimeout = 15000
-                setRequestProperty("User-Agent", "GymFlow-Android-App")
+        while (true) {
+            val url = URL(currentUrl)
+            effectiveConnection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 20000
+                readTimeout = 20000
+                instanceFollowRedirects = false
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) GymFlow-Android-App")
             }
-        } else {
-            connection
+
+            val responseCode = effectiveConnection.responseCode
+            if (responseCode in 300..399) {
+                val redirectUrl = effectiveConnection.getHeaderField("Location")
+                    ?: throw IllegalStateException("Redirected with status $responseCode but missing Location header")
+                effectiveConnection.disconnect()
+                currentUrl = redirectUrl
+                redirects++
+                if (redirects > maxRedirects) {
+                    throw IllegalStateException("Too many redirects downloading APK")
+                }
+                continue
+            }
+
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                val errorStreamText = try {
+                    effectiveConnection.errorStream?.bufferedReader()?.use { it.readText() }
+                } catch (_: Exception) { null }
+                throw IllegalStateException("Server returned HTTP $responseCode: ${errorStreamText ?: "Download unavailable"}")
+            }
+
+            break
         }
 
         val contentLength = effectiveConnection.contentLengthLong
@@ -156,31 +191,49 @@ class AppUpdateManager @Inject constructor(
             inputStream = effectiveConnection.inputStream
             outputStream = FileOutputStream(destinationFile)
 
-            val buffer = ByteArray(8192)
+            val buffer = ByteArray(16384) // 16 KB buffer
             var downloadedBytes = 0L
             var read: Int
+            var lastProgressUpdate = 0L
 
             while (inputStream.read(buffer).also { read = it } != -1) {
                 outputStream.write(buffer, 0, read)
                 downloadedBytes += read
 
-                val progress = if (contentLength > 0L) {
-                    (downloadedBytes.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0.5f
-                }
+                val now = System.currentTimeMillis()
+                if (now - lastProgressUpdate > 50 || downloadedBytes == contentLength) {
+                    lastProgressUpdate = now
+                    val progress = if (contentLength > 0L) {
+                        (downloadedBytes.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0.5f
+                    }
 
-                withContext(Dispatchers.Main) {
-                    onProgress(progress, downloadedBytes, contentLength)
+                    withContext(Dispatchers.Main) {
+                        onProgress(progress, downloadedBytes, contentLength)
+                    }
                 }
             }
 
             outputStream.flush()
-            destinationFile
         } finally {
-            inputStream?.close()
-            outputStream?.close()
+            try { inputStream?.close() } catch (_: Exception) {}
+            try { outputStream?.close() } catch (_: Exception) {}
+            effectiveConnection.disconnect()
         }
+
+        // Verify downloaded APK package integrity
+        if (!destinationFile.exists() || destinationFile.length() < 1000000L) {
+            destinationFile.delete()
+            throw IllegalStateException("Downloaded file is incomplete. Please check connection and retry.")
+        }
+
+        val archiveInfo = context.packageManager.getPackageArchiveInfo(destinationFile.absolutePath, 0)
+        if (archiveInfo == null) {
+            destinationFile.delete()
+            throw IllegalStateException("Downloaded update package is corrupted. Please retry.")
+        }
+
+        destinationFile
     }
 }
-

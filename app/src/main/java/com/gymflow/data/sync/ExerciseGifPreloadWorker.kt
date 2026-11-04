@@ -9,6 +9,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import coil.Coil
 import coil.ImageLoader
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -61,11 +62,11 @@ class ExerciseGifPreloadWorker(
                 PreloadWorkerEntryPoint::class.java
             )
             val exerciseDao = entryPoint.exerciseDao()
-            val imageLoader = ImageLoader(applicationContext)
+            val imageLoader = Coil.imageLoader(applicationContext)
 
             // 1. Priority 1: Preload all 43 Core Workout routine exercise GIFs
             for ((_, gid) in ExerciseVisuals.EXERCISE_GIF_IDS) {
-                val url = "https://raw.githubusercontent.com/omercotkd/exercises-gifs/master/assets/$gid.gif"
+                val url = ExerciseVisuals.BASE_GIF_URL + "$gid.gif"
                 try {
                     val req = ImageRequest.Builder(applicationContext)
                         .data(url)

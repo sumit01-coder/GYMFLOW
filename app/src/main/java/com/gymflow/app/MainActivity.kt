@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
                             state = updateState,
                             onDownloadClick = { info -> appUpdateManager.startDownload(info) },
                             onInstallClick = { file -> appUpdateManager.installUpdate(file) },
+                            onRetryClick = { appUpdateManager.retry() },
                             onDismiss = { appUpdateManager.dismissUpdate() }
                         )
                     }

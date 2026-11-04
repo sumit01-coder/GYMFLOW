@@ -21,6 +21,7 @@ class AppUpdateRepository @Inject constructor(
         const val GITHUB_OWNER = "sumit01-coder"
         const val GITHUB_REPO = "GYMFLOW"
         const val RELEASES_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases"
+        private const val CACHE_EXPIRATION_MS = 10 * 60 * 1000L // 10 minutes cache
     }
 
     private val json = Json {
@@ -29,29 +30,47 @@ class AppUpdateRepository @Inject constructor(
         coerceInputValues = true
     }
 
+    private var cachedUpdateInfo: AppUpdateInfo? = null
+    private var lastCheckTimestamp: Long = 0L
+
     suspend fun checkForUpdate(
-        customEndpoint: String? = null
+        customEndpoint: String? = null,
+        forceRefresh: Boolean = false
     ): Result<AppUpdateInfo?> = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        if (!forceRefresh && cachedUpdateInfo != null && (now - lastCheckTimestamp < CACHE_EXPIRATION_MS)) {
+            return@withContext Result.success(cachedUpdateInfo)
+        }
+
         try {
             val endpoint = customEndpoint ?: RELEASES_URL
             val url = URL(endpoint)
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 10000
+                readTimeout = 10000
                 setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "GymFlow-Android-App")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) GymFlow-Android-App")
             }
 
             val responseCode = connection.responseCode
             if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                // No releases published yet on GitHub repository
                 return@withContext Result.success(null)
+            }
+
+            if (responseCode == 403) {
+                // Rate limited by GitHub unauthenticated API limit
+                if (cachedUpdateInfo != null) {
+                    return@withContext Result.success(cachedUpdateInfo)
+                }
+                return@withContext Result.failure(
+                    IllegalStateException("Update check is temporarily busy. Please try again shortly.")
+                )
             }
 
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 return@withContext Result.failure(
-                    IllegalStateException("GitHub API responded with HTTP $responseCode")
+                    IllegalStateException("GitHub service responded with HTTP $responseCode")
                 )
             }
 
@@ -62,7 +81,6 @@ class AppUpdateRepository @Inject constructor(
             val releases = try {
                 json.decodeFromString<List<GitHubReleaseDto>>(responseBody)
             } catch (_: Exception) {
-                // If customEndpoint was a single release endpoint (e.g. /releases/latest)
                 listOfNotNull(json.decodeFromString<GitHubReleaseDto>(responseBody))
             }
 
@@ -75,13 +93,11 @@ class AppUpdateRepository @Inject constructor(
                 val isNewer = VersionComparator.isNewerVersion(remoteTag, currentVersion)
                 if (!isNewer) continue
 
-                // Locate valid APK asset
                 val apkAsset = release.assets.firstOrNull {
                     it.name.endsWith(".apk", ignoreCase = true) ||
                             it.contentType == "application/vnd.android.package-archive"
                 }
 
-                // If this release has no APK asset uploaded, skip to next candidate
                 if (apkAsset == null) continue
 
                 val downloadUrl = apkAsset.downloadUrl.ifEmpty { release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases" }
@@ -98,12 +114,20 @@ class AppUpdateRepository @Inject constructor(
                     fileSizeBytes = fileSizeBytes,
                     releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
                 )
+                cachedUpdateInfo = info
+                lastCheckTimestamp = now
                 return@withContext Result.success(info)
             }
 
+            cachedUpdateInfo = null
+            lastCheckTimestamp = now
             Result.success(null)
         } catch (e: Exception) {
-            Result.failure(e)
+            if (cachedUpdateInfo != null) {
+                Result.success(cachedUpdateInfo)
+            } else {
+                Result.failure(e)
+            }
         }
     }
 }

@@ -61,6 +61,7 @@ fun AppUpdateDialog(
     state: AppUpdateState,
     onDownloadClick: (AppUpdateInfo) -> Unit,
     onInstallClick: (File) -> Unit,
+    onRetryClick: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -133,6 +134,7 @@ fun AppUpdateDialog(
                 is AppUpdateState.Error -> {
                     ErrorContent(
                         message = state.message,
+                        onRetry = onRetryClick,
                         onDismiss = onDismiss
                     )
                 }
@@ -520,6 +522,7 @@ private fun UpToDateContent(
 @Composable
 private fun ErrorContent(
     message: String,
+    onRetry: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -546,7 +549,7 @@ private fun ErrorContent(
         }
 
         Text(
-            text = "Update Check Failed",
+            text = "Update Notice",
             color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
@@ -559,18 +562,37 @@ private fun ErrorContent(
             textAlign = TextAlign.Center
         )
 
-        Button(
-            onClick = onDismiss,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1E1E28),
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(50),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("Dismiss", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1E1E28),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp)
+            ) {
+                Text("Dismiss", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            }
+
+            Button(
+                onClick = onRetry,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF22C55E),
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp)
+            ) {
+                Text("Retry", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
         }
     }
 }

@@ -38,8 +38,9 @@ import com.gymflow.core.theme.GymFlowWhite
 
 object ExerciseVisuals {
 
-    const val BASE_IMAGE_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
-    const val BASE_GIF_URL = "https://raw.githubusercontent.com/omercotkd/exercises-gifs/master/assets/"
+    const val BASE_IMAGE_URL = "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/"
+    const val BASE_GIF_URL = "https://cdn.jsdelivr.net/gh/omercotkd/exercises-gifs@master/assets/"
+    const val FALLBACK_GIF_URL = "https://raw.githubusercontent.com/omercotkd/exercises-gifs/master/assets/"
 
     val EXERCISE_GIF_IDS: Map<String, String> = mapOf(
         // CHEST (7)

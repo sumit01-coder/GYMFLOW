@@ -2,6 +2,7 @@ package com.gymflow.app
 
 import android.app.Application
 import android.os.Build
+import coil.Coil
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.GifDecoder
@@ -27,9 +28,9 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
 
         // 2. Eagerly preheat the core workout routine GIFs in background so today's workout has 0ms load time
         CoroutineScope(Dispatchers.IO).launch {
-            val loader = newImageLoader()
+            val loader = Coil.imageLoader(this@GymFlowApplication)
             for ((_, gid) in ExerciseVisuals.EXERCISE_GIF_IDS) {
-                val url = "https://raw.githubusercontent.com/omercotkd/exercises-gifs/master/assets/$gid.gif"
+                val url = ExerciseVisuals.BASE_GIF_URL + "$gid.gif"
                 val req = ImageRequest.Builder(this@GymFlowApplication)
                     .data(url)
                     .diskCachePolicy(CachePolicy.ENABLED)
