@@ -405,6 +405,10 @@ class MemberScheduleCustomizationTest {
             return getPlanWithDays(planId).first()
         }
 
+        override suspend fun getActivePlanWithDaysSync(memberId: String): WorkoutPlanWithDays? {
+            return getActivePlanWithDays(memberId).first()
+        }
+
         override fun getPlansForMember(memberId: String): Flow<List<WorkoutPlanEntity>> {
             return plansFlow.map { it.values.filter { p -> p.memberId == memberId } }
         }

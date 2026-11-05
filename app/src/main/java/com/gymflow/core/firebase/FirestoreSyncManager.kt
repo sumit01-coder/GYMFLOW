@@ -4,6 +4,15 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.gymflow.core.database.BodyMeasurementEntity
+import com.gymflow.core.database.HydrationLogEntity
+import com.gymflow.core.database.PlanDao
+import com.gymflow.core.database.SetLogEntity
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.database.UserEntity
+import com.gymflow.core.database.WeightDao
+import com.gymflow.core.database.WeightLogEntity
+import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.database.WorkoutSessionEntity
 import com.gymflow.domain.model.ExerciseSet
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
@@ -18,7 +27,11 @@ import javax.inject.Singleton
 
 @Singleton
 class FirestoreSyncManager @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val userDao: UserDao,
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val weightDao: WeightDao,
+    private val planDao: PlanDao
 ) {
 
     companion object {
@@ -28,9 +41,33 @@ class FirestoreSyncManager @Inject constructor(
         const val COLLECTION_PLANS = "plans"
         const val COLLECTION_SESSIONS = "workout_sessions"
         const val COLLECTION_MEASUREMENTS = "body_measurements"
+        const val COLLECTION_WEIGHT_LOGS = "weight_logs"
+        const val COLLECTION_HYDRATION_LOGS = "hydration_logs"
     }
 
-    // 1. Sync & Observe Workout Plans in Real-Time
+    // 1. Sync User Profile
+    suspend fun saveUserProfile(user: UserEntity) {
+        val userMap = mapOf(
+            "id" to user.id,
+            "name" to user.name,
+            "email" to user.email,
+            "role" to user.role.name,
+            "heightCm" to user.heightCm.toDouble(),
+            "currentWeightKg" to user.currentWeightKg.toDouble(),
+            "fitnessGoal" to user.fitnessGoal,
+            "age" to user.age,
+            "connectedTrainerId" to user.connectedTrainerId,
+            "isEmailVerified" to user.isEmailVerified,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+
+        firestore.collection(COLLECTION_USERS)
+            .document(user.id)
+            .set(userMap, SetOptions.merge())
+            .await()
+    }
+
+    // 2. Sync & Observe Workout Plans in Real-Time
     suspend fun saveWorkoutPlan(plan: WorkoutPlan) {
         val planMap = mapOf(
             "id" to plan.id,
@@ -129,7 +166,44 @@ class FirestoreSyncManager @Inject constructor(
         awaitClose { registration.remove() }
     }
 
-    // 2. Sync Workout Sessions
+    // 3. Sync Workout Sessions & Sets
+    suspend fun saveWorkoutSessionWithSets(session: WorkoutSessionEntity, setLogs: List<SetLogEntity>) {
+        val sessionMap = mapOf(
+            "id" to session.id,
+            "memberId" to session.memberId,
+            "planId" to session.planId,
+            "workoutTitle" to session.workoutTitle,
+            "startTimeEpochMs" to session.startTimeEpochMs,
+            "endTimeEpochMs" to session.endTimeEpochMs,
+            "durationSeconds" to session.durationSeconds,
+            "totalVolumeKg" to session.totalVolumeKg.toDouble(),
+            "caloriesBurned" to session.caloriesBurned,
+            "isCompleted" to session.isCompleted,
+            "setsCompleted" to session.setsCompleted,
+            "totalSets" to session.totalSets,
+            "syncedAt" to FieldValue.serverTimestamp(),
+            "setLogs" to setLogs.map { log ->
+                mapOf(
+                    "id" to log.id,
+                    "sessionId" to log.sessionId,
+                    "exerciseId" to log.exerciseId,
+                    "exerciseName" to log.exerciseName,
+                    "setNumber" to log.setNumber,
+                    "targetReps" to log.targetReps,
+                    "targetWeightKg" to log.targetWeightKg.toDouble(),
+                    "actualReps" to log.actualReps,
+                    "actualWeightKg" to log.actualWeightKg.toDouble(),
+                    "completedAtEpochMs" to log.completedAtEpochMs
+                )
+            }
+        )
+
+        firestore.collection(COLLECTION_SESSIONS)
+            .document(session.id)
+            .set(sessionMap, SetOptions.merge())
+            .await()
+    }
+
     suspend fun saveWorkoutSession(session: WorkoutSession) {
         val sessionMap = mapOf(
             "id" to session.id,
@@ -149,7 +223,43 @@ class FirestoreSyncManager @Inject constructor(
             .await()
     }
 
-    // 3. Sync Body Measurements
+    // 4. Sync Weight Logs
+    suspend fun saveWeightLog(log: WeightLogEntity) {
+        val weightMap = mapOf(
+            "id" to log.id,
+            "memberId" to log.memberId,
+            "preWeightKg" to (log.preWeightKg?.toDouble() ?: 0.0),
+            "postWeightKg" to (log.postWeightKg?.toDouble() ?: 0.0),
+            "deltaKg" to log.deltaKg.toDouble(),
+            "recordedAtEpochMs" to log.recordedAtEpochMs,
+            "postRecordedAtEpochMs" to log.postRecordedAtEpochMs,
+            "notes" to log.notes,
+            "syncedAt" to FieldValue.serverTimestamp()
+        )
+
+        firestore.collection(COLLECTION_WEIGHT_LOGS)
+            .document(log.id)
+            .set(weightMap, SetOptions.merge())
+            .await()
+    }
+
+    // 5. Sync Hydration Logs
+    suspend fun saveHydrationLog(log: HydrationLogEntity) {
+        val hydrationMap = mapOf(
+            "id" to log.id,
+            "memberId" to log.memberId,
+            "amountMl" to log.amountMl,
+            "recordedAtEpochMs" to log.recordedAtEpochMs,
+            "syncedAt" to FieldValue.serverTimestamp()
+        )
+
+        firestore.collection(COLLECTION_HYDRATION_LOGS)
+            .document(log.id)
+            .set(hydrationMap, SetOptions.merge())
+            .await()
+    }
+
+    // 6. Sync Body Measurements
     suspend fun saveBodyMeasurement(measurement: BodyMeasurementEntity) {
         val measurementMap = mapOf(
             "id" to measurement.id,
@@ -169,7 +279,62 @@ class FirestoreSyncManager @Inject constructor(
             .await()
     }
 
-    // 4. Link Member to Trainer via Invite Code
+    // 7. Comprehensive Master Sync: Upload All Local User Data to Firestore
+    suspend fun syncAllLocalUserData(userId: String): Boolean {
+        return try {
+            val actualUserId = if (userId.isBlank() || userId == "default_member") {
+                userDao.getCurrentUser()?.id ?: userId
+            } else userId
+
+            // 1. Sync User Profile
+            val user = userDao.getUserById(actualUserId) ?: userDao.getCurrentUser()
+            if (user != null) {
+                saveUserProfile(user)
+            }
+
+            // 2. Sync Workout Sessions & Sets
+            val unsyncedSessions = workoutSessionDao.getUnsyncedSessions()
+            for (session in unsyncedSessions) {
+                val setLogs = workoutSessionDao.getSetLogsSync(session.id)
+                saveWorkoutSessionWithSets(session, setLogs)
+                workoutSessionDao.markSessionSynced(session.id, true)
+                setLogs.forEach { log -> workoutSessionDao.markSetLogSynced(log.id, true) }
+            }
+
+            // 3. Sync Weight Logs
+            val unsyncedWeights = weightDao.getUnsyncedWeightLogs()
+            for (weightLog in unsyncedWeights) {
+                saveWeightLog(weightLog)
+                weightDao.markWeightLogSynced(weightLog.id, true)
+            }
+
+            // 4. Sync Hydration Logs
+            val unsyncedHydration = weightDao.getUnsyncedHydrationLogs()
+            for (hydrationLog in unsyncedHydration) {
+                saveHydrationLog(hydrationLog)
+                weightDao.markHydrationLogSynced(hydrationLog.id, true)
+            }
+
+            // 5. Sync Measurements
+            val unsyncedMeasurements = weightDao.getUnsyncedMeasurements()
+            for (measurement in unsyncedMeasurements) {
+                saveBodyMeasurement(measurement)
+                weightDao.markMeasurementSynced(measurement.id, true)
+            }
+
+            // 6. Sync Active Workout Plan
+            val activePlan = planDao.getActivePlanWithDaysSync(actualUserId)
+            if (activePlan != null) {
+                saveWorkoutPlan(activePlan.toDomain())
+            }
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 8. Link Member to Trainer via Invite Code
     suspend fun linkTrainerByCode(code: String, memberId: String): String? {
         val codeDoc = firestore.collection(COLLECTION_TRAINER_CODES)
             .document(code.trim().uppercase())
@@ -189,4 +354,3 @@ class FirestoreSyncManager @Inject constructor(
         return trainerId
     }
 }
-

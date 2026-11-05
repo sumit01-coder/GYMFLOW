@@ -42,7 +42,8 @@ data class AuthUiState(
 class AuthViewModel @Inject constructor(
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val firestoreSyncManager: com.gymflow.core.firebase.FirestoreSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AuthUiState())
@@ -138,30 +139,38 @@ class AuthViewModel @Inject constructor(
                 isEmailVerified = verifiedStatus
             )
 
-            if (existingUser == null) {
-                userDao.upsertUser(
-                    UserEntity(
-                        id = userId,
-                        name = userName,
-                        email = email,
-                        role = role,
-                        token = token,
-                        heightCm = 0f,
-                        currentWeightKg = 0f,
-                        fitnessGoal = "General Fitness",
-                        age = 0,
-                        syncStatus = "Not Connected",
-                        isEmailVerified = verifiedStatus,
-                        lastUpdated = System.currentTimeMillis()
-                    )
+            val userToPersist = if (existingUser == null) {
+                UserEntity(
+                    id = userId,
+                    name = userName,
+                    email = email,
+                    role = role,
+                    token = token,
+                    heightCm = 0f,
+                    currentWeightKg = 0f,
+                    fitnessGoal = "General Fitness",
+                    age = 0,
+                    syncStatus = "Connected",
+                    isEmailVerified = verifiedStatus,
+                    lastUpdated = System.currentTimeMillis()
                 )
             } else {
-                userDao.upsertUser(
-                    existingUser.copy(
-                        isEmailVerified = verifiedStatus,
-                        lastUpdated = System.currentTimeMillis()
-                    )
+                existingUser.copy(
+                    isEmailVerified = verifiedStatus,
+                    lastUpdated = System.currentTimeMillis()
                 )
+            }
+
+            userDao.upsertUser(userToPersist)
+
+            // Sync user profile & data to Firebase Firestore
+            launch {
+                try {
+                    firestoreSyncManager.saveUserProfile(userToPersist)
+                    firestoreSyncManager.syncAllLocalUserData(userId)
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "Firestore sync failed on login", e)
+                }
             }
 
             val user = User(
@@ -309,22 +318,32 @@ class AuthViewModel @Inject constructor(
                 isEmailVerified = emailVerified
             )
 
-            userDao.upsertUser(
-                UserEntity(
-                    id = userId,
-                    name = name,
-                    email = email,
-                    role = role,
-                    token = token,
-                    heightCm = 0f,
-                    currentWeightKg = 0f,
-                    fitnessGoal = "General Fitness",
-                    age = 0,
-                    syncStatus = "Not Connected",
-                    isEmailVerified = emailVerified,
-                    lastUpdated = System.currentTimeMillis()
-                )
+            val newUserEntity = UserEntity(
+                id = userId,
+                name = name,
+                email = email,
+                role = role,
+                token = token,
+                heightCm = 0f,
+                currentWeightKg = 0f,
+                fitnessGoal = "General Fitness",
+                age = 0,
+                syncStatus = "Connected",
+                isEmailVerified = emailVerified,
+                lastUpdated = System.currentTimeMillis()
             )
+
+            userDao.upsertUser(newUserEntity)
+
+            // Sync user profile & data to Firebase Firestore
+            launch {
+                try {
+                    firestoreSyncManager.saveUserProfile(newUserEntity)
+                    firestoreSyncManager.syncAllLocalUserData(userId)
+                } catch (e: Exception) {
+                    android.util.Log.e("AuthViewModel", "Firestore sync failed on register", e)
+                }
+            }
 
             _uiState.update {
                 it.copy(

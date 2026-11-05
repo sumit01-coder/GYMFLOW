@@ -7,6 +7,7 @@ import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.SetLogEntity
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.database.WorkoutSessionEntity
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.feature.member.exercises.ExerciseCatalog
@@ -78,7 +79,8 @@ class ActiveWorkoutViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val planDao: PlanDao,
     private val workoutSessionDao: WorkoutSessionDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val firestoreSyncManager: FirestoreSyncManager
 ) : ViewModel() {
 
     private val initialExerciseId: String = savedStateHandle.get<String>("exerciseId") ?: "ex_chest_press"
@@ -476,22 +478,28 @@ class ActiveWorkoutViewModel @Inject constructor(
             val existing = workoutSessionDao.getSessionById(currentState.sessionId)
             val startTime = existing?.startTimeEpochMs ?: (now - (duration * 1000L))
 
-            workoutSessionDao.upsertSession(
-                WorkoutSessionEntity(
-                    id = currentState.sessionId,
-                    memberId = userId,
-                    workoutTitle = currentState.workoutTag.ifBlank { "Workout Session" },
-                    startTimeEpochMs = startTime,
-                    endTimeEpochMs = now,
-                    durationSeconds = duration,
-                    totalVolumeKg = 0f, // Room DAO recalculates volume from SetLogs
-                    caloriesBurned = ((duration / 60) * 7).toInt().coerceAtLeast(50),
-                    isCompleted = true,
-                    setsCompleted = existing?.setsCompleted ?: currentState.completedSets.size,
-                    totalSets = currentState.totalSets,
-                    isSynced = false
-                )
+            val sessionEntity = WorkoutSessionEntity(
+                id = currentState.sessionId,
+                memberId = userId,
+                workoutTitle = currentState.workoutTag.ifBlank { "Workout Session" },
+                startTimeEpochMs = startTime,
+                endTimeEpochMs = now,
+                durationSeconds = duration,
+                totalVolumeKg = 0f, // Room DAO recalculates volume from SetLogs
+                caloriesBurned = ((duration / 60) * 7).toInt().coerceAtLeast(50),
+                isCompleted = true,
+                setsCompleted = existing?.setsCompleted ?: currentState.completedSets.size,
+                totalSets = currentState.totalSets,
+                isSynced = false
             )
+            workoutSessionDao.upsertSession(sessionEntity)
+
+            val setLogs = workoutSessionDao.getSetLogsSync(currentState.sessionId)
+            try {
+                firestoreSyncManager.saveWorkoutSessionWithSets(sessionEntity, setLogs)
+                workoutSessionDao.markSessionSynced(sessionEntity.id, true)
+                setLogs.forEach { log -> workoutSessionDao.markSetLogSynced(log.id, true) }
+            } catch (_: Exception) {}
 
             onCloseWorkout()
         }

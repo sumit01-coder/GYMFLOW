@@ -8,6 +8,7 @@ import com.gymflow.core.database.SyncQueueEntity
 import com.gymflow.core.database.SyncStatus
 import com.gymflow.core.database.WeightDao
 import com.gymflow.core.database.WeightLogEntity
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.data.sync.SyncManager
 import com.gymflow.data.sync.SyncWorker
 import com.gymflow.domain.model.BodyMeasurement
@@ -28,7 +29,8 @@ import javax.inject.Singleton
 class WeightRepositoryImpl @Inject constructor(
     private val weightDao: WeightDao,
     private val syncQueueDao: SyncQueueDao,
-    private val syncManager: SyncManager
+    private val syncManager: SyncManager,
+    private val firestoreSyncManager: FirestoreSyncManager
 ) : WeightRepository {
 
     private val json = Json {
@@ -78,9 +80,16 @@ class WeightRepositoryImpl @Inject constructor(
             }
 
             // Save locally
-            weightDao.upsertWeightLog(WeightLogEntity.fromDomain(weightLog, isSynced = false))
+            val weightEntity = WeightLogEntity.fromDomain(weightLog, isSynced = false)
+            weightDao.upsertWeightLog(weightEntity)
 
-            // Queue for sync
+            // Direct Firebase Firestore sync
+            try {
+                firestoreSyncManager.saveWeightLog(weightEntity)
+                weightDao.markWeightLogSynced(weightEntity.id, true)
+            } catch (_: Exception) {}
+
+            // Queue for sync fallback
             syncQueueDao.enqueue(
                 SyncQueueEntity(
                     entityType = SyncWorker.ENTITY_TYPE_WEIGHT,
@@ -136,7 +145,14 @@ class WeightRepositoryImpl @Inject constructor(
                 recordedAtEpochMs = System.currentTimeMillis()
             )
 
-            weightDao.upsertHydrationLog(HydrationLogEntity.fromDomain(hydrationLog, isSynced = false))
+            val hydrationEntity = HydrationLogEntity.fromDomain(hydrationLog, isSynced = false)
+            weightDao.upsertHydrationLog(hydrationEntity)
+
+            // Direct Firebase Firestore sync
+            try {
+                firestoreSyncManager.saveHydrationLog(hydrationEntity)
+                weightDao.markHydrationLogSynced(hydrationEntity.id, true)
+            } catch (_: Exception) {}
 
             syncQueueDao.enqueue(
                 SyncQueueEntity(
@@ -169,7 +185,14 @@ class WeightRepositoryImpl @Inject constructor(
     override fun logBodyMeasurement(measurement: BodyMeasurement): Flow<Resource<BodyMeasurement>> = flow {
         emit(Resource.Loading)
         try {
-            weightDao.upsertMeasurement(BodyMeasurementEntity.fromDomain(measurement, isSynced = false))
+            val measurementEntity = BodyMeasurementEntity.fromDomain(measurement, isSynced = false)
+            weightDao.upsertMeasurement(measurementEntity)
+
+            // Direct Firebase Firestore sync
+            try {
+                firestoreSyncManager.saveBodyMeasurement(measurementEntity)
+                weightDao.markMeasurementSynced(measurementEntity.id, true)
+            } catch (_: Exception) {}
 
             syncQueueDao.enqueue(
                 SyncQueueEntity(

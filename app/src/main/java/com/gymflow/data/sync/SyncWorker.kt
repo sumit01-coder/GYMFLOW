@@ -4,12 +4,17 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.gymflow.core.database.BodyMeasurementEntity
+import com.gymflow.core.database.HydrationLogEntity
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.SyncQueueDao
 import com.gymflow.core.database.SyncQueueEntity
 import com.gymflow.core.database.SyncStatus
 import com.gymflow.core.database.WeightDao
+import com.gymflow.core.database.WeightLogEntity
 import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.database.WorkoutSessionEntity
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.network.GymFlowApiClient
 import com.gymflow.core.network.SyncSessionRequest
 import com.gymflow.domain.model.BodyMeasurement
@@ -37,6 +42,7 @@ class SyncWorker(
         fun weightDao(): WeightDao
         fun planDao(): PlanDao
         fun apiClient(): GymFlowApiClient
+        fun firestoreSyncManager(): FirestoreSyncManager
     }
 
     private val json = Json {
@@ -56,6 +62,7 @@ class SyncWorker(
         val workoutSessionDao = entryPoint.workoutSessionDao()
         val weightDao = entryPoint.weightDao()
         val apiClient = entryPoint.apiClient()
+        val firestoreSyncManager = entryPoint.firestoreSyncManager()
 
         val pending = syncQueueDao.getPendingItems(limit = 25)
         if (pending.isEmpty()) {
@@ -74,13 +81,13 @@ class SyncWorker(
                     retryCount = item.retryCount
                 )
 
-                val success = processItem(item, apiClient, workoutSessionDao, weightDao)
+                val success = processItem(item, apiClient, workoutSessionDao, weightDao, firestoreSyncManager)
                 if (success) {
                     syncQueueDao.delete(item.id)
                     Log.d(tag, "Synced entity ${item.entityType}:${item.entityId} successfully.")
                 } else {
                     hasFailures = true
-                    handleFailure(syncQueueDao, item, "API returned error")
+                    handleFailure(syncQueueDao, item, "Sync failed for entity")
                 }
             } catch (e: Exception) {
                 Log.e(tag, "Failed syncing item ${item.id}", e)
@@ -100,66 +107,90 @@ class SyncWorker(
         item: SyncQueueEntity,
         apiClient: GymFlowApiClient,
         workoutSessionDao: WorkoutSessionDao,
-        weightDao: WeightDao
+        weightDao: WeightDao,
+        firestoreSyncManager: FirestoreSyncManager
     ): Boolean {
-        return when (item.entityType) {
-            ENTITY_TYPE_SESSION -> {
-                val session = json.decodeFromString<WorkoutSession>(item.payloadJson)
-                val setLogs = workoutSessionDao.getSetLogsSync(session.id).map { it.toDomain() }
-                val response = apiClient.syncWorkoutSession(SyncSessionRequest(session, setLogs))
-                if (response.success) {
+        var firestoreSynced = false
+        try {
+            when (item.entityType) {
+                ENTITY_TYPE_SESSION -> {
+                    val session = json.decodeFromString<WorkoutSession>(item.payloadJson)
+                    val sessionEntity = WorkoutSessionEntity.fromDomain(session)
+                    val setLogs = workoutSessionDao.getSetLogsSync(session.id)
+                    firestoreSyncManager.saveWorkoutSessionWithSets(sessionEntity, setLogs)
                     workoutSessionDao.markSessionSynced(session.id, true)
                     setLogs.forEach { log -> workoutSessionDao.markSetLogSynced(log.id, true) }
-                    true
-                } else {
-                    false
+                    firestoreSynced = true
                 }
-            }
-            ENTITY_TYPE_SET_LOG -> {
-                val setLog = json.decodeFromString<SetLog>(item.payloadJson)
-                workoutSessionDao.markSetLogSynced(setLog.id, true)
-                true
-            }
-            ENTITY_TYPE_WEIGHT -> {
-                val weightLog = json.decodeFromString<WeightLog>(item.payloadJson)
-                val response = apiClient.logWeight(weightLog)
-                if (response.success) {
+                ENTITY_TYPE_SET_LOG -> {
+                    val setLog = json.decodeFromString<SetLog>(item.payloadJson)
+                    workoutSessionDao.markSetLogSynced(setLog.id, true)
+                    firestoreSynced = true
+                }
+                ENTITY_TYPE_WEIGHT -> {
+                    val weightLog = json.decodeFromString<WeightLog>(item.payloadJson)
+                    val weightEntity = WeightLogEntity.fromDomain(weightLog)
+                    firestoreSyncManager.saveWeightLog(weightEntity)
                     weightDao.markWeightLogSynced(weightLog.id, true)
-                    true
-                } else {
-                    false
+                    firestoreSynced = true
                 }
-            }
-            ENTITY_TYPE_HYDRATION -> {
-                val hydrationLog = json.decodeFromString<HydrationLog>(item.payloadJson)
-                val response = apiClient.logHydration(hydrationLog)
-                if (response.success) {
+                ENTITY_TYPE_HYDRATION -> {
+                    val hydrationLog = json.decodeFromString<HydrationLog>(item.payloadJson)
+                    val hydrationEntity = HydrationLogEntity.fromDomain(hydrationLog)
+                    firestoreSyncManager.saveHydrationLog(hydrationEntity)
                     weightDao.markHydrationLogSynced(hydrationLog.id, true)
-                    true
-                } else {
-                    false
+                    firestoreSynced = true
                 }
-            }
-            ENTITY_TYPE_MEASUREMENT -> {
-                val measurement = json.decodeFromString<BodyMeasurement>(item.payloadJson)
-                val response = apiClient.logBodyMeasurement(measurement)
-                if (response.success) {
+                ENTITY_TYPE_MEASUREMENT -> {
+                    val measurement = json.decodeFromString<BodyMeasurement>(item.payloadJson)
+                    val measurementEntity = BodyMeasurementEntity.fromDomain(measurement)
+                    firestoreSyncManager.saveBodyMeasurement(measurementEntity)
                     weightDao.markMeasurementSynced(measurement.id, true)
-                    true
-                } else {
-                    false
+                    firestoreSynced = true
+                }
+                ENTITY_TYPE_PLAN -> {
+                    val plan = json.decodeFromString<WorkoutPlan>(item.payloadJson)
+                    firestoreSyncManager.saveWorkoutPlan(plan)
+                    firestoreSynced = true
+                }
+                else -> {
+                    firestoreSynced = true
                 }
             }
-            ENTITY_TYPE_PLAN -> {
-                val plan = json.decodeFromString<WorkoutPlan>(item.payloadJson)
-                val response = apiClient.createOrUpdatePlan(plan)
-                response.success
-            }
-            else -> {
-                Log.w(tag, "Unknown entityType: ${item.entityType}")
-                true // Discard unknown type to prevent deadlocks
-            }
+        } catch (e: Exception) {
+            Log.e(tag, "Firestore sync failed for ${item.entityType}:${item.entityId}", e)
         }
+
+        // Secondary HTTP API sync (non-blocking fallback)
+        try {
+            when (item.entityType) {
+                ENTITY_TYPE_SESSION -> {
+                    val session = json.decodeFromString<WorkoutSession>(item.payloadJson)
+                    val setLogs = workoutSessionDao.getSetLogsSync(session.id).map { it.toDomain() }
+                    apiClient.syncWorkoutSession(SyncSessionRequest(session, setLogs))
+                }
+                ENTITY_TYPE_WEIGHT -> {
+                    val weightLog = json.decodeFromString<WeightLog>(item.payloadJson)
+                    apiClient.logWeight(weightLog)
+                }
+                ENTITY_TYPE_HYDRATION -> {
+                    val hydrationLog = json.decodeFromString<HydrationLog>(item.payloadJson)
+                    apiClient.logHydration(hydrationLog)
+                }
+                ENTITY_TYPE_MEASUREMENT -> {
+                    val measurement = json.decodeFromString<BodyMeasurement>(item.payloadJson)
+                    apiClient.logBodyMeasurement(measurement)
+                }
+                ENTITY_TYPE_PLAN -> {
+                    val plan = json.decodeFromString<WorkoutPlan>(item.payloadJson)
+                    apiClient.createOrUpdatePlan(plan)
+                }
+            }
+        } catch (_: Exception) {
+            // Secondary network endpoint failure is ignored when Firestore sync completed
+        }
+
+        return firestoreSynced
     }
 
     private suspend fun handleFailure(

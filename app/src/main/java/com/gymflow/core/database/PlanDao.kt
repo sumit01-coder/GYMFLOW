@@ -24,6 +24,10 @@ interface PlanDao {
     fun getActivePlanWithDays(memberId: String): Flow<WorkoutPlanWithDays?>
 
     @Transaction
+    @Query("SELECT * FROM workout_plans WHERE memberId = :memberId AND isActive = 1 LIMIT 1")
+    suspend fun getActivePlanWithDaysSync(memberId: String): WorkoutPlanWithDays?
+
+    @Transaction
     @Query("SELECT * FROM workout_plans WHERE id = :planId LIMIT 1")
     fun getPlanWithDays(planId: String): Flow<WorkoutPlanWithDays?>
 

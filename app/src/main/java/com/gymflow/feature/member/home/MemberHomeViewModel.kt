@@ -6,6 +6,7 @@ import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
 import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ExerciseSet
 import com.gymflow.domain.model.Role
@@ -60,7 +61,8 @@ class MemberHomeViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val weightRepository: WeightRepository,
     private val planDao: PlanDao,
-    private val workoutSessionDao: WorkoutSessionDao
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val firestoreSyncManager: FirestoreSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberHomeUiState())
@@ -219,6 +221,12 @@ class MemberHomeViewModel @Inject constructor(
                 todayExercises = emptyList(),
                 isLoading = false
             )
+        }
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            try {
+                firestoreSyncManager.syncAllLocalUserData(userId)
+            } catch (_: Exception) {}
         }
     }
 }

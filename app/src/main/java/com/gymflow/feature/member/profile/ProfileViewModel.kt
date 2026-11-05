@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.MemberProfile
 import com.gymflow.domain.model.Role
@@ -56,6 +57,7 @@ class ProfileViewModel @Inject constructor(
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
     private val firebaseAuth: FirebaseAuth,
+    private val firestoreSyncManager: FirestoreSyncManager,
     private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager,
     private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager
 ) : ViewModel() {
@@ -116,6 +118,10 @@ class ProfileViewModel @Inject constructor(
                         val userId = tokenManager.getUserIdSync() ?: fbUser.uid
                         userDao.updateEmailVerified(userId, true)
                         tokenManager.setEmailVerified(true)
+                        val updatedUser = userDao.getUserById(userId)
+                        if (updatedUser != null) {
+                            try { firestoreSyncManager.saveUserProfile(updatedUser) } catch (_: Exception) {}
+                        }
                         _uiState.update { current ->
                             current.copy(
                                 user = current.user.copy(isEmailVerified = true)
@@ -195,6 +201,10 @@ class ProfileViewModel @Inject constructor(
                 weightKg = _uiState.value.profile.currentWeightKg,
                 goal = newGoal
             )
+            val updated = userDao.getUserById(userId)
+            if (updated != null) {
+                try { firestoreSyncManager.saveUserProfile(updated) } catch (_: Exception) {}
+            }
         }
     }
 
@@ -212,6 +222,10 @@ class ProfileViewModel @Inject constructor(
                 goal = _uiState.value.profile.fitnessGoal,
                 age = clampedAge
             )
+            val updated = userDao.getUserById(userId)
+            if (updated != null) {
+                try { firestoreSyncManager.saveUserProfile(updated) } catch (_: Exception) {}
+            }
         }
     }
 
@@ -229,6 +243,10 @@ class ProfileViewModel @Inject constructor(
                 goal = _uiState.value.profile.fitnessGoal,
                 age = _uiState.value.profile.age
             )
+            val updated = userDao.getUserById(userId)
+            if (updated != null) {
+                try { firestoreSyncManager.saveUserProfile(updated) } catch (_: Exception) {}
+            }
         }
     }
 
