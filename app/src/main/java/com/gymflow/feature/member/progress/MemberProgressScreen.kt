@@ -163,6 +163,38 @@ fun MemberProgressScreen(
                 )
             }
 
+            if (state.totalWorkouts == 0) {
+                Spacer(modifier = Modifier.height(16.dp))
+                GymFlowCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = 20.dp
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .align(Alignment.CenterHorizontally)
+                            .background(GymFlowTheme.colors.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = GymFlowTheme.colors.textPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "No workouts logged yet. Complete today's workout to see your real volume and personal records!",
+                        style = GymFlowTheme.typography.BodyMedium,
+                        color = GymFlowTheme.colors.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
             // Chart Section Header
@@ -221,62 +253,79 @@ fun MemberProgressScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            state.personalRecords.forEach { pr ->
+            if (state.personalRecords.isEmpty()) {
                 GymFlowCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
-                    contentPadding = 14.dp
+                    contentPadding = 16.dp
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Text(
+                        text = "No personal records yet. Log your exercise sets during a workout to track your 1RM milestones.",
+                        style = GymFlowTheme.typography.Caption,
+                        color = GymFlowTheme.colors.textTertiary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
+                state.personalRecords.forEach { pr ->
+                    GymFlowCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        contentPadding = 14.dp
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(GymFlowTheme.colors.surfaceVariant),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                    contentDescription = null,
-                                    tint = GymFlowTheme.colors.textPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(GymFlowTheme.colors.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                        contentDescription = null,
+                                        tint = GymFlowTheme.colors.textPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                Column {
+                                    Text(
+                                        text = pr.exerciseName,
+                                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = GymFlowTheme.colors.textPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Best: ${pr.bestSet} · ${pr.achievedDate}",
+                                        style = GymFlowTheme.typography.Caption,
+                                        color = GymFlowTheme.colors.textSecondary
+                                    )
+                                }
                             }
 
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column {
+                            Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = pr.exerciseName,
+                                    text = "${pr.oneRepMaxKg.toInt()} kg",
                                     style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                                     color = GymFlowTheme.colors.textPrimary
                                 )
-                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Best: ${pr.bestSet} · ${pr.achievedDate}",
+                                    text = "1RM Peak",
                                     style = GymFlowTheme.typography.Caption,
-                                    color = GymFlowTheme.colors.textSecondary
+                                    color = GymFlowTheme.colors.textTertiary
                                 )
                             }
-                        }
-
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = "${pr.oneRepMaxKg.toInt()} kg",
-                                style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                                color = GymFlowTheme.colors.textPrimary
-                            )
-                            Text(
-                                text = "1RM Peak",
-                                style = GymFlowTheme.typography.Caption,
-                                color = GymFlowTheme.colors.textTertiary
-                            )
                         }
                     }
                 }

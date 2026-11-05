@@ -484,6 +484,10 @@ class MemberScheduleCustomizationTest {
             return exercisesFlow.value.size
         }
 
+        override suspend fun getExercisesWithGifs(): List<ExerciseEntity> {
+            return exercisesFlow.value.values.filter { !it.gifUrl.isNullOrEmpty() }
+        }
+
         override suspend fun clearAll() {
             exercisesFlow.value = emptyMap()
         }

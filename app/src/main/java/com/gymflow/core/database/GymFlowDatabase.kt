@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SyncQueueEntity::class,
         ExerciseEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -69,6 +69,30 @@ abstract class GymFlowDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_category ON exercises (category)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_equipment ON exercises (equipment)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_exercises_name ON exercises (name)")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS weight_logs_new (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        memberId TEXT NOT NULL,
+                        preWeightKg REAL NOT NULL,
+                        postWeightKg REAL,
+                        deltaKg REAL NOT NULL,
+                        recordedAtEpochMs INTEGER NOT NULL,
+                        notes TEXT NOT NULL,
+                        isSynced INTEGER NOT NULL,
+                        postRecordedAtEpochMs INTEGER
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO weight_logs_new (id, memberId, preWeightKg, postWeightKg, deltaKg, recordedAtEpochMs, notes, isSynced, postRecordedAtEpochMs)
+                    SELECT id, memberId, preWeightKg, postWeightKg, deltaKg, recordedAtEpochMs, notes, isSynced, recordedAtEpochMs FROM weight_logs
+                """.trimIndent())
+                db.execSQL("DROP TABLE weight_logs")
+                db.execSQL("ALTER TABLE weight_logs_new RENAME TO weight_logs")
             }
         }
     }

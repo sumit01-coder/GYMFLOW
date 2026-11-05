@@ -19,10 +19,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
@@ -74,6 +76,7 @@ fun ActiveWorkoutScreen(
         onCompleteSet = {
             viewModel.completeSet(onNavigateToRest)
         },
+        onStartNextSet = viewModel::startNextSet,
         onCloseWorkout = onCloseWorkout,
         modifier = modifier
     )
@@ -88,6 +91,7 @@ fun ActiveWorkoutContent(
     onIncrementWeight: () -> Unit,
     onDecrementWeight: () -> Unit,
     onCompleteSet: () -> Unit,
+    onStartNextSet: () -> Unit,
     onCloseWorkout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -107,50 +111,105 @@ fun ActiveWorkoutContent(
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                // Workout Controls
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    GymFlowButton(
-                        text = if (uiState.isPaused) "Resume" else "Pause",
-                        onClick = onTogglePause,
-                        style = GymFlowButtonStyle.OUTLINED,
-                        modifier = Modifier.weight(0.38f),
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (uiState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    )
+                when {
+                    uiState.isWorkoutComplete -> {
+                        GymFlowButton(
+                            text = "Finish Workout",
+                            onClick = onCloseWorkout,
+                            style = GymFlowButtonStyle.PRIMARY,
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "All ${uiState.totalSets} sets completed! Tap to finish and save.",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowGreen,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                    GymFlowButton(
-                        text = "Complete Set",
-                        onClick = onCompleteSet,
-                        style = GymFlowButtonStyle.PRIMARY,
-                        modifier = Modifier.weight(0.62f),
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = GymFlowWhite,
-                                modifier = Modifier.size(18.dp)
+                    uiState.isWaitingForNextSet -> {
+                        // Controlled Advancement: User is in complete control before next set begins
+                        GymFlowButton(
+                            text = "Start Next Set (Set ${uiState.currentSet + 1})",
+                            onClick = onStartNextSet,
+                            style = GymFlowButtonStyle.PRIMARY,
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Rest period completed · Tap when physically ready to begin set ${uiState.currentSet + 1}",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    else -> {
+                        // Active Set Controls
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            GymFlowButton(
+                                text = if (uiState.isPaused) "Resume" else "Pause",
+                                onClick = onTogglePause,
+                                style = GymFlowButtonStyle.OUTLINED,
+                                modifier = Modifier.weight(0.38f),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (uiState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            )
+
+                            GymFlowButton(
+                                text = "Complete Set",
+                                onClick = onCompleteSet,
+                                style = GymFlowButtonStyle.PRIMARY,
+                                modifier = Modifier.weight(0.62f),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = GymFlowWhite,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             )
                         }
-                    )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "Rest timer starts automatically after completing a set",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = "Rest timer starts automatically after completing a set",
-                    style = GymFlowTheme.typography.Caption,
-                    color = GymFlowTheme.colors.textSecondary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         }
     ) { innerPadding ->
@@ -245,7 +304,47 @@ fun ActiveWorkoutContent(
                 color = if (uiState.isPaused) GymFlowTheme.colors.accentPending else GymFlowTheme.colors.textPrimary
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Ready for Next Set recovery notice
+            if (uiState.isWaitingForNextSet) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFDCFCE7).copy(alpha = 0.85f))
+                        .border(1.dp, Color(0xFF86EFAC), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF15803D),
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Set ${uiState.currentSet} Complete & Logged",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF14532D)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Rest period finished. Tap 'Start Next Set' below whenever you are ready.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF166534)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Target Metrics (3 Columns: Sets, Reps, Target Weight)
             GymFlowCard(modifier = Modifier.fillMaxWidth()) {
@@ -320,8 +419,13 @@ fun ActiveWorkoutContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    val statusText = when {
+                        uiState.isWorkoutComplete -> "All ${uiState.totalSets} Sets Completed!"
+                        uiState.isWaitingForNextSet -> "Waiting: Set ${uiState.currentSet + 1} of ${uiState.totalSets}"
+                        else -> "Active Set: Set ${uiState.currentSet} of ${uiState.totalSets}"
+                    }
                     Text(
-                        text = "Current Set: Set ${uiState.currentSet} of ${uiState.totalSets}",
+                        text = statusText,
                         style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = GymFlowTheme.colors.textPrimary
                     )
@@ -448,8 +552,14 @@ fun ActiveWorkoutContent(
                                 )
                             }
 
+                            val weightLabel = if (uiState.actualWeightKg % 1f == 0f) {
+                                "${uiState.actualWeightKg.toInt()} kg"
+                            } else {
+                                "${uiState.actualWeightKg} kg"
+                            }
+
                             Text(
-                                text = "${uiState.actualWeightKg.toInt()} kg",
+                                text = weightLabel,
                                 style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
                                 color = GymFlowTheme.colors.textPrimary,
                                 modifier = Modifier.padding(horizontal = 12.dp)
@@ -468,6 +578,84 @@ fun ActiveWorkoutContent(
                                     contentDescription = "Increase Weight",
                                     tint = GymFlowTheme.colors.textPrimary,
                                     modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Completed Sets Log Card: Confirms completed sets recorded with reps and weight
+            if (uiState.completedSets.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(18.dp))
+                GymFlowCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = 16.dp
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "LOGGED SETS (${uiState.completedSets.size} OF ${uiState.totalSets})",
+                                style = GymFlowTheme.typography.Caption.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp
+                                ),
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                            Text(
+                                text = "Recorded",
+                                style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold),
+                                color = GymFlowGreen
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        uiState.completedSets.forEach { record ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 5.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(GymFlowGreen.copy(alpha = 0.15f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = GymFlowGreen,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Set ${record.setNumber}",
+                                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                        color = GymFlowTheme.colors.textPrimary
+                                    )
+                                }
+
+                                val setWeightStr = if (record.weightKg % 1f == 0f) {
+                                    "${record.weightKg.toInt()} kg"
+                                } else {
+                                    "${record.weightKg} kg"
+                                }
+
+                                Text(
+                                    text = "${record.reps} reps · $setWeightStr",
+                                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = GymFlowTheme.colors.textPrimary
                                 )
                             }
                         }

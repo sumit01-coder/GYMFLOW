@@ -10,8 +10,11 @@ interface WeightRepository {
     fun logWeight(
         memberId: String,
         preWeightKg: Float,
-        postWeightKg: Float,
-        notes: String = ""
+        postWeightKg: Float = 0f,
+        notes: String = "",
+        existingLogId: String? = null,
+        recordedAtEpochMs: Long? = null,
+        postRecordedAtEpochMs: Long? = null
     ): Flow<Resource<WeightLog>>
 
     fun getWeightHistory(memberId: String): Flow<List<WeightLog>>

@@ -9,11 +9,12 @@ data class WeightLogEntity(
     @PrimaryKey val id: String,
     val memberId: String,
     val preWeightKg: Float,
-    val postWeightKg: Float,
-    val deltaKg: Float = postWeightKg - preWeightKg,
+    val postWeightKg: Float = 0f,
+    val deltaKg: Float = if (postWeightKg > 0f) postWeightKg - preWeightKg else 0f,
     val recordedAtEpochMs: Long,
     val notes: String = "",
-    val isSynced: Boolean = false
+    val isSynced: Boolean = false,
+    val postRecordedAtEpochMs: Long? = null
 ) {
     fun toDomain(): WeightLog = WeightLog(
         id = id,
@@ -22,7 +23,8 @@ data class WeightLogEntity(
         postWeightKg = postWeightKg,
         deltaKg = deltaKg,
         recordedAtEpochMs = recordedAtEpochMs,
-        notes = notes
+        notes = notes,
+        postRecordedAtEpochMs = postRecordedAtEpochMs
     )
 
     companion object {
@@ -34,7 +36,8 @@ data class WeightLogEntity(
             deltaKg = log.deltaKg,
             recordedAtEpochMs = log.recordedAtEpochMs,
             notes = log.notes,
-            isSynced = isSynced
+            isSynced = isSynced,
+            postRecordedAtEpochMs = log.postRecordedAtEpochMs
         )
     }
 }

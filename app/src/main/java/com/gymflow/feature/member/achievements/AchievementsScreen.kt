@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.GymFlowPrimaryButton
@@ -61,7 +62,7 @@ import java.util.Locale
 @Composable
 fun AchievementsScreen(
     onNavigateBack: () -> Unit = {},
-    viewModel: AchievementsViewModel = viewModel()
+    viewModel: AchievementsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val unlockedCount = state.achievements.count { it.achievement.isUnlocked }

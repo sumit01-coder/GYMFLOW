@@ -134,10 +134,11 @@ data class WeightLog(
     val id: String,
     val memberId: String,
     val preWeightKg: Float,
-    val postWeightKg: Float,
-    val deltaKg: Float = postWeightKg - preWeightKg,
+    val postWeightKg: Float = 0f,
+    val deltaKg: Float = if (postWeightKg > 0f) postWeightKg - preWeightKg else 0f,
     val recordedAtEpochMs: Long,
-    val notes: String = ""
+    val notes: String = "",
+    val postRecordedAtEpochMs: Long? = null
 )
 
 @Serializable

@@ -3,7 +3,12 @@ package com.gymflow.feature.member.schedule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.PlanDao
+import com.gymflow.core.database.UserDao
+import com.gymflow.core.database.UserEntity
+import com.gymflow.core.notification.WorkoutReminderManager
 import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.ai.AiExerciseSuggestion
+import com.gymflow.domain.ai.GymFlowAiOptimizer
 import com.gymflow.domain.model.Exercise
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
@@ -58,7 +63,12 @@ data class WorkoutScheduleUiState(
     val dayBeingEdited: ScheduleWorkoutEntry? = null,
     val catalogExercises: List<Exercise> = emptyList(),
     val activePlan: WorkoutPlan? = null,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val aiSuggestions: List<AiExerciseSuggestion> = emptyList(),
+    val isAiCardExpanded: Boolean = true,
+    val lastAppliedSuggestionTitle: String? = null,
+    val reminderEnabled: Boolean = false,
+    val reminderTimeFormatted: String = "06:30 AM"
 )
 
 @HiltViewModel
@@ -66,8 +76,12 @@ class WorkoutScheduleViewModel @Inject constructor(
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val planDao: PlanDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val userDao: UserDao,
+    private val workoutReminderManager: WorkoutReminderManager
 ) : ViewModel() {
+
+    private var cachedUserEntity: UserEntity? = null
 
     private val _uiState = MutableStateFlow(WorkoutScheduleUiState())
     val uiState: StateFlow<WorkoutScheduleUiState> = _uiState.asStateFlow()
@@ -93,18 +107,37 @@ class WorkoutScheduleViewModel @Inject constructor(
 
             // 2. Observe active plan for user
             val userId = tokenManager.getUserIdSync() ?: "default_member"
-            planDao.getActivePlanWithDays(userId).collect { planWithDays ->
-                if (planWithDays != null) {
-                    val domainPlan = planWithDays.toDomain()
-                    _uiState.update { it.copy(activePlan = domainPlan) }
-                    rebuildEntriesFromPlan(domainPlan, _uiState.value.selectedDate)
-                } else {
-                    // Seed initial self-managed 7-day routine
-                    val defaultPlan = createDefaultSelfManagedPlan(userId)
-                    workoutRepository.savePlan(defaultPlan).collect {
-                        // Persisted to Room & synced
+            launch {
+                planDao.getActivePlanWithDays(userId).collect { planWithDays ->
+                    if (planWithDays != null) {
+                        val domainPlan = planWithDays.toDomain()
+                        _uiState.update { it.copy(activePlan = domainPlan) }
+                        rebuildEntriesFromPlan(domainPlan, _uiState.value.selectedDate)
+                    } else {
+                        // Seed initial self-managed 7-day routine
+                        val defaultPlan = createDefaultSelfManagedPlan(userId)
+                        workoutRepository.savePlan(defaultPlan).collect {
+                            // Persisted to Room & synced
+                        }
                     }
                 }
+            }
+
+            // 3. Observe user profile for AI recommendations
+            launch {
+                userDao.getUserFlow(userId).collect { userEntity ->
+                    cachedUserEntity = userEntity
+                    refreshAiOptimizerSuggestions()
+                }
+            }
+
+            // 4. Initialize reminder state
+            val (hour, minute) = workoutReminderManager.getReminderTime()
+            _uiState.update {
+                it.copy(
+                    reminderEnabled = workoutReminderManager.isReminderEnabled(),
+                    reminderTimeFormatted = workoutReminderManager.formatTime(hour, minute)
+                )
             }
         }
     }
@@ -277,6 +310,7 @@ class WorkoutScheduleViewModel @Inject constructor(
         _uiState.update {
             it.copy(scheduleEntries = entries)
         }
+        refreshAiOptimizerSuggestions()
     }
 
     private fun loadScheduleForDate(targetDate: LocalDate) {
@@ -311,6 +345,102 @@ class WorkoutScheduleViewModel @Inject constructor(
         val activePlan = _uiState.value.activePlan
         if (activePlan != null) {
             rebuildEntriesFromPlan(activePlan, targetDate)
+        }
+    }
+
+    fun applyAiSuggestion(suggestion: AiExerciseSuggestion) {
+        val currentPlan = _uiState.value.activePlan ?: return
+        val selectedDayShort = _uiState.value.selectedDate.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+
+        val updatedDays = currentPlan.days.map { day ->
+            if (matchesDay(day.dayOfWeek, selectedDayShort)) {
+                val updatedExercises = day.exercises.map { ex ->
+                    val updatedNotes = if (suggestion.recommendedAlternative != null &&
+                        (ex.exerciseName.contains("bench", ignoreCase = true) ||
+                                ex.exerciseName.contains("squat", ignoreCase = true) ||
+                                ex.exerciseName.contains("press", ignoreCase = true))
+                    ) {
+                        "AI Suggestion: ${suggestion.recommendedAlternative}"
+                    } else {
+                        ex.notes
+                    }
+                    ex.copy(
+                        targetSets = suggestion.recommendedSets,
+                        targetReps = suggestion.recommendedReps,
+                        restDurationSeconds = suggestion.targetRestSeconds,
+                        notes = updatedNotes
+                    )
+                }
+                day.copy(exercises = updatedExercises)
+            } else {
+                day
+            }
+        }
+
+        savePlanInternal(currentPlan.copy(days = updatedDays))
+        _uiState.update { current ->
+            current.copy(
+                lastAppliedSuggestionTitle = suggestion.title,
+                aiSuggestions = current.aiSuggestions.filter { it.id != suggestion.id }
+            )
+        }
+    }
+
+    fun dismissAiSuggestion(suggestionId: String) {
+        _uiState.update { current ->
+            current.copy(
+                aiSuggestions = current.aiSuggestions.filter { it.id != suggestionId }
+            )
+        }
+    }
+
+    fun toggleAiCardExpanded() {
+        _uiState.update { it.copy(isAiCardExpanded = !it.isAiCardExpanded) }
+    }
+
+    fun toggleDailyReminder() {
+        val currentlyEnabled = workoutReminderManager.isReminderEnabled()
+        val (hour, minute) = workoutReminderManager.getReminderTime()
+        if (currentlyEnabled) {
+            workoutReminderManager.cancelReminder()
+        } else {
+            workoutReminderManager.scheduleReminder(hour, minute)
+        }
+        _uiState.update {
+            it.copy(
+                reminderEnabled = !currentlyEnabled,
+                reminderTimeFormatted = workoutReminderManager.formatTime(hour, minute)
+            )
+        }
+    }
+
+    fun refreshAiOptimizerSuggestions() {
+        val user = cachedUserEntity
+        val age = user?.age ?: 28
+        val height = user?.heightCm ?: 175f
+        val weight = user?.currentWeightKg ?: 75f
+        val goal = user?.fitnessGoal ?: "General Fitness"
+
+        val selectedDayShort = _uiState.value.selectedDate.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+        val currentDayEntry = _uiState.value.scheduleEntries.find { matchesDay(it.dayName, selectedDayShort) }
+        val dayExercises = currentDayEntry?.exercises ?: emptyList()
+
+        val suggestions = GymFlowAiOptimizer.optimize(
+            age = age,
+            heightCm = height,
+            weightKg = weight,
+            goal = goal,
+            experienceLevel = "Intermediate",
+            exercises = dayExercises
+        )
+
+        val (hour, minute) = workoutReminderManager.getReminderTime()
+        _uiState.update {
+            it.copy(
+                aiSuggestions = suggestions,
+                reminderEnabled = workoutReminderManager.isReminderEnabled(),
+                reminderTimeFormatted = workoutReminderManager.formatTime(hour, minute)
+            )
         }
     }
 

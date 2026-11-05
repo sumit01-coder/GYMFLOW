@@ -4,7 +4,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +25,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalDrink
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -43,6 +48,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -72,7 +80,6 @@ fun HydrationScreen(
     viewModel: HydrationViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val numberFormat = NumberFormat.getNumberInstance(Locale.US)
 
     Column(
         modifier = Modifier
@@ -93,12 +100,14 @@ fun HydrationScreen(
         ) {
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Custom Circular Progress Bar
-            HydrationCircularProgress(
+            // Interactive Drag-to-Adjust Circular Water Visual
+            InteractiveHydrationVisual(
                 currentMl = state.currentIntakeMl,
                 goalMl = state.dailyGoalMl,
-                progress = state.progressPercent,
-                modifier = Modifier.size(240.dp)
+                onSaveIntake = { targetTotalMl ->
+                    viewModel.saveIntake(targetTotalMl)
+                },
+                modifier = Modifier.size(250.dp)
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -145,7 +154,7 @@ fun HydrationScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Quick Add Headline
+            // Quick Add Action Accelerators (+250, +500, +750)
             Text(
                 text = "Quick Log Water",
                 fontSize = 16.sp,
@@ -155,7 +164,6 @@ fun HydrationScreen(
             )
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Quick Add Action Buttons (+250, +500, +750)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -235,8 +243,9 @@ fun HydrationScreen(
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
+                                    val sign = if (log.amountMl >= 0) "+" else ""
                                     Text(
-                                        text = "+${log.amountMl} ml",
+                                        text = "$sign${log.amountMl} ml",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MemberTextPrimary
@@ -272,25 +281,84 @@ fun HydrationScreen(
     }
 }
 
+/**
+ * Interactive gesture-based central hydration visual with drag slider.
+ * Dragging upward smoothly increases water level in 50 ml increments.
+ * Dragging downward decreases it.
+ * Triggers subtle haptic feedback (LocalHapticFeedback) on each 50 ml step change.
+ */
 @Composable
-private fun HydrationCircularProgress(
+private fun InteractiveHydrationVisual(
     currentMl: Int,
     goalMl: Int,
-    progress: Float,
+    onSaveIntake: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptic = LocalHapticFeedback.current
+    var isDragging by remember { mutableStateOf(false) }
+    var dragDisplayMl by remember(currentMl) { mutableStateOf(currentMl) }
+    var dragAccumulator by remember { mutableStateOf(0f) }
+
+    val activeMl = if (isDragging) dragDisplayMl else currentMl
+    val progress = if (goalMl > 0) (activeMl.toFloat() / goalMl.toFloat()).coerceIn(0f, 1f) else 0f
+
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(durationMillis = 800),
+        animationSpec = if (isDragging) tween(durationMillis = 60) else tween(durationMillis = 600),
         label = "HydrationProgress"
     )
 
+    // Sensitivity: 16 pixels of vertical drag corresponds to 1 increment step of 50 ml
+    val pixelsPerStep = 16f
+
     Box(
-        modifier = modifier,
+        modifier = modifier
+            .pointerInput(currentMl) {
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        isDragging = true
+                        dragDisplayMl = currentMl
+                        dragAccumulator = 0f
+                    },
+                    onDragEnd = {
+                        isDragging = false
+                        if (dragDisplayMl != currentMl) {
+                            onSaveIntake(dragDisplayMl)
+                        }
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        dragDisplayMl = currentMl
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        // Screen Y goes downwards, so dragging UP has negative dragAmount
+                        dragAccumulator += (-dragAmount)
+
+                        if (dragAccumulator >= pixelsPerStep) {
+                            val steps = (dragAccumulator / pixelsPerStep).toInt()
+                            dragAccumulator %= pixelsPerStep
+                            val next = (dragDisplayMl + steps * 50).coerceIn(0, 10000)
+                            if (next != dragDisplayMl) {
+                                dragDisplayMl = next
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        } else if (dragAccumulator <= -pixelsPerStep) {
+                            val steps = ((-dragAccumulator) / pixelsPerStep).toInt()
+                            dragAccumulator = -((-dragAccumulator) % pixelsPerStep)
+                            val next = (dragDisplayMl - steps * 50).coerceIn(0, 10000)
+                            if (next != dragDisplayMl) {
+                                dragDisplayMl = next
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                        }
+                    }
+                )
+            },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 14.dp.toPx()
+            val strokeWidth = 15.dp.toPx()
             val diameter = size.minDimension - strokeWidth
             val topLeft = Offset(
                 (size.width - diameter) / 2f,
@@ -299,7 +367,7 @@ private fun HydrationCircularProgress(
 
             // Background Track
             drawArc(
-                color = Color(0xFFF3F4F6),
+                color = if (isDragging) Color(0xFFE5E7EB) else Color(0xFFF3F4F6),
                 startAngle = 140f,
                 sweepAngle = 260f,
                 useCenter = false,
@@ -311,7 +379,7 @@ private fun HydrationCircularProgress(
             // Active Progress Track
             val activeSweep = 260f * animatedProgress
             drawArc(
-                color = MemberBtnPrimaryBg,
+                color = if (isDragging) Color(0xFF1E3A8A) else MemberBtnPrimaryBg,
                 startAngle = 140f,
                 sweepAngle = activeSweep,
                 useCenter = false,
@@ -322,17 +390,18 @@ private fun HydrationCircularProgress(
         }
 
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(16.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.WaterDrop,
                 contentDescription = null,
-                tint = MemberTextPrimary,
+                tint = if (isDragging) Color(0xFF2563EB) else MemberTextPrimary,
                 modifier = Modifier.size(28.dp)
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${NumberFormat.getNumberInstance(Locale.US).format(currentMl)} ml",
+                text = "${NumberFormat.getNumberInstance(Locale.US).format(activeMl)} ml",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Black,
                 color = MemberTextPrimary
@@ -343,17 +412,59 @@ private fun HydrationCircularProgress(
                 color = MemberTextSecondary
             )
             Spacer(modifier = Modifier.height(6.dp))
-            Box(
+
+            if (isDragging) {
+                val delta = dragDisplayMl - currentMl
+                val deltaSign = if (delta >= 0) "+" else ""
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(if (delta >= 0) Color(0xFFEFF6FF) else Color(0xFFFEF3C7))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "$deltaSign$delta ml (Release to save)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (delta >= 0) Color(0xFF1D4ED8) else Color(0xFFB45309)
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(MemberSurfaceSubtle)
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "${(progress * 100).toInt()}% completed",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MemberTextPrimary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(9999.dp))
-                    .background(MemberSurfaceSubtle)
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0xFFF9FAFB))
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
             ) {
+                Icon(
+                    imageVector = Icons.Default.UnfoldMore,
+                    contentDescription = null,
+                    tint = MemberTextTertiary,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
                 Text(
-                    text = "${(progress * 100).toInt()}% completed",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MemberTextPrimary
+                    text = "Drag ↕ to adjust level (50 ml)",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MemberTextSecondary
                 )
             }
         }

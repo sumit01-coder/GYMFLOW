@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.GymFlowSegmentedControl
@@ -58,7 +59,7 @@ import java.util.Locale
 @Composable
 fun ProgressAnalyticsScreen(
     onNavigateBack: () -> Unit = {},
-    viewModel: ProgressViewModel = viewModel()
+    viewModel: ProgressViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val numberFormat = NumberFormat.getNumberInstance(Locale.US)

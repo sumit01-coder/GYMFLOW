@@ -1,5 +1,6 @@
 package com.gymflow.feature.member.profile
 
+import android.app.TimePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,9 +20,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -31,14 +34,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +53,8 @@ import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.GymFlowDestructiveButton
 import com.gymflow.core.components.GymFlowSecondaryButton
 import com.gymflow.core.components.GymFlowTopBar
+import com.gymflow.core.theme.GymFlowBlack
+import com.gymflow.core.theme.GymFlowWhite
 import com.gymflow.core.theme.MemberBg
 import com.gymflow.core.theme.MemberBtnPrimaryBg
 import com.gymflow.core.theme.MemberCardBorder
@@ -64,6 +72,18 @@ fun MemberSettingsScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val timePickerDialog = remember(context, state.reminderHour, state.reminderMinute) {
+        TimePickerDialog(
+            context,
+            { _, selectedHour: Int, selectedMinute: Int ->
+                viewModel.updateReminderTime(selectedHour, selectedMinute)
+            },
+            state.reminderHour,
+            state.reminderMinute,
+            false
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -170,6 +190,86 @@ fun MemberSettingsScreen(
                     checked = state.workoutRemindersEnabled,
                     onCheckedChange = { viewModel.toggleWorkoutReminders(it) }
                 )
+                if (state.workoutRemindersEnabled) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MemberSurfaceSubtle)
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Alarm,
+                                    contentDescription = null,
+                                    tint = MemberTextPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
+                                    Text(
+                                        text = "Daily Reminder Time",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MemberTextPrimary
+                                    )
+                                    Text(
+                                        text = "Exact alarm trigger time",
+                                        fontSize = 11.sp,
+                                        color = MemberTextTertiary
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(GymFlowBlack)
+                                    .clickable { timePickerDialog.show() }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = state.formattedReminderTime,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowWhite
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            TextButton(
+                                onClick = { viewModel.sendTestReminder() },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = MemberTextSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Send Test Reminder",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MemberTextSecondary
+                                )
+                            }
+                        }
+                    }
+                }
                 HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
                 SettingSwitchRow(
                     title = "Weight Log Prompts",

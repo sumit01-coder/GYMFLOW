@@ -18,13 +18,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
 
+fun getWallClockGreeting(firstName: String): String {
+    val hour = LocalTime.now().hour
+    return when (hour) {
+        in 5..11 -> "Good morning, $firstName!"
+        in 12..16 -> "Good afternoon, $firstName!"
+        in 17..21 -> "Good evening, $firstName!"
+        else -> "Late session, $firstName!"
+    }
+}
+
 data class MemberHomeUiState(
     val memberName: String = "Member",
-    val greeting: String = "Good morning!",
+    val greeting: String = getWallClockGreeting("Member"),
     val motivationalSubtext: String = "Ready to achieve your goals?",
     val currentWeightKg: String = "0.0",
     val caloriesToday: String = "0",
@@ -111,10 +122,11 @@ class MemberHomeViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = tokenManager.getUserIdSync() ?: "default_member"
             weightRepository.getLatestWeight(userId).collect { latestWeight ->
-                if (latestWeight != null && latestWeight.postWeightKg > 0f) {
+                val weight = latestWeight?.postWeightKg ?: latestWeight?.preWeightKg
+                if (weight != null && weight > 0f) {
                     _uiState.update { current ->
                         current.copy(
-                            currentWeightKg = String.format(Locale.US, "%.1f", latestWeight.postWeightKg)
+                            currentWeightKg = String.format(Locale.US, "%.1f", weight)
                         )
                     }
                 }
@@ -133,7 +145,7 @@ class MemberHomeViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         memberName = firstName,
-                        greeting = "Good morning, $firstName!",
+                        greeting = getWallClockGreeting(firstName),
                         userInitials = initials
                     )
                 }
@@ -167,7 +179,7 @@ class MemberHomeViewModel @Inject constructor(
                         }
                         current.copy(
                             memberName = firstName,
-                            greeting = "Good morning, $firstName!",
+                            greeting = getWallClockGreeting(firstName),
                             userInitials = initials,
                             currentWeightKg = displayWeight
                         )

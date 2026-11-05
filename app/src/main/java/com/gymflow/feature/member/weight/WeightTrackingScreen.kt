@@ -28,9 +28,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.WaterDrop
-import kotlin.math.abs
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -66,13 +65,10 @@ import com.gymflow.core.components.GymFlowTopBar
 import com.gymflow.core.theme.MemberBg
 import com.gymflow.core.theme.MemberBtnPrimaryBg
 import com.gymflow.core.theme.MemberCardBorder
-import com.gymflow.core.theme.MemberSurface
 import com.gymflow.core.theme.MemberSurfaceSubtle
 import com.gymflow.core.theme.MemberTextPrimary
 import com.gymflow.core.theme.MemberTextSecondary
 import com.gymflow.core.theme.MemberTextTertiary
-import com.gymflow.core.theme.StatusActive
-import com.gymflow.core.theme.StatusDestructive
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -159,17 +155,35 @@ fun WeightTrackingScreen(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = String.format(Locale.US, "%.2f kg", state.preWeightKg),
+                        text = if (state.preWeightKg > 0f) String.format(Locale.US, "%.2f kg", state.preWeightKg) else "-- kg",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = MemberTextPrimary
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Before training session",
-                        fontSize = 11.sp,
-                        color = MemberTextTertiary
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (state.preRecordedTimeStr != null) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = MemberTextTertiary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Logged at ${state.preRecordedTimeStr}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MemberTextSecondary
+                            )
+                        } else {
+                            Text(
+                                text = "Before training session",
+                                fontSize = 11.sp,
+                                color = MemberTextTertiary
+                            )
+                        }
+                    }
                 }
 
                 // Post-workout Card
@@ -197,106 +211,181 @@ fun WeightTrackingScreen(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = String.format(Locale.US, "%.2f kg", state.postWeightKg),
+                        text = when {
+                            state.postWeightKg > 0f -> String.format(Locale.US, "%.2f kg", state.postWeightKg)
+                            state.hasPreLoggedToday -> "Pending"
+                            else -> "-- kg"
+                        },
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MemberTextPrimary
+                        color = if (state.postWeightKg > 0f) MemberTextPrimary else MemberTextTertiary
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "After training session",
-                        fontSize = 11.sp,
-                        color = MemberTextTertiary
-                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (state.postRecordedTimeStr != null) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = MemberTextTertiary,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Logged at ${state.postRecordedTimeStr}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MemberTextSecondary
+                            )
+                        } else if (state.hasPreLoggedToday) {
+                            Text(
+                                text = "Pending post-session log",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFFD97706)
+                            )
+                        } else {
+                            Text(
+                                text = "After training session",
+                                fontSize = 11.sp,
+                                color = MemberTextTertiary
+                            )
+                        }
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Difference Banner
-            val delta = state.deltaAnalysis.deltaKg
-            val isNegative = delta < 0
-            val deltaText = if (delta > 0) "+${String.format(Locale.US, "%.2f", delta)} kg"
-            else "${String.format(Locale.US, "%.2f", delta)} kg"
+            // Difference Banner / Acute Deficit Analysis
+            if (state.postWeightKg > 0f && state.preWeightKg > 0f) {
+                val delta = state.deltaAnalysis.deltaKg
+                val isNegative = delta < 0
+                val deltaText = if (delta > 0) "+${String.format(Locale.US, "%.2f", delta)} kg"
+                else "${String.format(Locale.US, "%.2f", delta)} kg"
 
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isNegative) Color(0xFFF9FAFB) else MemberSurfaceSubtle,
-                border = androidx.compose.foundation.BorderStroke(1.dp, MemberCardBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF3F4F6)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDownward,
-                                    contentDescription = null,
-                                    tint = MemberTextPrimary,
-                                    modifier = Modifier.size(16.dp)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isNegative) Color(0xFFF9FAFB) else MemberSurfaceSubtle,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MemberCardBorder),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFF3F4F6)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDownward,
+                                        contentDescription = null,
+                                        tint = MemberTextPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = "Difference: $deltaText",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MemberTextPrimary
                                 )
                             }
-                            Spacer(modifier = Modifier.width(10.dp))
+
+                            if (state.deltaAnalysis.fluidLossMl > 0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(9999.dp))
+                                        .background(Color(0xFFEFF6FF))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.WaterDrop,
+                                        contentDescription = null,
+                                        tint = Color(0xFF3B82F6),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "-${state.deltaAnalysis.fluidLossMl}ml fluid",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color(0xFF1D4ED8)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = state.deltaAnalysis.summaryNote,
+                            fontSize = 13.sp,
+                            color = MemberTextSecondary,
+                            lineHeight = 18.sp
+                        )
+
+                        if (state.deltaAnalysis.recommendedFluidIntakeMl > 0) {
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Difference: $deltaText",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = "💡 ${state.deltaAnalysis.advice}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = MemberTextPrimary
                             )
                         }
-
-                        if (state.deltaAnalysis.fluidLossMl > 0) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(9999.dp))
-                                    .background(Color(0xFFEFF6FF))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.WaterDrop,
-                                    contentDescription = null,
-                                    tint = Color(0xFF3B82F6),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "-${state.deltaAnalysis.fluidLossMl}ml fluid",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF1D4ED8)
-                                )
-                            }
-                        }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = state.deltaAnalysis.summaryNote,
-                        fontSize = 13.sp,
-                        color = MemberTextSecondary,
-                        lineHeight = 18.sp
-                    )
-
-                    if (state.deltaAnalysis.recommendedFluidIntakeMl > 0) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "💡 ${state.deltaAnalysis.advice}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MemberTextPrimary
-                        )
+                }
+            } else if (state.hasPreLoggedToday) {
+                // Pre-workout recorded, awaiting post-workout weigh in
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFFFFBEB),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFDE68A)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFEF3C7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFD97706),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Pre-Workout Baseline: ${String.format(Locale.US, "%.2f kg", state.preWeightKg)}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF92400E)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Logged at ${state.preRecordedTimeStr ?: "today"}. Tap + when you finish your session to record post-workout weight and measure acute fluid loss.",
+                                fontSize = 11.sp,
+                                color = Color(0xFFB45309),
+                                lineHeight = 16.sp
+                            )
+                        }
                     }
                 }
             }
@@ -367,57 +456,109 @@ fun WeightTrackingScreen(
             } else {
                 state.recentLogs.forEach { log ->
                     val dateStr = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(log.recordedAtEpochMs))
+                    val timeFormat = SimpleDateFormat("hh:mm a", Locale.US)
+                    val preTime = timeFormat.format(Date(log.recordedAtEpochMs))
+                    val postTime = log.postRecordedAtEpochMs?.let { timeFormat.format(Date(it)) }
+                        ?: if (log.postWeightKg > 0f) preTime else null
+
                     GymFlowCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
                         contentPadding = 12.dp
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
                                     text = dateStr,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MemberTextPrimary
                                 )
-                                if (log.notes.isNotEmpty()) {
-                                    Text(
-                                        text = log.notes,
-                                        fontSize = 12.sp,
-                                        color = MemberTextSecondary
-                                    )
+
+                                if (log.postWeightKg > 0f) {
+                                    val diff = log.deltaKg
+                                    val diffLabel = if (diff > 0) "+${String.format(Locale.US, "%.2f", diff)}"
+                                    else String.format(Locale.US, "%.2f", diff)
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFF3F4F6))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "$diffLabel kg",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MemberTextPrimary
+                                        )
+                                    }
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFFEF3C7))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "In Progress",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFB45309)
+                                        )
+                                    }
                                 }
                             }
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "${String.format(Locale.US, "%.2f", log.preWeightKg)} → ${String.format(Locale.US, "%.2f", log.postWeightKg)} kg",
-                                    fontSize = 13.sp,
-                                    color = MemberTextSecondary
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                val diff = log.deltaKg
-                                val diffLabel = if (diff > 0) "+${String.format(Locale.US, "%.2f", diff)}"
-                                else String.format(Locale.US, "%.2f", diff)
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFFF3F4F6))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                            // Pre and Post exact weights with AM/PM timestamps
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Text(
-                                        text = "$diffLabel kg",
+                                        text = "Pre: ${String.format(Locale.US, "%.2f", log.preWeightKg)} kg ($preTime)",
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MemberTextPrimary
+                                        fontWeight = FontWeight.Medium,
+                                        color = MemberTextSecondary
                                     )
+                                    Text(text = "•", fontSize = 12.sp, color = MemberTextTertiary)
+                                    if (log.postWeightKg > 0f && postTime != null) {
+                                        Text(
+                                            text = "Post: ${String.format(Locale.US, "%.2f", log.postWeightKg)} kg ($postTime)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MemberTextPrimary
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Post: Pending weigh-in",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFD97706)
+                                        )
+                                    }
                                 }
+                            }
+
+                            if (log.notes.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = log.notes,
+                                    fontSize = 12.sp,
+                                    color = MemberTextSecondary
+                                )
                             }
                         }
                     }
@@ -428,14 +569,19 @@ fun WeightTrackingScreen(
         }
     }
 
-    // Quick Log Dialog
+    // Bi-Phasic Weight Logging Dialog
     if (state.isLogDialogOpen) {
-        QuickLogWeightDialog(
-            currentPre = state.preWeightKg,
-            currentPost = state.postWeightKg,
+        BiPhasicLogWeightDialog(
+            hasPreLoggedToday = state.hasPreLoggedToday,
+            existingPreWeight = state.preWeightKg,
+            preRecordedTimeStr = state.preRecordedTimeStr,
+            currentPostFallback = state.postWeightKg,
             onDismiss = { viewModel.closeLogDialog() },
-            onConfirm = { pre, post, notes ->
-                viewModel.recordWeight(pre, post, notes)
+            onConfirmPre = { pre, notes ->
+                viewModel.recordPreWeight(pre, notes)
+            },
+            onConfirmPost = { post, notes ->
+                viewModel.recordPostWeight(post, notes)
             }
         )
     }
@@ -588,42 +734,47 @@ fun WeightTrendChart(
 }
 
 @Composable
-fun QuickLogWeightDialog(
-    currentPre: Float,
-    currentPost: Float,
+fun BiPhasicLogWeightDialog(
+    hasPreLoggedToday: Boolean,
+    existingPreWeight: Float,
+    preRecordedTimeStr: String?,
+    currentPostFallback: Float,
     onDismiss: () -> Unit,
-    onConfirm: (Float, Float, String) -> Unit
+    onConfirmPre: (Float, String) -> Unit,
+    onConfirmPost: (Float, String) -> Unit
 ) {
-    // Smart default: If 0.0f, baseline to 70.0 kg for realistic adult bodyweight
-    val initialPre = if (currentPre > 0f) currentPre else 70.0f
-    val initialPost = if (currentPost > 0f) currentPost else Math.max(20f, initialPre - 0.35f)
+    val currentTimeStr = remember {
+        SimpleDateFormat("hh:mm a", Locale.US).format(Date())
+    }
 
-    var preWeight by remember { mutableStateOf(initialPre) }
-    var postWeight by remember { mutableStateOf(initialPost) }
-    var activeTab by remember { mutableStateOf(0) } // 0 = Pre-workout, 1 = Post-workout
+    // Default weight calculations
+    val defaultPre = if (existingPreWeight > 0f) existingPreWeight else 70.0f
+    val defaultPost = if (currentPostFallback > 0f) currentPostFallback else (defaultPre - 0.35f).coerceAtLeast(20f)
+
+    var preWeight by remember { mutableStateOf(defaultPre) }
+    var postWeight by remember { mutableStateOf(defaultPost) }
+    var isEditingPreOverride by remember { mutableStateOf(false) }
+
+    val isPostWorkoutMode = hasPreLoggedToday && !isEditingPreOverride
     var notesText by remember { mutableStateOf("") }
     var isManualInput by remember { mutableStateOf(false) }
     var manualText by remember { mutableStateOf("") }
 
     fun formatKg(v: Float): String = String.format(Locale.US, "%.2f", v)
 
-    val currentActiveWeight = if (activeTab == 0) preWeight else postWeight
+    val currentActiveWeight = if (isPostWorkoutMode) postWeight else preWeight
 
     fun updateActiveWeight(delta: Float) {
         val updated = Math.round((currentActiveWeight + delta) * 100f) / 100f
         val clamped = updated.coerceIn(20.0f, 250.0f)
-        if (activeTab == 0) {
-            preWeight = clamped
-            // If post has not been modified independently, keep realistic -0.35 kg delta
-            if (postWeight == initialPost) {
-                postWeight = Math.max(20f, clamped - 0.35f)
-            }
-        } else {
+        if (isPostWorkoutMode) {
             postWeight = clamped
+        } else {
+            preWeight = clamped
         }
     }
 
-    val deltaKg = Math.round((postWeight - preWeight) * 100f) / 100f
+    val deltaKg = Math.round((postWeight - defaultPre) * 100f) / 100f
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -640,7 +791,7 @@ fun QuickLogWeightDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Scale,
+                        imageVector = Icons.Default.MonitorWeight,
                         contentDescription = null,
                         tint = MemberTextPrimary,
                         modifier = Modifier.size(20.dp)
@@ -648,16 +799,26 @@ fun QuickLogWeightDialog(
                 }
                 Column {
                     Text(
-                        text = "Log Workout Weight",
+                        text = if (isPostWorkoutMode) "Log Post-Workout Weight" else "Log Pre-Workout Weight",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MemberTextPrimary
                     )
-                    Text(
-                        text = "Adjust with the stepper spinner or type directly",
-                        fontSize = 11.sp,
-                        color = MemberTextSecondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = MemberTextTertiary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Recorded at $currentTimeStr",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MemberTextSecondary
+                        )
+                    }
                 }
             }
         },
@@ -667,81 +828,70 @@ fun QuickLogWeightDialog(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                // 1. Pre / Post Segmented Switcher Tabs
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MemberSurfaceSubtle)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Pre Tab
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(if (activeTab == 0) MemberBtnPrimaryBg else Color.Transparent)
-                            .clickable {
-                                activeTab = 0
-                                isManualInput = false
-                            }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+                if (isPostWorkoutMode) {
+                    // Pre-workout Baseline Card
+                    GymFlowCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        backgroundColor = Color(0xFFF3F4F6),
+                        contentPadding = 12.dp
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "PRE-WORKOUT",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (activeTab == 0) Color.White else MemberTextSecondary,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${formatKg(preWeight)} kg",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Black,
-                                color = if (activeTab == 0) Color.White else MemberTextPrimary
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "PRE-WORKOUT BASELINE",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.5.sp,
+                                    color = MemberTextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Pre-workout: ${formatKg(defaultPre)} kg logged at ${preRecordedTimeStr ?: "today"}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MemberTextPrimary
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .clickable { isEditingPreOverride = true }
+                                    .background(Color(0xFFE5E7EB))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Edit Pre",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MemberTextPrimary
+                                )
+                            }
                         }
                     }
-
-                    // Post Tab
-                    Box(
+                    Spacer(modifier = Modifier.height(14.dp))
+                } else if (hasPreLoggedToday) {
+                    // In edit pre mode, allow switching back to post
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(9.dp))
-                            .background(if (activeTab == 1) MemberBtnPrimaryBg else Color.Transparent)
-                            .clickable {
-                                activeTab = 1
-                                isManualInput = false
-                            }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "POST-WORKOUT",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (activeTab == 1) Color.White else MemberTextSecondary,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${formatKg(postWeight)} kg",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Black,
-                                color = if (activeTab == 1) Color.White else MemberTextPrimary
-                            )
-                        }
+                        Text(
+                            text = "Switch back to Post-Workout →",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF2563EB),
+                            modifier = Modifier.clickable { isEditingPreOverride = false }
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 2. Interactive Weight Stepper Spinner Hub
+                // Interactive Weight Stepper Hub
                 GymFlowCard(
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = 16.dp
@@ -751,7 +901,7 @@ fun QuickLogWeightDialog(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = if (activeTab == 0) "ADJUST PRE-SESSION WEIGHT" else "ADJUST POST-SESSION WEIGHT",
+                            text = if (isPostWorkoutMode) "POST-WORKOUT WEIGHT" else "PRE-WORKOUT WEIGHT",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.sp,
@@ -761,7 +911,7 @@ fun QuickLogWeightDialog(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         if (!isManualInput) {
-                            // Stepper Controls with Big Number
+                            // Stepper Controls
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -831,7 +981,7 @@ fun QuickLogWeightDialog(
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Quick adjustment chip pills
+                            // Quick adjustment chips
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -859,7 +1009,7 @@ fun QuickLogWeightDialog(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // Manual entry hint button
+                            // Manual entry hint
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
@@ -906,8 +1056,8 @@ fun QuickLogWeightDialog(
                                         .background(MemberBtnPrimaryBg)
                                         .clickable {
                                             manualText.toFloatOrNull()?.let { typed ->
-                                                if (activeTab == 0) preWeight = typed.coerceIn(20f, 250f)
-                                                else postWeight = typed.coerceIn(20f, 250f)
+                                                if (isPostWorkoutMode) postWeight = typed.coerceIn(20f, 250f)
+                                                else preWeight = typed.coerceIn(20f, 250f)
                                             }
                                             isManualInput = false
                                         },
@@ -925,68 +1075,79 @@ fun QuickLogWeightDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                if (isPostWorkoutMode) {
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                // 3. Live Fluid Shift & Deficit Preview Card
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (deltaKg < 0) Color(0xFFEFF6FF) else Color(0xFFF3F4F6))
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (deltaKg < 0) Icons.Default.WaterDrop else Icons.Default.Scale,
-                        contentDescription = null,
-                        tint = if (deltaKg < 0) Color(0xFF2563EB) else MemberTextSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        val diffText = if (deltaKg > 0) "+${formatKg(deltaKg)}" else "${formatKg(deltaKg)}"
-                        Text(
-                            text = "Shift: $diffText kg",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (deltaKg < 0) Color(0xFF1D4ED8) else MemberTextPrimary
+                    // Immediate Sweat Loss / Fluid Delta Preview Card
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (deltaKg < 0) Color(0xFFEFF6FF) else Color(0xFFF3F4F6))
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (deltaKg < 0) Icons.Default.WaterDrop else Icons.Default.MonitorWeight,
+                            contentDescription = null,
+                            tint = if (deltaKg < 0) Color(0xFF2563EB) else MemberTextSecondary,
+                            modifier = Modifier.size(20.dp)
                         )
-                        if (deltaKg < 0) {
-                            val fluidLossMl = abs((deltaKg * 1000).toInt())
-                            val replenishTargetMl = (fluidLossMl * 1.25f).toInt()
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            val diffText = if (deltaKg > 0) "+${formatKg(deltaKg)}" else "${formatKg(deltaKg)}"
                             Text(
-                                text = "Lost ~$fluidLossMl ml fluid · Recommended intake: ~$replenishTargetMl ml",
-                                fontSize = 11.sp,
-                                color = Color(0xFF3B82F6)
+                                text = "Fluid Shift: $diffText kg",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (deltaKg < 0) Color(0xFF1D4ED8) else MemberTextPrimary
                             )
-                        } else {
-                            Text(
-                                text = "Stable fluid balance · No acute deficit detected",
-                                fontSize = 11.sp,
-                                color = MemberTextSecondary
-                            )
+                            if (deltaKg < 0) {
+                                val fluidLossMl = abs((deltaKg * 1000).toInt())
+                                val replenishTargetMl = (fluidLossMl * 1.25f).toInt()
+                                Text(
+                                    text = "Sweat loss: ~$fluidLossMl ml · Drink ~$replenishTargetMl ml to restore",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF3B82F6)
+                                )
+                            } else {
+                                Text(
+                                    text = "Stable fluid balance · No acute sweat deficit",
+                                    fontSize = 11.sp,
+                                    color = MemberTextSecondary
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // 4. Session Notes Input
+                // Session Notes Input
                 GymFlowTextField(
                     value = notesText,
                     onValueChange = { notesText = it },
                     label = "Session Notes (Optional)",
-                    placeholder = "e.g. Chest day, sauna, heavy sweat"
+                    placeholder = if (isPostWorkoutMode) "e.g. Heavy sweat, leg day, sauna" else "e.g. Fasted morning weigh-in"
                 )
             }
         },
         confirmButton = {
-            GymFlowPrimaryButton(
-                text = "Save (${formatKg(preWeight)} → ${formatKg(postWeight)} kg)",
-                onClick = {
-                    onConfirm(preWeight, postWeight, notesText)
-                }
-            )
+            if (isPostWorkoutMode) {
+                GymFlowPrimaryButton(
+                    text = "Save Post-Workout (${formatKg(postWeight)} kg at $currentTimeStr)",
+                    onClick = {
+                        onConfirmPost(postWeight, notesText)
+                    }
+                )
+            } else {
+                GymFlowPrimaryButton(
+                    text = "Save Pre-Workout (${formatKg(preWeight)} kg at $currentTimeStr)",
+                    onClick = {
+                        onConfirmPre(preWeight, notesText)
+                    }
+                )
+            }
         },
         dismissButton = {
             GymFlowSecondaryButton(

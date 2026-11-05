@@ -40,19 +40,42 @@ class WeightRepositoryImpl @Inject constructor(
         memberId: String,
         preWeightKg: Float,
         postWeightKg: Float,
-        notes: String
+        notes: String,
+        existingLogId: String?,
+        recordedAtEpochMs: Long?,
+        postRecordedAtEpochMs: Long?
     ): Flow<Resource<WeightLog>> = flow {
         emit(Resource.Loading)
         try {
-            val weightLog = WeightLog(
-                id = UUID.randomUUID().toString(),
-                memberId = memberId,
-                preWeightKg = preWeightKg,
-                postWeightKg = postWeightKg,
-                deltaKg = postWeightKg - preWeightKg,
-                recordedAtEpochMs = System.currentTimeMillis(),
-                notes = notes
-            )
+            val now = System.currentTimeMillis()
+            val existing = if (existingLogId != null) weightDao.getWeightById(existingLogId) else null
+
+            val weightLog = if (existing != null) {
+                val updatedPost = if (postWeightKg > 0f) postWeightKg else existing.postWeightKg
+                val pre = existing.preWeightKg
+                val delta = if (updatedPost > 0f) updatedPost - pre else 0f
+                WeightLog(
+                    id = existing.id,
+                    memberId = existing.memberId,
+                    preWeightKg = pre,
+                    postWeightKg = updatedPost,
+                    deltaKg = delta,
+                    recordedAtEpochMs = existing.recordedAtEpochMs,
+                    notes = if (notes.isNotBlank()) notes else existing.notes,
+                    postRecordedAtEpochMs = postRecordedAtEpochMs ?: existing.postRecordedAtEpochMs ?: now
+                )
+            } else {
+                WeightLog(
+                    id = UUID.randomUUID().toString(),
+                    memberId = memberId,
+                    preWeightKg = preWeightKg,
+                    postWeightKg = postWeightKg,
+                    deltaKg = if (postWeightKg > 0f) postWeightKg - preWeightKg else 0f,
+                    recordedAtEpochMs = recordedAtEpochMs ?: now,
+                    notes = notes,
+                    postRecordedAtEpochMs = if (postWeightKg > 0f) (postRecordedAtEpochMs ?: now) else null
+                )
+            }
 
             // Save locally
             weightDao.upsertWeightLog(WeightLogEntity.fromDomain(weightLog, isSynced = false))

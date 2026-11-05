@@ -14,21 +14,31 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class CompletedSetRecord(
+    val setNumber: Int,
+    val reps: Int,
+    val weightKg: Float,
+    val timestampMillis: Long = System.currentTimeMillis()
+)
+
 data class ActiveWorkoutUiState(
     val workoutTag: String = "Chest Day",
     val exerciseName: String = "Bench Press",
-    val currentSet: Int = 2,
+    val currentSet: Int = 1,
     val totalSets: Int = 3,
     val targetReps: Int = 12,
     val targetWeightKg: Float = 20f,
     val actualReps: Int = 12,
     val actualWeightKg: Float = 20f,
-    val elapsedSeconds: Long = 155, // 02:35
+    val elapsedSeconds: Long = 0,
     val isPaused: Boolean = false,
-    val restDurationSeconds: Int = 45
+    val restDurationSeconds: Int = 45,
+    val completedSets: List<CompletedSetRecord> = emptyList(),
+    val isWaitingForNextSet: Boolean = false,
+    val isWorkoutComplete: Boolean = false
 ) {
     val progressPercentage: Float
-        get() = (currentSet.toFloat() / totalSets.toFloat()).coerceIn(0f, 1f)
+        get() = (completedSets.size.toFloat() / totalSets.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
 
     val formattedDuration: String
         get() {
@@ -67,7 +77,10 @@ class ActiveWorkoutViewModel @Inject constructor(
             actualWeightKg = 20f,
             elapsedSeconds = 0,
             isPaused = false,
-            restDurationSeconds = 45
+            restDurationSeconds = 45,
+            completedSets = emptyList(),
+            isWaitingForNextSet = false,
+            isWorkoutComplete = false
         )
     }
 
@@ -76,7 +89,7 @@ class ActiveWorkoutViewModel @Inject constructor(
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000)
-                if (!_uiState.value.isPaused) {
+                if (!_uiState.value.isPaused && !_uiState.value.isWorkoutComplete) {
                     _uiState.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
                 }
             }
@@ -103,21 +116,62 @@ class ActiveWorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(actualWeightKg = (it.actualWeightKg - 2.5f).coerceAtLeast(0f)) }
     }
 
+    /**
+     * Completes current set and records its actual reps and weight.
+     * Prevents premature set advancement: the set counter does NOT automatically advance
+     * to the next set while the user rests.
+     */
     fun completeSet(onNavigateToRest: (nextSetText: String, durationSeconds: Int) -> Unit) {
         val currentState = _uiState.value
-        val nextSetNumber = currentState.currentSet + 1
+        if (currentState.isWaitingForNextSet || currentState.isWorkoutComplete) return
 
-        val nextSetText = if (nextSetNumber <= currentState.totalSets) {
+        val completedSet = CompletedSetRecord(
+            setNumber = currentState.currentSet,
+            reps = currentState.actualReps,
+            weightKg = currentState.actualWeightKg
+        )
+        val updatedCompleted = currentState.completedSets + completedSet
+
+        val nextSetNumber = currentState.currentSet + 1
+        val hasMoreSets = nextSetNumber <= currentState.totalSets
+
+        val nextSetText = if (hasMoreSets) {
             "Set $nextSetNumber of ${currentState.totalSets} — ${currentState.exerciseName} (${currentState.targetReps} reps · ${currentState.targetWeightKg.toInt()} kg)"
         } else {
             "Workout Complete — ${currentState.workoutTag}"
         }
 
-        if (nextSetNumber <= currentState.totalSets) {
-            _uiState.update { it.copy(currentSet = nextSetNumber) }
+        // Set is marked completed, and user will be prompted with 'Start Next Set' after rest
+        _uiState.update {
+            it.copy(
+                completedSets = updatedCompleted,
+                isWaitingForNextSet = hasMoreSets,
+                isWorkoutComplete = !hasMoreSets
+            )
         }
 
         onNavigateToRest(nextSetText, currentState.restDurationSeconds)
+    }
+
+    /**
+     * Controlled set advancement: Called explicitly by user when ready to start the next set.
+     */
+    fun startNextSet() {
+        val currentState = _uiState.value
+        if (!currentState.isWaitingForNextSet) return
+
+        val nextSetNumber = currentState.currentSet + 1
+        if (nextSetNumber <= currentState.totalSets) {
+            _uiState.update {
+                it.copy(
+                    currentSet = nextSetNumber,
+                    isWaitingForNextSet = false,
+                    actualReps = it.targetReps,
+                    actualWeightKg = it.targetWeightKg,
+                    isPaused = false
+                )
+            }
+        }
     }
 
     override fun onCleared() {

@@ -30,7 +30,7 @@ interface WorkoutSessionDao {
     suspend fun getSessionWithSetsSync(sessionId: String): WorkoutSessionWithSets?
 
     @Transaction
-    @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId ORDER BY startTimeEpochMs DESC")
+    @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId OR memberId = 'default_member' ORDER BY startTimeEpochMs DESC")
     fun getAllSessionsWithSets(memberId: String): Flow<List<WorkoutSessionWithSets>>
 
     @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId ORDER BY startTimeEpochMs DESC")

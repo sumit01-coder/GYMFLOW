@@ -30,11 +30,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Hotel
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
@@ -72,6 +78,7 @@ import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
+import com.gymflow.domain.ai.AiExerciseSuggestion
 import com.gymflow.domain.model.Exercise
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.feature.member.exercises.ExerciseEquipmentBadge
@@ -114,6 +121,10 @@ fun WorkoutScheduleScreen(
         onCloseDayEditor = { viewModel.closeDayEditor() },
         onUpdateDayTitle = { dayName, title -> viewModel.updateDayTitle(dayName, title) },
         onToggleRestDay = { dayName -> viewModel.toggleRestDay(dayName) },
+        onApplyAiSuggestion = { suggestion -> viewModel.applyAiSuggestion(suggestion) },
+        onDismissAiSuggestion = { id -> viewModel.dismissAiSuggestion(id) },
+        onToggleAiCard = { viewModel.toggleAiCardExpanded() },
+        onToggleReminder = { viewModel.toggleDailyReminder() },
         onNavigateBack = onNavigateBack,
         onNavigateToHome = onNavigateToHome,
         onNavigateToProgress = onNavigateToProgress,
@@ -141,6 +152,10 @@ fun WorkoutScheduleContent(
     onCloseDayEditor: () -> Unit,
     onUpdateDayTitle: (String, String) -> Unit,
     onToggleRestDay: (String) -> Unit,
+    onApplyAiSuggestion: (AiExerciseSuggestion) -> Unit = {},
+    onDismissAiSuggestion: (String) -> Unit = {},
+    onToggleAiCard: () -> Unit = {},
+    onToggleReminder: () -> Unit = {},
     onNavigateBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     onNavigateToProgress: () -> Unit,
@@ -196,21 +211,53 @@ fun WorkoutScheduleContent(
                     )
                 }
 
-                // Interactive Calendar Icon
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(GymFlowTheme.colors.surfaceVariant)
-                        .clickable(onClick = onOpenCalendar),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = "Open Calendar",
-                        modifier = Modifier.size(20.dp),
-                        tint = GymFlowTheme.colors.textPrimary
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Quick Reminder Indicator
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (uiState.reminderEnabled) GymFlowBlack else GymFlowTheme.colors.surfaceVariant)
+                            .clickable(onClick = onToggleReminder)
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (uiState.reminderEnabled) Icons.Default.NotificationsActive else Icons.Default.Alarm,
+                                contentDescription = "Daily Workout Reminder",
+                                modifier = Modifier.size(16.dp),
+                                tint = if (uiState.reminderEnabled) GymFlowWhite else GymFlowTheme.colors.textPrimary
+                            )
+                            if (uiState.reminderEnabled) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = uiState.reminderTimeFormatted,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowWhite
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // Interactive Calendar Icon
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .clickable(onClick = onOpenCalendar),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = "Open Calendar",
+                            modifier = Modifier.size(20.dp),
+                            tint = GymFlowTheme.colors.textPrimary
+                        )
+                    }
                 }
             }
 
@@ -359,6 +406,19 @@ fun WorkoutScheduleContent(
                     color = GymFlowTheme.colors.textSecondary
                 )
             }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // AI Coach Suggestions Card
+            AiCoachSuggestionsCard(
+                suggestions = uiState.aiSuggestions,
+                isExpanded = uiState.isAiCardExpanded,
+                onToggleExpanded = onToggleAiCard,
+                onApplySuggestion = onApplyAiSuggestion,
+                onDismissSuggestion = onDismissAiSuggestion,
+                lastAppliedTitle = uiState.lastAppliedSuggestionTitle,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(14.dp))
 
@@ -927,4 +987,308 @@ private fun DayEditorDialog(
         containerColor = GymFlowTheme.colors.surface,
         shape = RoundedCornerShape(20.dp)
     )
+}
+
+/**
+ * Sleek On-Device AI Coach Suggestions Card for Workout Routine Optimization.
+ * Displays advisory recommendations that can be reviewed, modified, or applied directly.
+ */
+@Composable
+fun AiCoachSuggestionsCard(
+    suggestions: List<AiExerciseSuggestion>,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onApplySuggestion: (AiExerciseSuggestion) -> Unit,
+    onDismissSuggestion: (String) -> Unit,
+    lastAppliedTitle: String?,
+    modifier: Modifier = Modifier
+) {
+    GymFlowCard(
+        modifier = modifier,
+        contentPadding = 16.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // Header Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggleExpanded),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(GymFlowBlack),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            tint = GymFlowWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "GYMFLOW AI COACH",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Black,
+                                color = GymFlowTheme.colors.textPrimary,
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(GymFlowGreen.copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "ON-DEVICE",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowGreen
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (suggestions.isNotEmpty()) "${suggestions.size} Advisory Suggestions Available" else "Routine is AI-Optimized",
+                            fontSize = 11.sp,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onToggleExpanded,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(modifier = Modifier.padding(top = 12.dp)) {
+                    if (lastAppliedTitle != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowGreen.copy(alpha = 0.12f))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = GymFlowGreen,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Applied: $lastAppliedTitle to today's workout!",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = GymFlowTheme.colors.textPrimary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    if (suggestions.isEmpty()) {
+                        Text(
+                            text = "No pending adjustments. Your routine is calibrated with progressive overload and joint-friendly movement mechanics.",
+                            fontSize = 12.sp,
+                            color = GymFlowTheme.colors.textSecondary,
+                            lineHeight = 16.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    } else {
+                        suggestions.forEachIndexed { index, suggestion ->
+                            if (index > 0) {
+                                HorizontalDivider(
+                                    color = GymFlowBorder.copy(alpha = 0.5f),
+                                    thickness = 0.5.dp,
+                                    modifier = Modifier.padding(vertical = 10.dp)
+                                )
+                            }
+                            SuggestionItemView(
+                                suggestion = suggestion,
+                                onApply = { onApplySuggestion(suggestion) },
+                                onDismiss = { onDismissSuggestion(suggestion.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionItemView(
+    suggestion: AiExerciseSuggestion,
+    onApply: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = suggestion.title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = GymFlowTheme.colors.textPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(GymFlowTheme.colors.surfaceVariant)
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = suggestion.tag,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GymFlowTheme.colors.textSecondary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = suggestion.explanation,
+            fontSize = 12.sp,
+            color = GymFlowTheme.colors.textSecondary,
+            lineHeight = 16.sp
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Target heuristics badges
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            HeuristicBadge(label = "${suggestion.recommendedSets} Sets")
+            HeuristicBadge(label = "${suggestion.recommendedReps} Reps")
+            HeuristicBadge(label = "${suggestion.targetRestSeconds}s Rest")
+            if (suggestion.recommendedAlternative != null) {
+                HeuristicBadge(
+                    label = "Joint Alternative",
+                    isHighlight = true
+                )
+            }
+        }
+
+        if (suggestion.scienceNote != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lightbulb,
+                    contentDescription = null,
+                    tint = GymFlowTheme.colors.textTertiary,
+                    modifier = Modifier.size(12.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = suggestion.scienceNote,
+                    fontSize = 10.sp,
+                    color = GymFlowTheme.colors.textSecondary,
+                    lineHeight = 14.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Actions
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextButton(
+                onClick = onDismiss,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "Dismiss",
+                    fontSize = 11.sp,
+                    color = GymFlowTheme.colors.textTertiary
+                )
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(GymFlowBlack)
+                    .clickable(onClick = onApply)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = GymFlowWhite,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Apply",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowWhite
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeuristicBadge(label: String, isHighlight: Boolean = false) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (isHighlight) GymFlowGreen.copy(alpha = 0.15f) else GymFlowTheme.colors.surfaceVariant)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isHighlight) GymFlowGreen else GymFlowTheme.colors.textPrimary
+        )
+    }
 }

@@ -2,13 +2,18 @@ package com.gymflow.feature.member.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.SetLogEntity
+import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.database.WorkoutSessionWithSets
 import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.calculator.OneRepMaxCalculator
+import com.gymflow.domain.model.WeightLog
 import com.gymflow.domain.repository.WeightRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -45,159 +50,145 @@ data class PersonalRecordItem(
 
 data class ProgressUiState(
     val selectedTab: TimeRangeTab = TimeRangeTab.THIRTY_DAYS,
-    val totalWorkouts: Int = 18,
-    val totalSets: Int = 342,
-    val totalReps: Int = 4126,
-    val caloriesBurned: Int = 5480,
-    val totalVolumeKg: Float = 48250f,
-    val weightProgressPoints: List<ProgressChartPoint> = default30DayPoints,
-    val minY: Float = 66.5f,
-    val maxY: Float = 69.5f,
-    val personalRecords: List<PersonalRecordItem> = defaultPersonalRecords
-) {
-    companion object {
-        val default7DayPoints = listOf(
-            ProgressChartPoint("Mon", 68.1f, "Oct 27"),
-            ProgressChartPoint("Tue", 68.0f, "Oct 28"),
-            ProgressChartPoint("Wed", 67.9f, "Oct 29"),
-            ProgressChartPoint("Thu", 67.8f, "Oct 30"),
-            ProgressChartPoint("Fri", 67.7f, "Oct 31"),
-            ProgressChartPoint("Sat", 67.6f, "Nov 01"),
-            ProgressChartPoint("Sun", 67.5f, "Nov 02")
-        )
-
-        val default30DayPoints = listOf(
-            ProgressChartPoint("Apr 1", 69.2f, "Apr 01"),
-            ProgressChartPoint("Apr 8", 68.7f, "Apr 08"),
-            ProgressChartPoint("Apr 15", 68.3f, "Apr 15"),
-            ProgressChartPoint("Apr 22", 67.9f, "Apr 22"),
-            ProgressChartPoint("Apr 29", 67.5f, "Apr 29")
-        )
-
-        val default3MonthPoints = listOf(
-            ProgressChartPoint("Aug", 70.4f, "August"),
-            ProgressChartPoint("Sep", 69.1f, "September"),
-            ProgressChartPoint("Oct", 67.5f, "October")
-        )
-
-        val defaultPersonalRecords = listOf(
-            PersonalRecordItem("Barbell Bench Press", 92.5f, "80 kg × 5 reps", "Oct 24"),
-            PersonalRecordItem("Barbell Back Squat", 125.0f, "110 kg × 4 reps", "Oct 19"),
-            PersonalRecordItem("Deadlift", 150.0f, "135 kg × 3 reps", "Oct 12"),
-            PersonalRecordItem("Overhead Press", 62.5f, "55 kg × 4 reps", "Oct 05")
-        )
-    }
-}
+    val totalWorkouts: Int = 0,
+    val totalSets: Int = 0,
+    val totalReps: Int = 0,
+    val caloriesBurned: Int = 0,
+    val totalVolumeKg: Float = 0f,
+    val weightProgressPoints: List<ProgressChartPoint> = emptyList(),
+    val minY: Float = 0f,
+    val maxY: Float = 100f,
+    val personalRecords: List<PersonalRecordItem> = emptyList()
+)
 
 @HiltViewModel
 class ProgressViewModel @Inject constructor(
+    private val workoutSessionDao: WorkoutSessionDao,
     private val weightRepository: WeightRepository,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
+    private val _selectedTab = MutableStateFlow(TimeRangeTab.THIRTY_DAYS)
     private val _uiState = MutableStateFlow(ProgressUiState())
     val uiState: StateFlow<ProgressUiState> = _uiState.asStateFlow()
 
     init {
-        observeWeightData()
+        observeProgressData()
     }
 
-    private fun observeWeightData() {
-        val userId = tokenManager.getUserIdSync() ?: "default_member"
-        viewModelScope.launch {
-            weightRepository.getWeightHistory(userId).collect { logs ->
-                if (logs.isNotEmpty()) {
-                    val points = logs.take(7).reversed().map { log ->
-                        val date = Date(log.recordedAtEpochMs)
-                        val dayLabel = SimpleDateFormat("EEE", Locale.getDefault()).format(date)
-                        val dateLabel = SimpleDateFormat("MMM dd", Locale.getDefault()).format(date)
-                        ProgressChartPoint(dayLabel, log.postWeightKg, dateLabel)
-                    }
-                    val min = (points.minOf { it.weightKg } - 1.0f).coerceAtLeast(0f)
-                    val max = points.maxOf { it.weightKg } + 1.0f
+    private fun observeProgressData() {
+        val userId = tokenManager.getUserIdSync().takeIf { !it.isNullOrBlank() } ?: "default_member"
 
-                    _uiState.update { current ->
-                        current.copy(
-                            weightProgressPoints = points,
-                            minY = Math.round(min * 10f) / 10f,
-                            maxY = Math.round(max * 10f) / 10f
-                        )
-                    }
-                }
+        viewModelScope.launch {
+            combine(
+                _selectedTab,
+                workoutSessionDao.getAllSessionsWithSets(userId),
+                weightRepository.getWeightHistory(userId)
+            ) { tab, sessionsWithSets, weightLogs ->
+                buildUiState(tab, sessionsWithSets, weightLogs)
+            }.collect { newState ->
+                _uiState.value = newState
             }
         }
     }
 
     fun selectTimeRange(tab: TimeRangeTab) {
-        _uiState.update { current ->
-            when (tab) {
-                TimeRangeTab.SEVEN_DAYS -> current.copy(
-                    selectedTab = tab,
-                    totalWorkouts = 5,
-                    totalSets = 95,
-                    totalReps = 1140,
-                    caloriesBurned = 1520,
-                    totalVolumeKg = 13450f,
-                    weightProgressPoints = if (current.weightProgressPoints.isNotEmpty()) current.weightProgressPoints else ProgressUiState.default7DayPoints,
-                    minY = 67.0f,
-                    maxY = 68.5f
-                )
-                TimeRangeTab.THIRTY_DAYS -> current.copy(
-                    selectedTab = tab,
-                    totalWorkouts = 18,
-                    totalSets = 342,
-                    totalReps = 4126,
-                    caloriesBurned = 5480,
-                    totalVolumeKg = 48250f,
-                    weightProgressPoints = if (current.weightProgressPoints.isNotEmpty()) current.weightProgressPoints else ProgressUiState.default30DayPoints,
-                    minY = 66.5f,
-                    maxY = 69.5f
-                )
-                TimeRangeTab.THREE_MONTHS -> current.copy(
-                    selectedTab = tab,
-                    totalWorkouts = 52,
-                    totalSets = 980,
-                    totalReps = 11800,
-                    caloriesBurned = 16200,
-                    totalVolumeKg = 142000f,
-                    weightProgressPoints = ProgressUiState.default3MonthPoints,
-                    minY = 66.0f,
-                    maxY = 71.0f
-                )
-                TimeRangeTab.SIX_MONTHS -> current.copy(
-                    selectedTab = tab,
-                    totalWorkouts = 104,
-                    totalSets = 1960,
-                    totalReps = 23600,
-                    caloriesBurned = 32400,
-                    totalVolumeKg = 284000f,
-                    weightProgressPoints = listOf(
-                        ProgressChartPoint("May", 72.0f, "May"),
-                        ProgressChartPoint("Jul", 70.8f, "July"),
-                        ProgressChartPoint("Sep", 69.1f, "September"),
-                        ProgressChartPoint("Nov", 67.5f, "November")
-                    ),
-                    minY = 66.0f,
-                    maxY = 73.0f
-                )
-                TimeRangeTab.ONE_YEAR -> current.copy(
-                    selectedTab = tab,
-                    totalWorkouts = 208,
-                    totalSets = 3920,
-                    totalReps = 47200,
-                    caloriesBurned = 64800,
-                    totalVolumeKg = 568000f,
-                    weightProgressPoints = listOf(
-                        ProgressChartPoint("Nov '24", 74.0f, "Nov 2024"),
-                        ProgressChartPoint("Feb '25", 72.2f, "Feb 2025"),
-                        ProgressChartPoint("May '25", 70.5f, "May 2025"),
-                        ProgressChartPoint("Aug '25", 68.8f, "Aug 2025"),
-                        ProgressChartPoint("Nov '25", 67.5f, "Nov 2025")
-                    ),
-                    minY = 66.0f,
-                    maxY = 75.0f
+        _selectedTab.value = tab
+    }
+
+    private fun buildUiState(
+        tab: TimeRangeTab,
+        sessionsWithSets: List<WorkoutSessionWithSets>,
+        weightLogs: List<WeightLog>
+    ): ProgressUiState {
+        // Filter completed sessions
+        val completedSessions = sessionsWithSets.filter { it.session.isCompleted || it.session.endTimeEpochMs != null }
+
+        val now = System.currentTimeMillis()
+        val cutoffMs = when (tab) {
+            TimeRangeTab.SEVEN_DAYS -> now - 7L * 24 * 60 * 60 * 1000
+            TimeRangeTab.THIRTY_DAYS -> now - 30L * 24 * 60 * 60 * 1000
+            TimeRangeTab.THREE_MONTHS -> now - 90L * 24 * 60 * 60 * 1000
+            TimeRangeTab.SIX_MONTHS -> now - 180L * 24 * 60 * 60 * 1000
+            TimeRangeTab.ONE_YEAR -> now - 365L * 24 * 60 * 60 * 1000
+        }
+
+        val inRangeSessions = completedSessions.filter { it.session.startTimeEpochMs >= cutoffMs }
+        val inRangeSetLogs = inRangeSessions.flatMap { it.setLogs }
+
+        val totalWorkouts = inRangeSessions.size
+        val totalSets = if (inRangeSetLogs.isNotEmpty()) inRangeSetLogs.size else inRangeSessions.sumOf { it.session.setsCompleted }
+        val totalReps = inRangeSetLogs.sumOf { it.actualReps }
+        val computedVolume = inRangeSetLogs.sumOf { (it.actualWeightKg * it.actualReps).toDouble() }.toFloat()
+        val sessionVolume = inRangeSessions.sumOf { it.session.totalVolumeKg.toDouble() }.toFloat()
+        val totalVolumeKg = if (computedVolume > 0f) computedVolume else sessionVolume
+        val caloriesBurned = inRangeSessions.sumOf { it.session.caloriesBurned }
+
+        // All-time Personal Records dynamically calculated using OneRepMaxCalculator
+        val allSetLogs = completedSessions.flatMap { it.setLogs }
+        val personalRecords = calculatePersonalRecords(allSetLogs)
+
+        // Weight progression points for selected time range
+        val filteredWeightLogs = weightLogs.filter { it.recordedAtEpochMs >= cutoffMs }
+        val (chartPoints, minY, maxY) = if (filteredWeightLogs.isNotEmpty()) {
+            val sortedLogs = filteredWeightLogs.sortedBy { it.recordedAtEpochMs }
+            val points = sortedLogs.map { log ->
+                val weight = log.postWeightKg ?: log.preWeightKg
+                val date = Date(log.recordedAtEpochMs)
+                val dayLabel = SimpleDateFormat("MMM d", Locale.US).format(date)
+                val fullDate = SimpleDateFormat("MMM dd, yyyy", Locale.US).format(date)
+                ProgressChartPoint(dayLabel, weight, fullDate)
+            }
+            val min = (points.minOf { it.weightKg } - 1.0f).coerceAtLeast(0f)
+            val max = points.maxOf { it.weightKg } + 1.0f
+            Triple(points, Math.round(min * 10f) / 10f, Math.round(max * 10f) / 10f)
+        } else {
+            Triple(emptyList(), 0f, 100f)
+        }
+
+        return ProgressUiState(
+            selectedTab = tab,
+            totalWorkouts = totalWorkouts,
+            totalSets = totalSets,
+            totalReps = totalReps,
+            caloriesBurned = caloriesBurned,
+            totalVolumeKg = totalVolumeKg,
+            weightProgressPoints = chartPoints,
+            minY = minY,
+            maxY = maxY,
+            personalRecords = personalRecords
+        )
+    }
+
+    private fun calculatePersonalRecords(setLogs: List<SetLogEntity>): List<PersonalRecordItem> {
+        return setLogs
+            .filter { it.actualWeightKg > 0f && it.actualReps > 0 && it.exerciseName.isNotBlank() }
+            .groupBy { it.exerciseName.trim() }
+            .mapNotNull { (exerciseName, logs) ->
+                val bestLog = logs.maxByOrNull { log ->
+                    OneRepMaxCalculator.calculate1RM(log.actualWeightKg, log.actualReps)
+                } ?: return@mapNotNull null
+
+                val calculated1RM = OneRepMaxCalculator.calculate1RM(bestLog.actualWeightKg, bestLog.actualReps)
+                val weightDisplay = if (bestLog.actualWeightKg % 1f == 0f) {
+                    "${bestLog.actualWeightKg.toInt()} kg"
+                } else {
+                    "${bestLog.actualWeightKg} kg"
+                }
+                val bestSetStr = "$weightDisplay × ${bestLog.actualReps} reps"
+                val dateStr = if (bestLog.completedAtEpochMs > 0) {
+                    SimpleDateFormat("MMM dd", Locale.US).format(Date(bestLog.completedAtEpochMs))
+                } else {
+                    "Logged"
+                }
+
+                PersonalRecordItem(
+                    exerciseName = exerciseName,
+                    oneRepMaxKg = calculated1RM,
+                    bestSet = bestSetStr,
+                    achievedDate = dateStr
                 )
             }
-        }
+            .sortedByDescending { it.oneRepMaxKg }
     }
 }

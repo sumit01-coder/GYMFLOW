@@ -44,6 +44,8 @@ import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowThemeMode
 import com.gymflow.core.theme.GymFlowWhite
 import com.gymflow.core.theme.OledRestCard
+import com.gymflow.core.util.TimerAlertUtils
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun RestTimerScreen(
@@ -52,10 +54,12 @@ fun RestTimerScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
-    // Auto-navigate when timer finishes
+    // Auto-navigate when timer finishes and alert user
     LaunchedEffect(uiState.remainingSeconds) {
         if (uiState.remainingSeconds == 0) {
+            TimerAlertUtils.triggerCompletionAlert(context)
             onSkipRest()
         }
     }

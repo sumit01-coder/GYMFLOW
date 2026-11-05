@@ -96,6 +96,19 @@ class HydrationViewModel @Inject constructor(
         }
     }
 
+    fun saveIntake(targetTotalMl: Int) {
+        val current = _uiState.value.currentIntakeMl
+        val clampedTarget = targetTotalMl.coerceAtLeast(0)
+        val delta = clampedTarget - current
+        if (delta != 0) {
+            addWater(delta)
+        }
+    }
+
+    fun setLiveIntake(intakeMl: Int) {
+        _uiState.update { it.copy(currentIntakeMl = intakeMl.coerceAtLeast(0)) }
+    }
+
     fun openCustomDialog() {
         _uiState.update { it.copy(isCustomDialogOpen = true, errorMessage = null) }
     }

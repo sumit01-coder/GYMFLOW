@@ -41,6 +41,10 @@ data class ProfileUiState(
     val joinedDateFormatted: String = "Joined Recently",
     val pushNotificationsEnabled: Boolean = true,
     val workoutRemindersEnabled: Boolean = true,
+    val reminderHour: Int = 6,
+    val reminderMinute: Int = 30,
+    val formattedReminderTime: String = "06:30 AM",
+    val isTimePickerOpen: Boolean = false,
     val weightRemindersEnabled: Boolean = true,
     val selectedTheme: String = "Light",
     val isLogoutDialogOpen: Boolean = false
@@ -52,7 +56,8 @@ class ProfileViewModel @Inject constructor(
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
     private val firebaseAuth: FirebaseAuth,
-    private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager
+    private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager,
+    private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager
 ) : ViewModel() {
 
     fun checkForUpdates() {
@@ -83,6 +88,21 @@ class ProfileViewModel @Inject constructor(
     init {
         observeUserData()
         refreshVerificationStatus()
+        initializeReminderState()
+    }
+
+    private fun initializeReminderState() {
+        val isEnabled = workoutReminderManager.isReminderEnabled()
+        val (hour, minute) = workoutReminderManager.getReminderTime()
+        val formatted = workoutReminderManager.formatTime(hour, minute)
+        _uiState.update { current ->
+            current.copy(
+                workoutRemindersEnabled = isEnabled,
+                reminderHour = hour,
+                reminderMinute = minute,
+                formattedReminderTime = formatted
+            )
+        }
     }
 
     fun refreshVerificationStatus() {
@@ -217,7 +237,39 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun toggleWorkoutReminders(enabled: Boolean) {
+        val currentHour = _uiState.value.reminderHour
+        val currentMin = _uiState.value.reminderMinute
+        if (enabled) {
+            workoutReminderManager.scheduleReminder(currentHour, currentMin)
+        } else {
+            workoutReminderManager.cancelReminder()
+        }
         _uiState.update { it.copy(workoutRemindersEnabled = enabled) }
+    }
+
+    fun updateReminderTime(hour: Int, minute: Int) {
+        workoutReminderManager.scheduleReminder(hour, minute)
+        val formatted = workoutReminderManager.formatTime(hour, minute)
+        _uiState.update {
+            it.copy(
+                workoutRemindersEnabled = true,
+                reminderHour = hour,
+                reminderMinute = minute,
+                formattedReminderTime = formatted,
+                isTimePickerOpen = false
+            )
+        }
+    }
+
+    fun setTimePickerOpen(isOpen: Boolean) {
+        _uiState.update { it.copy(isTimePickerOpen = isOpen) }
+    }
+
+    fun sendTestReminder() {
+        workoutReminderManager.showWorkoutNotification(
+            title = "Time to Train! 🏋️ (Test)",
+            content = "Your scheduled workout is ready. Tap to start!"
+        )
     }
 
     fun toggleWeightReminders(enabled: Boolean) {
