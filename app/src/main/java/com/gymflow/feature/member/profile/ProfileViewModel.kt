@@ -48,7 +48,8 @@ data class ProfileUiState(
     val isTimePickerOpen: Boolean = false,
     val weightRemindersEnabled: Boolean = true,
     val selectedTheme: String = "Light",
-    val isLogoutDialogOpen: Boolean = false
+    val isLogoutDialogOpen: Boolean = false,
+    val graceDaysRemaining: Int = 7
 )
 
 @HiltViewModel
@@ -170,7 +171,8 @@ class ProfileViewModel @Inject constructor(
                             user = userEntity.toDomain(),
                             profile = userEntity.toMemberProfile(),
                             initials = initials,
-                            joinedDateFormatted = "Joined $joinedDate"
+                            joinedDateFormatted = "Joined $joinedDate",
+                            graceDaysRemaining = tokenManager.getGraceDaysRemaining()
                         )
                     }
                 }

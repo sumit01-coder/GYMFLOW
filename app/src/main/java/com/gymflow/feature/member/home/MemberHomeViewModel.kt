@@ -52,7 +52,9 @@ data class MemberHomeUiState(
     val activeSessionDurationSeconds: Long = 0L,
     val hasUnreadNotifications: Boolean = false,
     val isLoading: Boolean = false,
-    val userInitials: String = "GF"
+    val userInitials: String = "GF",
+    val isEmailVerified: Boolean = true,
+    val graceDaysRemaining: Int = 7
 )
 
 @HiltViewModel
@@ -167,11 +169,15 @@ class MemberHomeViewModel @Inject constructor(
             if (!cachedName.isNullOrBlank()) {
                 val firstName = cachedName.trim().split(" ").firstOrNull() ?: cachedName
                 val initials = extractInitials(cachedName)
+                val isVerified = tokenManager.isEmailVerifiedSync()
+                val daysLeft = tokenManager.getGraceDaysRemaining()
                 _uiState.update {
                     it.copy(
                         memberName = firstName,
                         greeting = getWallClockGreeting(firstName),
-                        userInitials = initials
+                        userInitials = initials,
+                        isEmailVerified = isVerified,
+                        graceDaysRemaining = daysLeft
                     )
                 }
             }
@@ -206,7 +212,9 @@ class MemberHomeViewModel @Inject constructor(
                             memberName = firstName,
                             greeting = getWallClockGreeting(firstName),
                             userInitials = initials,
-                            currentWeightKg = displayWeight
+                            currentWeightKg = displayWeight,
+                            isEmailVerified = userEntity.isEmailVerified,
+                            graceDaysRemaining = tokenManager.getGraceDaysRemaining()
                         )
                     }
                 }
@@ -225,6 +233,7 @@ class MemberHomeViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = tokenManager.getUserIdSync() ?: "default_member"
             try {
+                firestoreSyncManager.pullAllUserDataFromFirestore(userId)
                 firestoreSyncManager.syncAllLocalUserData(userId)
             } catch (_: Exception) {}
         }

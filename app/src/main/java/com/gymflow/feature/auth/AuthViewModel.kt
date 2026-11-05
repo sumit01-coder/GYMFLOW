@@ -35,7 +35,9 @@ data class AuthUiState(
     val isCheckingVerification: Boolean = false,
     val verificationMessage: String? = null,
     val verificationError: String? = null,
-    val isEmailVerified: Boolean = false
+    val isEmailVerified: Boolean = false,
+    val graceDaysRemaining: Int = 7,
+    val isGracePeriodExpired: Boolean = false
 )
 
 @HiltViewModel
@@ -51,18 +53,26 @@ class AuthViewModel @Inject constructor(
 
     private var cooldownJob: Job? = null
 
+    companion object {
+        const val SEVEN_DAYS_MS = 7L * 24 * 60 * 60 * 1000L
+    }
+
     init {
         val savedEmail = tokenManager.getEmail() ?: firebaseAuth.currentUser?.email ?: ""
         val savedName = tokenManager.getName() ?: firebaseAuth.currentUser?.displayName ?: ""
         val savedRole = tokenManager.getRoleSync() ?: Role.MEMBER
         val isVerified = tokenManager.isEmailVerifiedSync() || (firebaseAuth.currentUser?.isEmailVerified == true)
+        val daysRemaining = tokenManager.getGraceDaysRemaining()
+        val isExpired = tokenManager.isGracePeriodExpired()
 
         _uiState.update {
             it.copy(
                 email = savedEmail,
                 name = savedName,
                 role = savedRole,
-                isEmailVerified = isVerified
+                isEmailVerified = isVerified,
+                graceDaysRemaining = daysRemaining,
+                isGracePeriodExpired = isExpired
             )
         }
     }
@@ -95,53 +105,87 @@ class AuthViewModel @Inject constructor(
         val password = _uiState.value.password
 
         if (email.isBlank() || password.isBlank()) {
-            _uiState.update { it.copy(error = "Please enter email and password") }
+            _uiState.update { it.copy(error = "Please enter your email and password") }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            delay(300)
+            _uiState.update { it.copy(isLoading = true, error = null, verificationError = null) }
 
-            val role = if (email.contains("trainer", ignoreCase = true)) Role.TRAINER else Role.MEMBER
-            var firebaseUid: String? = null
-            var emailVerified = false
-
-            // Attempt Firebase Auth sign-in
             try {
+                // 1. Primary Authentication: Firebase Auth
                 val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
                 val firebaseUser = authResult.user
-                firebaseUid = firebaseUser?.uid
-                emailVerified = firebaseUser?.isEmailVerified ?: false
-            } catch (_: Exception) {
-                // If offline or using demo credentials, fall back gracefully
-            }
-            
-            // Check if user already exists in local database
-            val existingUser = userDao.getUserByEmail(email)
-            val userId = firebaseUid ?: existingUser?.id ?: "usr_${System.currentTimeMillis()}"
-            val userName = existingUser?.name ?: run {
-                val prefix = email.substringBefore("@").replace(".", " ").replace("_", " ")
-                prefix.split(" ").filter { it.isNotBlank() }
-                    .joinToString(" ") { part -> part.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } }
-                    .ifBlank { if (role == Role.TRAINER) "Coach Marcus" else "Alex Johnson" }
-            }
-            val token = existingUser?.token ?: "jwt_${userId}_token"
-            val verifiedStatus = emailVerified || (existingUser?.isEmailVerified == true)
+                if (firebaseUser == null) {
+                    _uiState.update { it.copy(isLoading = false, error = "Authentication failed. Please check credentials.") }
+                    return@launch
+                }
 
-            // Persist to Room & DataStore
-            tokenManager.saveAuth(
-                token = token,
-                userId = userId,
-                email = email,
-                name = userName,
-                role = role,
-                isEmailVerified = verifiedStatus
-            )
+                // Refresh email verification status from Firebase servers
+                try { firebaseUser.reload().await() } catch (_: Exception) {}
 
-            val userToPersist = if (existingUser == null) {
-                UserEntity(
-                    id = userId,
+                val firebaseUid = firebaseUser.uid
+                val isVerified = firebaseUser.isEmailVerified
+
+                // 2. Retrieve User Profile from Primary Database (Cloud Firestore)
+                val firestoreUser = try {
+                    firestoreSyncManager.getUserProfileFromFirestore(firebaseUid)
+                } catch (_: Exception) {
+                    null
+                }
+
+                val creationTime = firestoreUser?.createdAtEpochMs
+                    ?: firebaseUser.metadata?.creationTimestamp
+                    ?: System.currentTimeMillis()
+
+                val now = System.currentTimeMillis()
+                val elapsedMs = now - creationTime
+                val isExpired = !isVerified && (elapsedMs > SEVEN_DAYS_MS)
+                val daysLeft = if (!isVerified && !isExpired) {
+                    (((SEVEN_DAYS_MS - elapsedMs) / (24 * 60 * 60 * 1000L)) + 1).toInt().coerceIn(1, 7)
+                } else 0
+
+                val role = firestoreUser?.role
+                    ?: if (email.contains("trainer", ignoreCase = true)) Role.TRAINER else Role.MEMBER
+                val userName = firestoreUser?.name
+                    ?: firebaseUser.displayName
+                    ?: email.substringBefore("@").replace(".", " ")
+                        .split(" ").filter { it.isNotBlank() }
+                        .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                        .ifBlank { if (role == Role.TRAINER) "Coach Marcus" else "Member" }
+
+                val token = "firebase_jwt_${firebaseUid}"
+
+                // 3. Enforce 7-Day Email Verification Requirement:
+                if (isExpired) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Your 7-day email verification period has expired. Please verify your email ($email) to continue.",
+                            verificationError = "Your 7-day email verification period has expired. Please verify your email ($email) to continue.",
+                            isEmailVerified = false,
+                            isGracePeriodExpired = true
+                        )
+                    }
+                    return@launch
+                }
+
+                // 4. User is verified or within 7-day grace period -> Save Auth and Allow Login
+                tokenManager.saveAuth(
+                    token = token,
+                    userId = firebaseUid,
+                    email = email,
+                    name = userName,
+                    role = role,
+                    isEmailVerified = isVerified,
+                    createdAtEpochMs = creationTime
+                )
+
+                val userToPersist = firestoreUser?.copy(
+                    isEmailVerified = isVerified,
+                    lastUpdated = now
+                ) ?: UserEntity(
+                    id = firebaseUid,
                     name = userName,
                     email = email,
                     role = role,
@@ -151,46 +195,105 @@ class AuthViewModel @Inject constructor(
                     fitnessGoal = "General Fitness",
                     age = 0,
                     syncStatus = "Connected",
-                    isEmailVerified = verifiedStatus,
-                    lastUpdated = System.currentTimeMillis()
+                    isEmailVerified = isVerified,
+                    createdAtEpochMs = creationTime,
+                    lastUpdated = now
                 )
-            } else {
-                existingUser.copy(
-                    isEmailVerified = verifiedStatus,
-                    lastUpdated = System.currentTimeMillis()
-                )
-            }
 
-            userDao.upsertUser(userToPersist)
+                userDao.upsertUser(userToPersist)
 
-            // Sync user profile & data to Firebase Firestore
-            launch {
-                try {
-                    firestoreSyncManager.saveUserProfile(userToPersist)
-                    firestoreSyncManager.syncAllLocalUserData(userId)
-                } catch (e: Exception) {
-                    android.util.Log.e("AuthViewModel", "Firestore sync failed on login", e)
+                // Sync with Firestore (pull all user data down and sync pending local items)
+                launch {
+                    try {
+                        firestoreSyncManager.saveUserProfile(userToPersist)
+                        firestoreSyncManager.pullAllUserDataFromFirestore(firebaseUid)
+                        firestoreSyncManager.syncAllLocalUserData(firebaseUid)
+                    } catch (_: Exception) {}
                 }
-            }
 
-            val user = User(
-                id = userId,
-                name = userName,
-                email = email,
-                role = role,
-                token = token,
-                isEmailVerified = verifiedStatus
-            )
-
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    currentUser = user,
-                    isAuthenticated = true,
-                    isEmailVerified = verifiedStatus
+                val domainUser = User(
+                    id = firebaseUid,
+                    name = userName,
+                    email = email,
+                    role = role,
+                    token = token,
+                    isEmailVerified = isVerified
                 )
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        currentUser = domainUser,
+                        isAuthenticated = true,
+                        isEmailVerified = isVerified,
+                        graceDaysRemaining = daysLeft,
+                        isGracePeriodExpired = false
+                    )
+                }
+
+                onSuccess(role)
+
+            } catch (e: Exception) {
+                // Handle specific Firebase Auth exceptions
+                val errorMessage = when (e) {
+                    is com.google.firebase.auth.FirebaseAuthInvalidUserException -> {
+                        "No account found with this email. Please create an account first."
+                    }
+                    is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> {
+                        "Invalid email or password. Please check your credentials or create an account."
+                    }
+                    is com.google.firebase.FirebaseNetworkException -> {
+                        val existingUser = userDao.getUserByEmail(email)
+                        if (existingUser != null) {
+                            val creationTime = existingUser.createdAtEpochMs
+                            val isExpired = !existingUser.isEmailVerified && ((System.currentTimeMillis() - creationTime) > SEVEN_DAYS_MS)
+                            if (isExpired) {
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        error = "Your 7-day email verification period has expired. Please connect to the internet and verify your email.",
+                                        isGracePeriodExpired = true
+                                    )
+                                }
+                                return@launch
+                            }
+
+                            tokenManager.saveAuth(
+                                token = existingUser.token ?: "offline_token",
+                                userId = existingUser.id,
+                                email = existingUser.email,
+                                name = existingUser.name,
+                                role = existingUser.role,
+                                isEmailVerified = existingUser.isEmailVerified,
+                                createdAtEpochMs = creationTime
+                            )
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    currentUser = existingUser.toDomain(),
+                                    isAuthenticated = true,
+                                    isEmailVerified = existingUser.isEmailVerified
+                                )
+                            }
+                            onSuccess(existingUser.role)
+                            return@launch
+                        } else {
+                            "Unable to connect to Firebase. Please check your internet connection."
+                        }
+                    }
+                    else -> {
+                        val msg = e.localizedMessage ?: "Login failed"
+                        if (msg.contains("no user record", ignoreCase = true) || msg.contains("user-not-found", ignoreCase = true)) {
+                            "No account found with this email. Please create an account first."
+                        } else if (msg.contains("password", ignoreCase = true) || msg.contains("invalid-credential", ignoreCase = true)) {
+                            "Invalid email or password. Please check your credentials."
+                        } else {
+                            msg
+                        }
+                    }
+                }
+                _uiState.update { it.copy(isLoading = false, error = errorMessage) }
             }
-            onSuccess(role)
         }
     }
 
@@ -262,98 +365,126 @@ class AuthViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            delay(300)
+            _uiState.update { it.copy(isLoading = true, error = null, verificationError = null) }
+
+            // 1. Real-time duplicate account validation against Primary Database (Firestore)
+            try {
+                val alreadyExists = firestoreSyncManager.isEmailRegistered(email)
+                if (alreadyExists) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "An account with this email address already exists. Please log in instead."
+                        )
+                    }
+                    return@launch
+                }
+            } catch (_: Exception) {}
 
             val role = _uiState.value.role
-            var firebaseUid: String? = null
-            var emailVerified = false
 
-            // Try Firebase Auth registration
             try {
+                // 2. Create User Account in Firebase Auth
                 val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
                 val firebaseUser = authResult.user
-                firebaseUid = firebaseUser?.uid
-                emailVerified = firebaseUser?.isEmailVerified ?: false
+                if (firebaseUser == null) {
+                    _uiState.update { it.copy(isLoading = false, error = "Failed to create account in Firebase.") }
+                    return@launch
+                }
 
-                // Trigger standard email verification link
+                val firebaseUid = firebaseUser.uid
+                val now = System.currentTimeMillis()
+
+                // Send email verification link immediately
                 try {
-                    firebaseUser?.sendEmailVerification()?.await()
+                    firebaseUser.sendEmailVerification().await()
                     _uiState.update { it.copy(isVerificationEmailSent = true) }
                     startCooldownTimer(60)
                 } catch (e: Exception) {
                     android.util.Log.e("AuthViewModel", "sendEmailVerification error: ${e.message}", e)
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("AuthViewModel", "Firebase createUser failed: ${e.message}", e)
-                // If account exists, attempt sign in to sync
-                try {
-                    val signInResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
-                    firebaseUid = signInResult.user?.uid
-                    emailVerified = signInResult.user?.isEmailVerified ?: false
-                } catch (e2: Exception) {
-                    android.util.Log.e("AuthViewModel", "Firebase signIn failed: ${e2.message}", e2)
-                }
-            }
 
-            val userId = firebaseUid ?: "usr_${System.currentTimeMillis()}"
-            val token = "jwt_new_${userId}_token"
+                val token = "firebase_jwt_${firebaseUid}"
 
-            val user = User(
-                id = userId,
-                name = name,
-                email = email,
-                role = role,
-                token = token,
-                isEmailVerified = emailVerified
-            )
-
-            // Persist credentials immediately in TokenManager & Room
-            tokenManager.saveAuth(
-                token = token,
-                userId = userId,
-                email = email,
-                name = name,
-                role = role,
-                isEmailVerified = emailVerified
-            )
-
-            val newUserEntity = UserEntity(
-                id = userId,
-                name = name,
-                email = email,
-                role = role,
-                token = token,
-                heightCm = 0f,
-                currentWeightKg = 0f,
-                fitnessGoal = "General Fitness",
-                age = 0,
-                syncStatus = "Connected",
-                isEmailVerified = emailVerified,
-                lastUpdated = System.currentTimeMillis()
-            )
-
-            userDao.upsertUser(newUserEntity)
-
-            // Sync user profile & data to Firebase Firestore
-            launch {
-                try {
-                    firestoreSyncManager.saveUserProfile(newUserEntity)
-                    firestoreSyncManager.syncAllLocalUserData(userId)
-                } catch (e: Exception) {
-                    android.util.Log.e("AuthViewModel", "Firestore sync failed on register", e)
-                }
-            }
-
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    currentUser = user,
-                    isAuthenticated = true,
-                    isEmailVerified = emailVerified
+                // 3. Save User Profile in Cloud Firestore (Primary Database)
+                val newUserEntity = UserEntity(
+                    id = firebaseUid,
+                    name = name,
+                    email = email,
+                    role = role,
+                    token = token,
+                    heightCm = 0f,
+                    currentWeightKg = 0f,
+                    fitnessGoal = "General Fitness",
+                    age = 0,
+                    syncStatus = "Connected",
+                    isEmailVerified = false,
+                    createdAtEpochMs = now,
+                    lastUpdated = now
                 )
+
+                firestoreSyncManager.saveUserProfile(newUserEntity)
+
+                // 4. Save to Room SQLite & Encrypted TokenManager
+                tokenManager.saveAuth(
+                    token = token,
+                    userId = firebaseUid,
+                    email = email,
+                    name = name,
+                    role = role,
+                    isEmailVerified = false,
+                    createdAtEpochMs = now
+                )
+
+                userDao.upsertUser(newUserEntity)
+
+                val user = User(
+                    id = firebaseUid,
+                    name = name,
+                    email = email,
+                    role = role,
+                    token = token,
+                    isEmailVerified = false
+                )
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        currentUser = user,
+                        isAuthenticated = true,
+                        isEmailVerified = false,
+                        graceDaysRemaining = 7,
+                        isGracePeriodExpired = false
+                    )
+                }
+
+                onSuccess(user.role)
+
+            } catch (e: Exception) {
+                val errorMessage = when (e) {
+                    is com.google.firebase.auth.FirebaseAuthUserCollisionException -> {
+                        "An account with this email address already exists. Please log in instead."
+                    }
+                    is com.google.firebase.auth.FirebaseAuthWeakPasswordException -> {
+                        "Password is too weak. Please use at least 6 characters with letters and numbers."
+                    }
+                    is com.google.firebase.auth.FirebaseAuthInvalidCredentialsException -> {
+                        "Please enter a valid email address."
+                    }
+                    is com.google.firebase.FirebaseNetworkException -> {
+                        "Unable to connect to Firebase. Please check your internet connection to create an account."
+                    }
+                    else -> {
+                        val msg = e.localizedMessage ?: "Registration failed"
+                        if (msg.contains("already in use", ignoreCase = true) || msg.contains("collision", ignoreCase = true)) {
+                            "An account with this email address already exists. Please log in instead."
+                        } else {
+                            msg
+                        }
+                    }
+                }
+                _uiState.update { it.copy(isLoading = false, error = errorMessage) }
             }
-            onSuccess(user.role)
         }
     }
 
@@ -380,27 +511,40 @@ class AuthViewModel @Inject constructor(
                         userDao.updateEmailVerified(userId, true)
                         tokenManager.setEmailVerified(true)
 
+                        val updatedUser = userDao.getUserById(userId)
+                        if (updatedUser != null) {
+                            try { firestoreSyncManager.saveUserProfile(updatedUser.copy(isEmailVerified = true)) } catch (_: Exception) {}
+                        }
+
                         _uiState.update {
                             it.copy(
                                 isCheckingVerification = false,
                                 isEmailVerified = true,
-                                verificationMessage = "Email verified successfully!"
+                                isGracePeriodExpired = false,
+                                verificationMessage = "Email verified successfully! Welcome to GYMFLOW."
                             )
                         }
-                        delay(500)
+                        delay(600)
                         onSuccess(role)
                         return@launch
                     }
                 }
-            } catch (e: Exception) {
-                // Network or reload exception
+            } catch (_: Exception) {
             }
 
-            // If not verified or currentUser is null (e.g. offline testing)
+            val daysLeft = tokenManager.getGraceDaysRemaining()
+            val isExpired = tokenManager.isGracePeriodExpired()
+
             _uiState.update {
                 it.copy(
                     isCheckingVerification = false,
-                    verificationError = "Email not verified yet. Please check your inbox, click the confirmation link, then tap below."
+                    isGracePeriodExpired = isExpired,
+                    graceDaysRemaining = daysLeft,
+                    verificationError = if (isExpired) {
+                        "Your 7-day email verification period has expired. Please check your inbox and click the verification link before logging in."
+                    } else {
+                        "Email not verified yet ($daysLeft day(s) left in grace period). Please click the link sent to your email, then tap below."
+                    }
                 )
             }
         }
@@ -433,12 +577,11 @@ class AuthViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            verificationError = "Firebase user session not found. Please enable Email/Password provider in the Firebase Console."
+                            verificationError = "User session not found. Please log in first."
                         )
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AuthViewModel", "resendVerificationEmail error: ${e.message}", e)
                 _uiState.update {
                     it.copy(
                         isLoading = false,
@@ -463,6 +606,14 @@ class AuthViewModel @Inject constructor(
     }
 
     fun skipVerificationForNow(onSuccess: (Role) -> Unit) {
+        if (_uiState.value.isGracePeriodExpired || tokenManager.isGracePeriodExpired()) {
+            _uiState.update {
+                it.copy(
+                    verificationError = "Your 7-day verification grace period has expired. You must verify your email to access GYMFLOW."
+                )
+            }
+            return
+        }
         val role = tokenManager.getRoleSync() ?: _uiState.value.role
         onSuccess(role)
     }

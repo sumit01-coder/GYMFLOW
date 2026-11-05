@@ -124,7 +124,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                     current.copy(
                         sessionId = activeSession.id,
                         elapsedSeconds = activeSession.durationSeconds,
-                        isPaused = false,
+                        isPaused = activeSession.durationSeconds > 0,
                         completedSets = completedRecords,
                         currentSet = nextSetNumber,
                         isCurrentExerciseCompleted = isExerciseCompleted,
@@ -219,7 +219,9 @@ class ActiveWorkoutViewModel @Inject constructor(
                     val todayDay = domainPlan.days.find { day ->
                         day.dayOfWeek.startsWith(currentDayShort, ignoreCase = true) ||
                                 day.dayOfWeek.equals(currentDayFull, ignoreCase = true)
-                    }
+                    } ?: domainPlan.days.find { day ->
+                        day.exercises.any { it.exerciseId == initialExerciseId }
+                    } ?: domainPlan.days.firstOrNull { it.exercises.isNotEmpty() }
 
                     if (todayDay != null && todayDay.exercises.isNotEmpty()) {
                         isRoutineLoaded = true
@@ -478,6 +480,17 @@ class ActiveWorkoutViewModel @Inject constructor(
             val existing = workoutSessionDao.getSessionById(currentState.sessionId)
             val startTime = existing?.startTimeEpochMs ?: (now - (duration * 1000L))
 
+            val setLogs = workoutSessionDao.getSetLogsSync(currentState.sessionId)
+            var totalVol = 0f
+            for (setLog in setLogs) {
+                totalVol += (setLog.actualWeightKg * setLog.actualReps)
+            }
+            if (totalVol <= 0f) {
+                for (setRecord in currentState.completedSets) {
+                    totalVol += (setRecord.weightKg * setRecord.reps)
+                }
+            }
+
             val sessionEntity = WorkoutSessionEntity(
                 id = currentState.sessionId,
                 memberId = userId,
@@ -485,7 +498,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 startTimeEpochMs = startTime,
                 endTimeEpochMs = now,
                 durationSeconds = duration,
-                totalVolumeKg = 0f, // Room DAO recalculates volume from SetLogs
+                totalVolumeKg = totalVol,
                 caloriesBurned = ((duration / 60) * 7).toInt().coerceAtLeast(50),
                 isCompleted = true,
                 setsCompleted = existing?.setsCompleted ?: currentState.completedSets.size,
@@ -494,7 +507,6 @@ class ActiveWorkoutViewModel @Inject constructor(
             )
             workoutSessionDao.upsertSession(sessionEntity)
 
-            val setLogs = workoutSessionDao.getSetLogsSync(currentState.sessionId)
             try {
                 firestoreSyncManager.saveWorkoutSessionWithSets(sessionEntity, setLogs)
                 workoutSessionDao.markSessionSynced(sessionEntity.id, true)

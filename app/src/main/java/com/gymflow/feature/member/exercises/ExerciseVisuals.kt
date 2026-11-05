@@ -322,17 +322,17 @@ fun MuscleCategoryChip(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(4.dp))
             .background(GymFlowBlack)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = category.uppercase(),
-            fontSize = 10.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Bold,
             color = GymFlowWhite,
-            letterSpacing = 0.5.sp,
+            letterSpacing = 0.4.sp,
             maxLines = 1,
             softWrap = false
         )

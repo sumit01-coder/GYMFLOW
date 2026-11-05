@@ -128,7 +128,8 @@ class TokenManager @Inject constructor(
         email: String,
         name: String,
         role: Role,
-        isEmailVerified: Boolean = false
+        isEmailVerified: Boolean = false,
+        createdAtEpochMs: Long = System.currentTimeMillis()
     ) {
         prefs.edit()
             .putString(KEY_AUTH_TOKEN, token)
@@ -137,6 +138,7 @@ class TokenManager @Inject constructor(
             .putString(KEY_USER_NAME, name)
             .putString(KEY_USER_ROLE, role.name)
             .putBoolean(KEY_EMAIL_VERIFIED, isEmailVerified)
+            .putLong(KEY_ACCOUNT_CREATED_AT, createdAtEpochMs)
             .apply()
 
         _tokenFlow.value = token
@@ -145,6 +147,31 @@ class TokenManager @Inject constructor(
         _userNameFlow.value = name
         _roleFlow.value = role
         _emailVerifiedFlow.value = isEmailVerified
+    }
+
+    // Account Creation & 7-Day Grace Period Operations
+    fun setAccountCreatedAt(timestampMs: Long) {
+        prefs.edit().putLong(KEY_ACCOUNT_CREATED_AT, timestampMs).apply()
+    }
+
+    fun getAccountCreatedAtSync(): Long = prefs.getLong(KEY_ACCOUNT_CREATED_AT, 0L)
+
+    fun getGraceDaysRemaining(): Int {
+        if (isEmailVerifiedSync()) return 7
+        val createdAt = getAccountCreatedAtSync()
+        if (createdAt <= 0L) return 7
+        val elapsed = System.currentTimeMillis() - createdAt
+        val sevenDaysMs = 7L * 24 * 60 * 60 * 1000L
+        if (elapsed > sevenDaysMs) return 0
+        return (((sevenDaysMs - elapsed) / (24 * 60 * 60 * 1000L)) + 1).toInt().coerceIn(1, 7)
+    }
+
+    fun isGracePeriodExpired(): Boolean {
+        if (isEmailVerifiedSync()) return false
+        val createdAt = getAccountCreatedAtSync()
+        if (createdAt <= 0L) return false
+        val elapsed = System.currentTimeMillis() - createdAt
+        return elapsed > (7L * 24 * 60 * 60 * 1000L)
     }
 
     // Email Verification Operations
@@ -182,5 +209,6 @@ class TokenManager @Inject constructor(
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_EMAIL_VERIFIED = "email_verified"
+        private const val KEY_ACCOUNT_CREATED_AT = "account_created_at"
     }
 }

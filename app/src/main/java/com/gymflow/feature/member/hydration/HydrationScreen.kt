@@ -345,7 +345,9 @@ private fun InteractiveHydrationVisual(
                     },
                     onDragCancel = {
                         isDragging = false
-                        dragDisplayMl = currentMl
+                        if (dragDisplayMl != currentMl) {
+                            onSaveIntake(dragDisplayMl)
+                        }
                     },
                     onVerticalDrag = { change, dragAmount ->
                         change.consume()

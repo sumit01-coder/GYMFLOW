@@ -20,11 +20,11 @@ interface PlanDao {
     suspend fun upsertExercises(exercises: List<WorkoutExerciseEntity>)
 
     @Transaction
-    @Query("SELECT * FROM workout_plans WHERE memberId = :memberId AND isActive = 1 LIMIT 1")
+    @Query("SELECT * FROM workout_plans WHERE (memberId = :memberId OR memberId = 'default_member') AND isActive = 1 ORDER BY CASE WHEN memberId = :memberId THEN 0 ELSE 1 END, updatedAt DESC LIMIT 1")
     fun getActivePlanWithDays(memberId: String): Flow<WorkoutPlanWithDays?>
 
     @Transaction
-    @Query("SELECT * FROM workout_plans WHERE memberId = :memberId AND isActive = 1 LIMIT 1")
+    @Query("SELECT * FROM workout_plans WHERE (memberId = :memberId OR memberId = 'default_member') AND isActive = 1 ORDER BY CASE WHEN memberId = :memberId THEN 0 ELSE 1 END, updatedAt DESC LIMIT 1")
     suspend fun getActivePlanWithDaysSync(memberId: String): WorkoutPlanWithDays?
 
     @Transaction

@@ -162,7 +162,7 @@ fun ExerciseDetailsContent(
                     .fillMaxWidth()
                     .height(240.dp)
                     .clip(GymFlowShapesTokens.CardMain)
-                    .background(Color(0xFF1E1E22))
+                    .background(Color.White)
                     .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain)
                     .clickable(onClick = onToggleMediaMode),
                 contentAlignment = Alignment.Center
@@ -174,7 +174,7 @@ fun ExerciseDetailsContent(
                             .crossfade(true)
                             .build(),
                         contentDescription = uiState.exerciseName,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(GymFlowShapesTokens.CardMain),
@@ -191,7 +191,7 @@ fun ExerciseDetailsContent(
                                             .crossfade(true)
                                             .build(),
                                         contentDescription = null,
-                                        contentScale = ContentScale.Crop,
+                                        contentScale = ContentScale.Fit,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -234,7 +234,7 @@ fun ExerciseDetailsContent(
                                             .crossfade(true)
                                             .build(),
                                         contentDescription = uiState.exerciseName,
-                                        contentScale = ContentScale.Crop,
+                                        contentScale = ContentScale.Fit,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 } else {

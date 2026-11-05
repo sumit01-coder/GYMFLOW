@@ -61,6 +61,9 @@ fun AppNavGraph(
                 onNavigateToForgotPassword = {
                     navController.navigate(NavRoutes.FORGOT_PASSWORD)
                 },
+                onNavigateToEmailVerification = {
+                    navController.navigate(NavRoutes.EMAIL_VERIFICATION)
+                },
                 onLoginSuccess = { role ->
                     if (role == Role.TRAINER) {
                         navController.navigate(TrainerRoute.Dashboard) {

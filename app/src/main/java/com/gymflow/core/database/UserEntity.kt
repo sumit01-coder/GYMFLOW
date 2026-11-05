@@ -20,6 +20,7 @@ data class UserEntity(
     val connectedTrainerId: String? = null,
     val syncStatus: String = "Not Connected",
     val isEmailVerified: Boolean = false,
+    val createdAtEpochMs: Long = System.currentTimeMillis(),
     val lastUpdated: Long = System.currentTimeMillis()
 ) {
     fun toDomain(): User = User(

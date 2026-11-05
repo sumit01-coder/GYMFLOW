@@ -3,6 +3,7 @@ package com.gymflow.feature.member.hydration
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.common.Resource
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.HydrationLog
 import com.gymflow.domain.repository.WeightRepository
@@ -32,13 +33,20 @@ data class HydrationUiState(
 @HiltViewModel
 class HydrationViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val firestoreSyncManager: FirestoreSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HydrationUiState())
     val uiState: StateFlow<HydrationUiState> = _uiState.asStateFlow()
 
     init {
+        val userId = currentUserId()
+        viewModelScope.launch {
+            try {
+                firestoreSyncManager.pullAllUserDataFromFirestore(userId)
+            } catch (_: Exception) {}
+        }
         observeTodayHydration()
     }
 
@@ -76,9 +84,13 @@ class HydrationViewModel @Inject constructor(
                     is Resource.Success -> {
                         _uiState.update { current ->
                             val updatedDeficit = (current.postWorkoutDeficitMl - amountMl).coerceAtLeast(0)
+                            val updatedLogs = (listOf(resource.data) + current.todayLogs).distinctBy { it.id }
+                            val updatedTotal = (current.currentIntakeMl + amountMl).coerceAtLeast(0)
                             current.copy(
                                 isSaving = false,
                                 isCustomDialogOpen = false,
+                                currentIntakeMl = updatedTotal,
+                                todayLogs = updatedLogs,
                                 postWorkoutDeficitMl = updatedDeficit
                             )
                         }

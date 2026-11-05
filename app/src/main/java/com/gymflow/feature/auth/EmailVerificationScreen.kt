@@ -185,6 +185,77 @@ fun EmailVerificationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // 7-Day Grace Period Status Card
+            if (uiState.isGracePeriodExpired) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFEF2F2))
+                        .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = StatusDestructive,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "7-Day Grace Period Expired",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF991B1B)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Account access is locked. You must verify your email to log in and use GYMFLOW.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF7F1D1D)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFFBEB))
+                        .border(1.dp, Color(0xFFFDE68A), RoundedCornerShape(12.dp))
+                        .padding(14.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = Color(0xFFD97706),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "7-Day Verification Grace Period Active",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF92400E)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "You have ${uiState.graceDaysRemaining} day(s) remaining to verify your email. After 7 days, your account will be locked until verified.",
+                                fontSize = 12.sp,
+                                color = Color(0xFFB45309)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Instructions Box
             GymFlowCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -293,22 +364,23 @@ fun EmailVerificationScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Skip for Now link
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                TextButton(
-                    onClick = { viewModel.skipVerificationForNow(onVerificationSuccess) }
+            // Skip for Now link (only available if 7-day grace period has NOT expired)
+            if (!uiState.isGracePeriodExpired) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Skip for now (verify later in Profile)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MemberTextTertiary
-                    )
+                    TextButton(
+                        onClick = { viewModel.skipVerificationForNow(onVerificationSuccess) }
+                    ) {
+                        Text(
+                            text = "Skip for now (${uiState.graceDaysRemaining}d remaining in grace period)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MemberTextTertiary
+                        )
+                    }
                 }
             }
 

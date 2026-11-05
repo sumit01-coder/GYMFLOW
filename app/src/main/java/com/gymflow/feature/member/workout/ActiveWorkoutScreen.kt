@@ -364,9 +364,9 @@ fun ActiveWorkoutContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(210.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF18181B))
+                    .background(Color.White)
                     .border(1.dp, GymFlowBorder, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -412,14 +412,14 @@ fun ActiveWorkoutContent(
                                     Icon(
                                         imageVector = Icons.Default.FitnessCenter,
                                         contentDescription = null,
-                                        tint = GymFlowWhite,
+                                        tint = GymFlowBlack,
                                         modifier = Modifier.size(36.dp)
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
                                         text = uiState.exerciseName,
                                         style = GymFlowTheme.typography.Caption,
-                                        color = GymFlowWhite.copy(alpha = 0.8f)
+                                        color = GymFlowTheme.colors.textPrimary
                                     )
                                 }
                             }
@@ -457,14 +457,14 @@ fun ActiveWorkoutContent(
                         Icon(
                             imageVector = Icons.Default.FitnessCenter,
                             contentDescription = null,
-                            tint = GymFlowWhite,
+                            tint = GymFlowBlack,
                             modifier = Modifier.size(36.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = uiState.exerciseName,
                             style = GymFlowTheme.typography.Caption,
-                            color = GymFlowWhite.copy(alpha = 0.8f)
+                            color = GymFlowTheme.colors.textPrimary
                         )
                     }
                 }

@@ -64,13 +64,20 @@ data class MemberActivityUiState(
 class MemberActivityViewModel @Inject constructor(
     private val workoutSessionDao: WorkoutSessionDao,
     private val weightDao: WeightDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val firestoreSyncManager: com.gymflow.core.firebase.FirestoreSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberActivityUiState(isLoading = true))
     val uiState: StateFlow<MemberActivityUiState> = _uiState.asStateFlow()
 
     init {
+        val memberId = tokenManager.getUserIdSync() ?: "default_member"
+        viewModelScope.launch {
+            try {
+                firestoreSyncManager.pullAllUserDataFromFirestore(memberId)
+            } catch (_: Exception) {}
+        }
         observeActivityData()
     }
 

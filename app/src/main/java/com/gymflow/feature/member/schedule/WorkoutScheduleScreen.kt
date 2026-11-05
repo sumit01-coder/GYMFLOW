@@ -898,7 +898,9 @@ private fun ScheduledExerciseItemRow(
                                 text = "COMPLETED",
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GymFlowGreen
+                                color = GymFlowGreen,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }

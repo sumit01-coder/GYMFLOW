@@ -222,13 +222,13 @@ fun MemberProfileScreen(
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = "Verify Email Address",
+                                    text = "Verify Email Address (${uiState.graceDaysRemaining}d left in grace period)",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF92400E)
                                 )
                                 Text(
-                                    text = "Tap to verify ${uiState.user.email.ifBlank { "your email" }}",
+                                    text = "Tap to verify ${uiState.user.email.ifBlank { "your email" }} before account lock",
                                     fontSize = 12.sp,
                                     color = Color(0xFFB45309)
                                 )

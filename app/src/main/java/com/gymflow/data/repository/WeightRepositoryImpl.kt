@@ -171,25 +171,17 @@ class WeightRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun getTodayStartEpochMs(): Long {
+        return java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
+
     override fun getTodayHydration(memberId: String): Flow<Int> {
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val startOfDayMs = calendar.timeInMillis
+        val startOfDayMs = getTodayStartEpochMs()
         return weightDao.getTodayHydrationTotal(memberId, startOfDayMs).map { it ?: 0 }
     }
 
     override fun getTodayHydrationLogs(memberId: String): Flow<List<HydrationLog>> {
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        val startOfDayMs = calendar.timeInMillis
+        val startOfDayMs = getTodayStartEpochMs()
         return weightDao.getTodayHydrationLogs(memberId, startOfDayMs).map { entities ->
             entities.map { it.toDomain() }
         }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,6 +59,7 @@ class FirestoreSyncManager @Inject constructor(
             "age" to user.age,
             "connectedTrainerId" to user.connectedTrainerId,
             "isEmailVerified" to user.isEmailVerified,
+            "createdAtEpochMs" to user.createdAtEpochMs,
             "updatedAt" to FieldValue.serverTimestamp()
         )
 
@@ -65,6 +67,53 @@ class FirestoreSyncManager @Inject constructor(
             .document(user.id)
             .set(userMap, SetOptions.merge())
             .await()
+    }
+
+    // Check if an email is already registered in Cloud Firestore (Primary Database)
+    suspend fun isEmailRegistered(email: String): Boolean {
+        return try {
+            val querySnapshot = firestore.collection(COLLECTION_USERS)
+                .whereEqualTo("email", email.trim().lowercase())
+                .limit(1)
+                .get()
+                .await()
+            !querySnapshot.isEmpty
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // Retrieve User Profile directly from Cloud Firestore (Primary Database)
+    suspend fun getUserProfileFromFirestore(userId: String): UserEntity? {
+        return try {
+            val doc = firestore.collection(COLLECTION_USERS)
+                .document(userId)
+                .get()
+                .await()
+            if (!doc.exists()) return null
+
+            val roleStr = doc.getString("role") ?: "MEMBER"
+            val role = try { com.gymflow.domain.model.Role.valueOf(roleStr) } catch (_: Exception) { com.gymflow.domain.model.Role.MEMBER }
+
+            UserEntity(
+                id = doc.getString("id") ?: userId,
+                name = doc.getString("name") ?: "",
+                email = doc.getString("email") ?: "",
+                role = role,
+                token = null,
+                heightCm = (doc.getDouble("heightCm") ?: 0.0).toFloat(),
+                currentWeightKg = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat(),
+                fitnessGoal = doc.getString("fitnessGoal") ?: "General Fitness",
+                age = (doc.getLong("age") ?: 0L).toInt(),
+                connectedTrainerId = doc.getString("connectedTrainerId"),
+                syncStatus = "Connected",
+                isEmailVerified = doc.getBoolean("isEmailVerified") ?: false,
+                createdAtEpochMs = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
+                lastUpdated = System.currentTimeMillis()
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 
     // 2. Sync & Observe Workout Plans in Real-Time
@@ -334,7 +383,187 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    // 8. Link Member to Trainer via Invite Code
+    // 8. Bidirectional Down-Sync: Pull All User Data From Primary Cloud Firestore to Room SQLite
+    suspend fun pullAllUserDataFromFirestore(userId: String): Boolean {
+        if (userId.isBlank() || userId == "default_member") return false
+        return try {
+            // 1. User Profile
+            val profile = getUserProfileFromFirestore(userId)
+            if (profile != null) {
+                userDao.upsertUser(profile)
+            }
+
+            // 2. Workout Sessions & Sets
+            try {
+                val sessionsSnapshot = firestore.collection(COLLECTION_SESSIONS)
+                    .whereEqualTo("memberId", userId)
+                    .get()
+                    .await()
+
+                for (doc in sessionsSnapshot.documents) {
+                    val sessionEntity = WorkoutSessionEntity(
+                        id = doc.getString("id") ?: doc.id,
+                        memberId = doc.getString("memberId") ?: userId,
+                        planId = doc.getString("planId"),
+                        workoutTitle = doc.getString("workoutTitle") ?: "Workout Session",
+                        startTimeEpochMs = doc.getLong("startTimeEpochMs") ?: System.currentTimeMillis(),
+                        endTimeEpochMs = doc.getLong("endTimeEpochMs"),
+                        durationSeconds = doc.getLong("durationSeconds") ?: 0L,
+                        totalVolumeKg = (doc.getDouble("totalVolumeKg") ?: 0.0).toFloat(),
+                        caloriesBurned = (doc.getLong("caloriesBurned") ?: 0L).toInt(),
+                        isCompleted = doc.getBoolean("isCompleted") ?: false,
+                        setsCompleted = (doc.getLong("setsCompleted") ?: 0L).toInt(),
+                        totalSets = (doc.getLong("totalSets") ?: 0L).toInt(),
+                        isSynced = true
+                    )
+                    workoutSessionDao.upsertSession(sessionEntity)
+
+                    val setsList = (doc.get("setLogs") as? List<*>)?.mapNotNull { setObj ->
+                        val map = setObj as? Map<*, *> ?: return@mapNotNull null
+                        SetLogEntity(
+                            id = map["id"] as? String ?: UUID.randomUUID().toString(),
+                            sessionId = map["sessionId"] as? String ?: sessionEntity.id,
+                            exerciseId = map["exerciseId"] as? String ?: "",
+                            exerciseName = map["exerciseName"] as? String ?: "",
+                            setNumber = (map["setNumber"] as? Number)?.toInt() ?: 1,
+                            targetReps = (map["targetReps"] as? Number)?.toInt() ?: 12,
+                            targetWeightKg = (map["targetWeightKg"] as? Number)?.toFloat() ?: 20f,
+                            actualReps = (map["actualReps"] as? Number)?.toInt() ?: 12,
+                            actualWeightKg = (map["actualWeightKg"] as? Number)?.toFloat() ?: 20f,
+                            completedAtEpochMs = (map["completedAtEpochMs"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                            isSynced = true
+                        )
+                    } ?: emptyList()
+
+                    for (setLog in setsList) {
+                        workoutSessionDao.upsertSetLog(setLog)
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // 3. Hydration Logs
+            try {
+                val hydrationSnapshot = firestore.collection(COLLECTION_HYDRATION_LOGS)
+                    .whereEqualTo("memberId", userId)
+                    .get()
+                    .await()
+
+                for (doc in hydrationSnapshot.documents) {
+                    val hydrationEntity = HydrationLogEntity(
+                        id = doc.getString("id") ?: doc.id,
+                        memberId = doc.getString("memberId") ?: userId,
+                        amountMl = (doc.getLong("amountMl") ?: 0L).toInt(),
+                        dailyGoalMl = (doc.getLong("dailyGoalMl") ?: 3000L).toInt(),
+                        recordedAtEpochMs = doc.getLong("recordedAtEpochMs") ?: System.currentTimeMillis(),
+                        isSynced = true
+                    )
+                    weightDao.upsertHydrationLog(hydrationEntity)
+                }
+            } catch (_: Exception) {}
+
+            // 4. Weight Logs
+            try {
+                val weightSnapshot = firestore.collection(COLLECTION_WEIGHT_LOGS)
+                    .whereEqualTo("memberId", userId)
+                    .get()
+                    .await()
+
+                for (doc in weightSnapshot.documents) {
+                    val preWeight = (doc.getDouble("preWeightKg") ?: doc.getDouble("weightKg") ?: 0.0).toFloat()
+                    val postWeight = (doc.getDouble("postWeightKg") ?: 0.0).toFloat()
+                    val weightEntity = WeightLogEntity(
+                        id = doc.getString("id") ?: doc.id,
+                        memberId = doc.getString("memberId") ?: userId,
+                        preWeightKg = preWeight,
+                        postWeightKg = postWeight,
+                        deltaKg = if (postWeight > 0f) postWeight - preWeight else 0f,
+                        notes = doc.getString("notes") ?: doc.getString("note") ?: "",
+                        recordedAtEpochMs = doc.getLong("recordedAtEpochMs") ?: System.currentTimeMillis(),
+                        isSynced = true
+                    )
+                    weightDao.upsertWeightLog(weightEntity)
+                }
+            } catch (_: Exception) {}
+
+            // 5. Body Measurements
+            try {
+                val measurementSnapshot = firestore.collection(COLLECTION_MEASUREMENTS)
+                    .whereEqualTo("memberId", userId)
+                    .get()
+                    .await()
+
+                for (doc in measurementSnapshot.documents) {
+                    val measurementEntity = BodyMeasurementEntity(
+                        id = doc.getString("id") ?: doc.id,
+                        memberId = doc.getString("memberId") ?: userId,
+                        chestCm = (doc.getDouble("chestCm") ?: 0.0).toFloat(),
+                        waistCm = (doc.getDouble("waistCm") ?: 0.0).toFloat(),
+                        armsCm = (doc.getDouble("armsCm") ?: 0.0).toFloat(),
+                        thighsCm = (doc.getDouble("thighsCm") ?: 0.0).toFloat(),
+                        hipsCm = (doc.getDouble("hipsCm") ?: 0.0).toFloat(),
+                        recordedAtEpochMs = doc.getLong("recordedAtEpochMs") ?: System.currentTimeMillis(),
+                        isSynced = true
+                    )
+                    weightDao.upsertMeasurement(measurementEntity)
+                }
+            } catch (_: Exception) {}
+
+            // 6. Active Workout Plan
+            try {
+                val planSnapshot = firestore.collection(COLLECTION_PLANS)
+                    .whereEqualTo("memberId", userId)
+                    .whereEqualTo("isActive", true)
+                    .limit(1)
+                    .get()
+                    .await()
+
+                val planDoc = planSnapshot.documents.firstOrNull()
+                if (planDoc != null && planDoc.exists()) {
+                    val daysList = (planDoc.get("days") as? List<*>)?.mapNotNull { dayObj ->
+                        val dayMap = dayObj as? Map<*, *> ?: return@mapNotNull null
+                        val exList = (dayMap["exercises"] as? List<*>)?.mapNotNull { exObj ->
+                            val exMap = exObj as? Map<*, *> ?: return@mapNotNull null
+                            WorkoutExercise(
+                                exerciseId = exMap["exerciseId"] as? String ?: "",
+                                exerciseName = exMap["exerciseName"] as? String ?: "",
+                                category = exMap["category"] as? String ?: "",
+                                targetSets = (exMap["targetSets"] as? Number)?.toInt() ?: 3,
+                                targetReps = (exMap["targetReps"] as? Number)?.toInt() ?: 12,
+                                targetWeightKg = (exMap["targetWeightKg"] as? Number)?.toFloat() ?: 20f,
+                                restDurationSeconds = (exMap["restDurationSeconds"] as? Number)?.toInt() ?: 45,
+                                notes = exMap["notes"] as? String ?: ""
+                            )
+                        } ?: emptyList()
+
+                        WorkoutDay(
+                            dayOfWeek = dayMap["dayOfWeek"] as? String ?: "Monday",
+                            title = dayMap["title"] as? String ?: "Workout",
+                            isCompleted = dayMap["isCompleted"] as? Boolean ?: false,
+                            isRestDay = dayMap["isRestDay"] as? Boolean ?: false,
+                            exercises = exList
+                        )
+                    } ?: emptyList()
+
+                    val parsedPlan = WorkoutPlan(
+                        id = planDoc.getString("id") ?: planDoc.id,
+                        trainerId = planDoc.getString("trainerId") ?: "",
+                        memberId = planDoc.getString("memberId") ?: userId,
+                        name = planDoc.getString("name") ?: "Custom Workout Plan",
+                        version = planDoc.getLong("version")?.toInt() ?: 1,
+                        isActive = planDoc.getBoolean("isActive") ?: true,
+                        days = daysList
+                    )
+                    planDao.replaceCompletePlan(parsedPlan)
+                }
+            } catch (_: Exception) {}
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 9. Link Member to Trainer via Invite Code
     suspend fun linkTrainerByCode(code: String, memberId: String): String? {
         val codeDoc = firestore.collection(COLLECTION_TRAINER_CODES)
             .document(code.trim().uppercase())

@@ -61,6 +61,7 @@ fun LoginScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit,
+    onNavigateToEmailVerification: (() -> Unit)? = null,
     onLoginSuccess: (Role) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -224,6 +225,15 @@ fun LoginScreen(
                 onClick = { viewModel.login(onLoginSuccess) },
                 isLoading = uiState.isLoading
             )
+
+            if (uiState.isGracePeriodExpired && onNavigateToEmailVerification != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                GymFlowButton(
+                    text = "Verify Email to Unlock Access ▶",
+                    onClick = onNavigateToEmailVerification,
+                    style = GymFlowButtonStyle.OUTLINED
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
