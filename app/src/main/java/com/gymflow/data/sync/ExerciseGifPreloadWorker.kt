@@ -43,7 +43,7 @@ class ExerciseGifPreloadWorker(
 
             WorkManager.getInstance(context).enqueueUniqueWork(
                 WORK_NAME,
-                ExistingWorkPolicy.KEEP,
+                ExistingWorkPolicy.REPLACE,
                 request
             )
         }
@@ -71,7 +71,7 @@ class ExerciseGifPreloadWorker(
                     val req = ImageRequest.Builder(applicationContext)
                         .data(url)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
                         .build()
                     imageLoader.execute(req)
                 } catch (e: Exception) {
@@ -87,7 +87,7 @@ class ExerciseGifPreloadWorker(
                     val req = ImageRequest.Builder(applicationContext)
                         .data(url)
                         .diskCachePolicy(CachePolicy.ENABLED)
-                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .memoryCachePolicy(CachePolicy.ENABLED)
                         .build()
                     imageLoader.execute(req)
                 } catch (_: Exception) {

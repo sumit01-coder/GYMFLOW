@@ -34,13 +34,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -153,6 +158,8 @@ fun ExerciseDetailsContent(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Hero Media Container (Demonstration Animated GIF & HD Photo)
+            val haptic = LocalHapticFeedback.current
+            var isMediaLoading by remember { mutableStateOf(false) }
             val isGifActive = uiState.isPlayingGif && !uiState.gifUrl.isNullOrBlank()
             val demonstrationUrl = if (isGifActive) {
                 uiState.gifUrl
@@ -180,6 +187,9 @@ fun ExerciseDetailsContent(
                             .build(),
                         contentDescription = uiState.exerciseName,
                         contentScale = ContentScale.Fit,
+                        onLoading = { isMediaLoading = true },
+                        onSuccess = { isMediaLoading = false },
+                        onError = { isMediaLoading = false },
                         placeholder = rememberAsyncImagePainter(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(fallbackPhoto)
@@ -200,6 +210,32 @@ fun ExerciseDetailsContent(
                             .fillMaxSize()
                             .clip(GymFlowShapesTokens.CardMain)
                     )
+
+                    // If actively streaming/loading the GIF, show an immediate responsive feedback pill
+                    if (isGifActive && isMediaLoading) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.65f))
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    color = GymFlowWhite,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Loading Movement Loop...",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = GymFlowWhite
+                                )
+                            }
+                        }
+                    }
 
                     // Scrim gradient at the bottom for readability
                     Box(
@@ -230,7 +266,10 @@ fun ExerciseDetailsContent(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable(onClick = onToggleMediaMode)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onToggleMediaMode()
+                                }
                         ) {
                             Box(
                                 modifier = Modifier
@@ -261,25 +300,44 @@ fun ExerciseDetailsContent(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(if (isGifActive) GymFlowGreen else GymFlowBlack.copy(alpha = 0.8f))
                                 .border(0.5.dp, GymFlowWhite.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
-                                .clickable(onClick = onToggleMediaMode)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onToggleMediaMode()
+                                }
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (isGifActive) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .background(GymFlowWhite, CircleShape)
+                                if (isGifActive && isMediaLoading) {
+                                    androidx.compose.material3.CircularProgressIndicator(
+                                        modifier = Modifier.size(10.dp),
+                                        strokeWidth = 1.5.dp,
+                                        color = GymFlowWhite
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "LOADING...",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GymFlowWhite,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                } else {
+                                    if (isGifActive) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .background(GymFlowWhite, CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(5.dp))
+                                    }
+                                    Text(
+                                        text = if (isGifActive) "GIF DEMO" else "VIEW GIF",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GymFlowWhite,
+                                        letterSpacing = 0.5.sp
+                                    )
                                 }
-                                Text(
-                                    text = if (isGifActive) "GIF DEMO" else "VIEW GIF",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = GymFlowWhite,
-                                    letterSpacing = 0.5.sp
-                                )
                             }
                         }
                     }

@@ -1,7 +1,11 @@
 package com.gymflow.feature.member.schedule
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.Coil
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
@@ -16,7 +20,10 @@ import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.domain.model.WorkoutPlan
 import com.gymflow.domain.repository.ExerciseRepository
 import com.gymflow.domain.repository.WorkoutRepository
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -76,6 +83,7 @@ data class WorkoutScheduleUiState(
 
 @HiltViewModel
 class WorkoutScheduleViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val workoutRepository: WorkoutRepository,
     private val exerciseRepository: ExerciseRepository,
     private val planDao: PlanDao,
@@ -322,7 +330,38 @@ class WorkoutScheduleViewModel @Inject constructor(
         _uiState.update {
             it.copy(scheduleEntries = entries)
         }
+        prefetchWorkoutVisuals(entries)
         refreshAiOptimizerSuggestions()
+    }
+
+    private fun prefetchWorkoutVisuals(entries: List<ScheduleWorkoutEntry>) {
+        val allExercises = entries.flatMap { it.exercises }
+        if (allExercises.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val loader = Coil.imageLoader(context)
+                for (ex in allExercises) {
+                    val gifUrl = ExerciseVisuals.getGifUrl(ex.exerciseId)
+                    if (!gifUrl.isNullOrBlank()) {
+                        val req = ImageRequest.Builder(context)
+                            .data(gifUrl)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                        loader.enqueue(req)
+                    }
+                    val imgUrl = ExerciseVisuals.getImageUrl(ex.exerciseId)
+                    if (!imgUrl.isNullOrBlank()) {
+                        val req = ImageRequest.Builder(context)
+                            .data(imgUrl)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                        loader.enqueue(req)
+                    }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     private fun loadScheduleForDate(targetDate: LocalDate) {

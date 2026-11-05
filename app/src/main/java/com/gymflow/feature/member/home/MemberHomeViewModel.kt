@@ -1,7 +1,11 @@
 package com.gymflow.feature.member.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.Coil
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
@@ -13,7 +17,10 @@ import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.domain.repository.WeightRepository
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,6 +66,7 @@ data class MemberHomeUiState(
 
 @HiltViewModel
 class MemberHomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
     private val weightRepository: WeightRepository,
@@ -127,6 +135,7 @@ class MemberHomeViewModel @Inject constructor(
                             val count = todayDay.exercises.size
                             val estMinutes = (count * 10).coerceAtLeast(30)
                             val completedCount = todayDay.exercises.count { completedSet.contains(it.exerciseId) }
+                            prefetchExerciseVisuals(todayDay.exercises)
                             _uiState.update { current ->
                                 current.copy(
                                     todayWorkoutTitle = "${todayDay.title} ($count exercises · $estMinutes min)",
@@ -235,6 +244,35 @@ class MemberHomeViewModel @Inject constructor(
             try {
                 firestoreSyncManager.pullAllUserDataFromFirestore(userId)
                 firestoreSyncManager.syncAllLocalUserData(userId)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun prefetchExerciseVisuals(exercises: List<WorkoutExercise>) {
+        if (exercises.isEmpty()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val loader = Coil.imageLoader(context)
+                for (ex in exercises) {
+                    val gifUrl = ExerciseVisuals.getGifUrl(ex.exerciseId)
+                    if (!gifUrl.isNullOrBlank()) {
+                        val req = ImageRequest.Builder(context)
+                            .data(gifUrl)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                        loader.enqueue(req)
+                    }
+                    val imgUrl = ExerciseVisuals.getImageUrl(ex.exerciseId)
+                    if (!imgUrl.isNullOrBlank()) {
+                        val req = ImageRequest.Builder(context)
+                            .data(imgUrl)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                        loader.enqueue(req)
+                    }
+                }
             } catch (_: Exception) {}
         }
     }

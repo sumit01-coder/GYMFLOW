@@ -1,10 +1,16 @@
 package com.gymflow.feature.member.exercises
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil.Coil
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.gymflow.domain.repository.ExerciseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +41,7 @@ data class ExerciseDetailsUiState(
 
 @HiltViewModel
 class ExerciseDetailsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     savedStateHandle: SavedStateHandle,
     private val exerciseRepository: ExerciseRepository
 ) : ViewModel() {
@@ -45,10 +52,12 @@ class ExerciseDetailsViewModel @Inject constructor(
     val uiState: StateFlow<ExerciseDetailsUiState> = _uiState.asStateFlow()
 
     init {
+        preloadGif(_uiState.value.gifUrl)
         viewModelScope.launch {
             exerciseRepository.getExerciseById(exerciseId).collect { ex ->
                 if (ex != null) {
                     val resolvedGif = ex.gifUrl ?: ExerciseVisuals.getGifUrl(ex.id)
+                    preloadGif(resolvedGif)
                     _uiState.update { current ->
                         current.copy(
                             exerciseId = ex.id,
@@ -65,6 +74,21 @@ class ExerciseDetailsViewModel @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    private fun preloadGif(url: String?) {
+        if (url.isNullOrBlank()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val loader = Coil.imageLoader(context)
+                val req = ImageRequest.Builder(context)
+                    .data(url)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
+                    .build()
+                loader.enqueue(req)
+            } catch (_: Exception) {}
         }
     }
 
