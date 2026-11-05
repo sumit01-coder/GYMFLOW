@@ -1,0 +1,64 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // User document rules
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Workout sessions and logs
+    match /workout_sessions/{sessionId} {
+      allow read, write: if isAuthenticated();
+      match /set_logs/{setLogId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Workout plans
+    match /plans/{planId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Weight logs
+    match /weight_logs/{logId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Hydration logs
+    match /hydration_logs/{logId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Body measurements
+    match /body_measurements/{measurementId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Trainers
+    match /trainers/{trainerId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Trainer invite codes
+    match /trainer_invite_codes/{codeId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Exercise library
+    match /exercises/{exerciseId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Default fallback
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
+
