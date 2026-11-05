@@ -97,7 +97,13 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
         val viewModel: ActiveWorkoutViewModel = hiltViewModel()
         ActiveWorkoutScreen(
             viewModel = viewModel,
-            onCloseWorkout = { navController.popBackStack(NavRoutes.MEMBER_HOME, inclusive = false) },
+            onCloseWorkout = {
+                if (!navController.popBackStack(NavRoutes.MEMBER_HOME, inclusive = false)) {
+                    navController.navigate(NavRoutes.MEMBER_HOME) {
+                        popUpTo(NavRoutes.MEMBER_HOME) { inclusive = true }
+                    }
+                }
+            },
             onNavigateToRest = { nextSetText, durationSeconds ->
                 navController.navigate(NavRoutes.restTimer(nextSetText, durationSeconds))
             }

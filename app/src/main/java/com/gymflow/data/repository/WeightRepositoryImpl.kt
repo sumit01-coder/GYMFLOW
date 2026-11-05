@@ -172,7 +172,12 @@ class WeightRepositoryImpl @Inject constructor(
     }
 
     private fun getTodayStartEpochMs(): Long {
-        return java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val calendar = java.util.Calendar.getInstance()
+        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        calendar.set(java.util.Calendar.MINUTE, 0)
+        calendar.set(java.util.Calendar.SECOND, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
     }
 
     override fun getTodayHydration(memberId: String): Flow<Int> {

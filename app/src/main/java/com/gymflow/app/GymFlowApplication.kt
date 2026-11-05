@@ -34,7 +34,7 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
                 val req = ImageRequest.Builder(this@GymFlowApplication)
                     .data(url)
                     .diskCachePolicy(CachePolicy.ENABLED)
-                    .memoryCachePolicy(CachePolicy.DISABLED)
+                    .memoryCachePolicy(CachePolicy.ENABLED)
                     .build()
                 loader.enqueue(req)
             }
@@ -46,9 +46,8 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
             .components {
                 if (Build.VERSION.SDK_INT >= 28) {
                     add(ImageDecoderDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
                 }
+                add(GifDecoder.Factory())
             }
             .memoryCache {
                 MemoryCache.Builder(this)

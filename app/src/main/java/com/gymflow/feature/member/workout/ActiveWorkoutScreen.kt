@@ -108,6 +108,8 @@ fun ActiveWorkoutContent(
     onCloseWorkout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    androidx.activity.compose.BackHandler(onBack = onCloseWorkout)
+
     val progressAnim by animateFloatAsState(
         targetValue = uiState.progressPercentage,
         label = "workoutProgress"

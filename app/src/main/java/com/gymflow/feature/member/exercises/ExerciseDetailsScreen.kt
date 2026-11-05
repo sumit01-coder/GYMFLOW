@@ -44,7 +44,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowCard
@@ -163,90 +166,39 @@ fun ExerciseDetailsContent(
                     .height(240.dp)
                     .clip(GymFlowShapesTokens.CardMain)
                     .background(Color.White)
-                    .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain)
-                    .clickable(onClick = onToggleMediaMode),
+                    .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
                 contentAlignment = Alignment.Center
             ) {
                 if (!demonstrationUrl.isNullOrBlank()) {
-                    SubcomposeAsyncImage(
+                    val fallbackPhoto = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
+                    AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(demonstrationUrl)
-                            .crossfade(true)
+                            .crossfade(150)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = uiState.exerciseName,
                         contentScale = ContentScale.Fit,
+                        placeholder = rememberAsyncImagePainter(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(fallbackPhoto)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build()
+                        ),
+                        error = rememberAsyncImagePainter(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(fallbackPhoto)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build()
+                        ),
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(GymFlowShapesTokens.CardMain),
-                        loading = {
-                            val fallbackPhoto = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (!fallbackPhoto.isNullOrBlank()) {
-                                    SubcomposeAsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(fallbackPhoto)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Fit,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                                if (isGifActive) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .background(Color.Black.copy(alpha = 0.65f))
-                                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            androidx.compose.material3.CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
-                                                color = GymFlowWhite,
-                                                strokeWidth = 2.dp
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "Loading Movement Loop...",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = GymFlowWhite
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        error = {
-                            val fallbackPhoto = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (!fallbackPhoto.isNullOrBlank()) {
-                                    SubcomposeAsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(fallbackPhoto)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = uiState.exerciseName,
-                                        contentScale = ContentScale.Fit,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.FitnessCenter,
-                                        contentDescription = null,
-                                        tint = GymFlowWhite.copy(alpha = 0.5f),
-                                        modifier = Modifier.size(36.dp)
-                                    )
-                                }
-                            }
-                        }
+                            .clip(GymFlowShapesTokens.CardMain)
                     )
 
                     // Scrim gradient at the bottom for readability
@@ -275,7 +227,10 @@ fun ExerciseDetailsContent(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(onClick = onToggleMediaMode)
                         ) {
                             Box(
                                 modifier = Modifier

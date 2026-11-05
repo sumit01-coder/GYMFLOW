@@ -43,10 +43,10 @@ interface WeightDao {
     @Query("SELECT * FROM hydration_logs WHERE memberId = :memberId AND recordedAtEpochMs BETWEEN :startMs AND :endMs ORDER BY recordedAtEpochMs ASC")
     fun getHydrationLogsForRange(memberId: String, startMs: Long, endMs: Long): Flow<List<HydrationLogEntity>>
 
-    @Query("SELECT SUM(amountMl) FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs")
+    @Query("SELECT SUM(amountMl) FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member' OR :memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs")
     fun getTodayHydrationTotal(memberId: String, startOfDayMs: Long): Flow<Int?>
 
-    @Query("SELECT * FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs ORDER BY recordedAtEpochMs DESC")
+    @Query("SELECT * FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member' OR :memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs ORDER BY recordedAtEpochMs DESC")
     fun getTodayHydrationLogs(memberId: String, startOfDayMs: Long): Flow<List<HydrationLogEntity>>
 
     @Query("SELECT * FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member') ORDER BY recordedAtEpochMs DESC")

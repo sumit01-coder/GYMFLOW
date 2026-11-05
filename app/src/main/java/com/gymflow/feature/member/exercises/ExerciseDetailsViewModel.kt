@@ -79,7 +79,7 @@ class ExerciseDetailsViewModel @Inject constructor(
             videoTitle = details.videoTitle,
             mediaUrl = photoUrl,
             gifUrl = gifUrl,
-            isPlayingGif = false,
+            isPlayingGif = !gifUrl.isNullOrBlank(),
             selectedTab = ExerciseTab.INSTRUCTIONS,
             instructions = details.instructions,
             primaryMuscle = details.primaryMuscle,

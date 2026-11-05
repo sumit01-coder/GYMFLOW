@@ -316,6 +316,12 @@ private fun InteractiveHydrationVisual(
     var dragDisplayMl by remember(currentMl) { mutableStateOf(currentMl) }
     var dragAccumulator by remember { mutableStateOf(0f) }
 
+    androidx.compose.runtime.LaunchedEffect(currentMl) {
+        if (!isDragging) {
+            dragDisplayMl = currentMl
+        }
+    }
+
     val activeMl = if (isDragging) dragDisplayMl else currentMl
     val progress = if (goalMl > 0) (activeMl.toFloat() / goalMl.toFloat()).coerceIn(0f, 1f) else 0f
 
