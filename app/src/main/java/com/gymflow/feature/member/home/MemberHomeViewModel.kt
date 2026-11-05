@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
+import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ExerciseSet
 import com.gymflow.domain.model.Role
@@ -15,10 +16,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 import javax.inject.Inject
@@ -43,6 +46,7 @@ data class MemberHomeUiState(
     val workoutDurationMinutes: String = "0",
     val todayWorkoutTitle: String = "No Workout Scheduled",
     val todayExercises: List<WorkoutExercise> = emptyList(),
+    val completedExerciseIds: Set<String> = emptySet(),
     val hasUnreadNotifications: Boolean = false,
     val isLoading: Boolean = false,
     val userInitials: String = "GF"
@@ -53,7 +57,8 @@ class MemberHomeViewModel @Inject constructor(
     private val userDao: UserDao,
     private val tokenManager: TokenManager,
     private val weightRepository: WeightRepository,
-    private val planDao: PlanDao
+    private val planDao: PlanDao,
+    private val workoutSessionDao: WorkoutSessionDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberHomeUiState())
@@ -76,9 +81,14 @@ class MemberHomeViewModel @Inject constructor(
     }
 
     private fun observeTodayWorkout() {
+        val startOfDayMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
         viewModelScope.launch {
             val userId = tokenManager.getUserIdSync() ?: "default_member"
-            planDao.getActivePlanWithDays(userId).collect { planWithDays ->
+            combine(
+                planDao.getActivePlanWithDays(userId),
+                workoutSessionDao.getCompletedExerciseIdsToday(startOfDayMs)
+            ) { planWithDays, completedIdsList ->
+                val completedSet = completedIdsList.toSet()
                 if (planWithDays != null) {
                     val domainPlan = planWithDays.toDomain()
                     val today = LocalDate.now()
@@ -97,24 +107,27 @@ class MemberHomeViewModel @Inject constructor(
                                     todayWorkoutTitle = "Rest Day · Active Recovery",
                                     todayExercises = emptyList(),
                                     exercisesProgress = "Rest",
-                                    workoutDurationMinutes = "0"
+                                    workoutDurationMinutes = "0",
+                                    completedExerciseIds = emptySet()
                                 )
                             }
                         } else {
                             val count = todayDay.exercises.size
                             val estMinutes = (count * 10).coerceAtLeast(30)
+                            val completedCount = todayDay.exercises.count { completedSet.contains(it.exerciseId) }
                             _uiState.update { current ->
                                 current.copy(
                                     todayWorkoutTitle = "${todayDay.title} ($count exercises · $estMinutes min)",
                                     todayExercises = todayDay.exercises,
-                                    exercisesProgress = "0/$count",
+                                    completedExerciseIds = completedSet,
+                                    exercisesProgress = "$completedCount/$count",
                                     workoutDurationMinutes = "$estMinutes"
                                 )
                             }
                         }
                     }
                 }
-            }
+            }.collect { }
         }
     }
 

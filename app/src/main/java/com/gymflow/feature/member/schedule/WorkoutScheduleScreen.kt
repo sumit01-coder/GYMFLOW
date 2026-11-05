@@ -428,6 +428,7 @@ fun WorkoutScheduleContent(
                 ScheduleDayCard(
                     entry = entry,
                     isSelected = isCurrentSelectedDay,
+                    completedExerciseIds = uiState.completedExerciseIds,
                     onCardClick = {
                         val dayItem = uiState.weekDays.find { it.dayOfWeek.equals(entry.dayName, ignoreCase = true) }
                         if (dayItem != null) {
@@ -581,6 +582,7 @@ fun WorkoutScheduleContent(
 private fun ScheduleDayCard(
     entry: ScheduleWorkoutEntry,
     isSelected: Boolean,
+    completedExerciseIds: Set<String> = emptySet(),
     onCardClick: () -> Unit,
     onAddExerciseClick: () -> Unit,
     onEditDayClick: () -> Unit,
@@ -743,8 +745,10 @@ private fun ScheduleDayCard(
                         )
                     } else {
                         entry.exercises.forEachIndexed { idx, ex ->
+                            val isExCompleted = completedExerciseIds.contains(ex.exerciseId)
                             ScheduledExerciseItemRow(
                                 exercise = ex,
+                                isCompleted = isExCompleted,
                                 onDelete = { onDeleteExercise(idx) },
                                 onClick = { onSelectExercise(ex.exerciseId) }
                             )
@@ -814,6 +818,7 @@ private fun ScheduleDayCard(
 @Composable
 private fun ScheduledExerciseItemRow(
     exercise: WorkoutExercise,
+    isCompleted: Boolean = false,
     onDelete: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -872,7 +877,32 @@ private fun ScheduledExerciseItemRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
-                if (cleanCategory.isNotBlank()) {
+
+                if (isCompleted) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(GymFlowGreen.copy(alpha = 0.12f))
+                            .border(1.dp, GymFlowGreen.copy(alpha = 0.35f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp),
+                                tint = GymFlowGreen
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "COMPLETED",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowGreen
+                            )
+                        }
+                    }
+                } else if (cleanCategory.isNotBlank()) {
                     MuscleCategoryChip(category = cleanCategory)
                 }
             }

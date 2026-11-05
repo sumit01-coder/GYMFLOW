@@ -3,6 +3,13 @@ package com.gymflow.feature.member.workout
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.PlanDao
+import com.gymflow.core.database.SetLogEntity
+import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.database.WorkoutSessionEntity
+import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.model.WorkoutExercise
+import com.gymflow.feature.member.exercises.ExerciseCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -12,6 +19,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 data class CompletedSetRecord(
@@ -22,7 +33,9 @@ data class CompletedSetRecord(
 )
 
 data class ActiveWorkoutUiState(
-    val workoutTag: String = "Chest Day",
+    val sessionId: String = UUID.randomUUID().toString(),
+    val workoutTag: String = "Workout",
+    val exerciseId: String = "ex_chest_press",
     val exerciseName: String = "Bench Press",
     val currentSet: Int = 1,
     val totalSets: Int = 3,
@@ -35,7 +48,16 @@ data class ActiveWorkoutUiState(
     val restDurationSeconds: Int = 45,
     val completedSets: List<CompletedSetRecord> = emptyList(),
     val isWaitingForNextSet: Boolean = false,
-    val isWorkoutComplete: Boolean = false
+    val isCurrentExerciseCompleted: Boolean = false,
+    val isWorkoutComplete: Boolean = false,
+
+    // Sequential routine progression
+    val currentExerciseIndex: Int = 0,
+    val totalExercisesCount: Int = 1,
+    val completedExerciseIds: Set<String> = emptySet(),
+    val hasNextExercise: Boolean = false,
+    val nextExerciseTitle: String? = null,
+    val routineExercises: List<WorkoutExercise> = emptyList()
 ) {
     val progressPercentage: Float
         get() = (completedSets.size.toFloat() / totalSets.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
@@ -50,38 +72,118 @@ data class ActiveWorkoutUiState(
 
 @HiltViewModel
 class ActiveWorkoutViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val planDao: PlanDao,
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
-    private val exerciseId: String = savedStateHandle.get<String>("exerciseId") ?: "ex_chest_press"
+    private val initialExerciseId: String = savedStateHandle.get<String>("exerciseId") ?: "ex_chest_press"
 
-    private val _uiState = MutableStateFlow(buildInitialUiState(exerciseId))
+    private val _uiState = MutableStateFlow(buildInitialUiState(initialExerciseId))
     val uiState: StateFlow<ActiveWorkoutUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
 
     init {
         startTimer()
+        loadRoutineForToday()
     }
 
     private fun buildInitialUiState(id: String): ActiveWorkoutUiState {
-        val details = com.gymflow.feature.member.exercises.ExerciseCatalog.getExercise(id)
-        return ActiveWorkoutUiState(
-            workoutTag = details.primaryMuscle.split(" ").firstOrNull()?.replace("(", "") ?: "Workout",
+        val details = ExerciseCatalog.getExercise(id)
+        val initialExercise = WorkoutExercise(
+            exerciseId = details.exerciseId,
             exerciseName = details.exerciseName,
-            currentSet = 1,
-            totalSets = 3,
+            category = details.primaryMuscle.split(" ").firstOrNull()?.replace("(", "") ?: "Workout",
+            targetSets = 3,
             targetReps = 12,
             targetWeightKg = 20f,
-            actualReps = 12,
-            actualWeightKg = 20f,
+            restDurationSeconds = 45
+        )
+
+        return ActiveWorkoutUiState(
+            sessionId = UUID.randomUUID().toString(),
+            workoutTag = initialExercise.category,
+            exerciseId = initialExercise.exerciseId,
+            exerciseName = initialExercise.exerciseName,
+            currentSet = 1,
+            totalSets = initialExercise.targetSets,
+            targetReps = initialExercise.targetReps,
+            targetWeightKg = initialExercise.targetWeightKg,
+            actualReps = initialExercise.targetReps,
+            actualWeightKg = initialExercise.targetWeightKg,
             elapsedSeconds = 0,
             isPaused = false,
-            restDurationSeconds = 45,
+            restDurationSeconds = initialExercise.restDurationSeconds,
             completedSets = emptyList(),
             isWaitingForNextSet = false,
-            isWorkoutComplete = false
+            isCurrentExerciseCompleted = false,
+            isWorkoutComplete = false,
+            currentExerciseIndex = 0,
+            totalExercisesCount = 1,
+            completedExerciseIds = emptySet(),
+            hasNextExercise = false,
+            nextExerciseTitle = null,
+            routineExercises = listOf(initialExercise)
         )
+    }
+
+    private fun loadRoutineForToday() {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            planDao.getActivePlanWithDays(userId).collect { planWithDays ->
+                if (planWithDays != null) {
+                    val domainPlan = planWithDays.toDomain()
+                    val today = LocalDate.now()
+                    val currentDayFull = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.US)
+                    val currentDayShort = today.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.US)
+
+                    val todayDay = domainPlan.days.find { day ->
+                        day.dayOfWeek.startsWith(currentDayShort, ignoreCase = true) ||
+                                day.dayOfWeek.equals(currentDayFull, ignoreCase = true)
+                    }
+
+                    if (todayDay != null && todayDay.exercises.isNotEmpty()) {
+                        val exercises = todayDay.exercises
+                        val foundIndex = exercises.indexOfFirst { it.exerciseId == initialExerciseId }
+                        val targetIndex = if (foundIndex >= 0) foundIndex else 0
+                        loadExerciseAt(targetIndex, exercises)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadExerciseAt(index: Int, exercises: List<WorkoutExercise>) {
+        if (index !in exercises.indices) return
+        val currentEx = exercises[index]
+        val hasNext = index < exercises.lastIndex
+        val nextTitle = if (hasNext) exercises[index + 1].exerciseName else null
+
+        _uiState.update { current ->
+            current.copy(
+                workoutTag = currentEx.category.ifBlank { "Workout" },
+                exerciseId = currentEx.exerciseId,
+                exerciseName = currentEx.exerciseName,
+                currentSet = 1,
+                totalSets = currentEx.targetSets.coerceAtLeast(1),
+                targetReps = currentEx.targetReps.coerceAtLeast(1),
+                targetWeightKg = currentEx.targetWeightKg,
+                actualReps = currentEx.targetReps.coerceAtLeast(1),
+                actualWeightKg = currentEx.targetWeightKg,
+                restDurationSeconds = currentEx.restDurationSeconds.coerceAtLeast(30),
+                completedSets = emptyList(),
+                isWaitingForNextSet = false,
+                isCurrentExerciseCompleted = false,
+                isWorkoutComplete = false,
+                currentExerciseIndex = index,
+                totalExercisesCount = exercises.size,
+                hasNextExercise = hasNext,
+                nextExerciseTitle = nextTitle,
+                routineExercises = exercises
+            )
+        }
     }
 
     private fun startTimer() {
@@ -117,13 +219,13 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     /**
-     * Completes current set and records its actual reps and weight.
-     * Prevents premature set advancement: the set counter does NOT automatically advance
-     * to the next set while the user rests.
+     * Completes current set and records its actual reps and weight in Room DB.
+     * When all sets of current exercise are completed, marks exercise as completed
+     * and prompts user to advance to the next exercise.
      */
     fun completeSet(onNavigateToRest: (nextSetText: String, durationSeconds: Int) -> Unit) {
         val currentState = _uiState.value
-        if (currentState.isWaitingForNextSet || currentState.isWorkoutComplete) return
+        if (currentState.isWaitingForNextSet || currentState.isCurrentExerciseCompleted || currentState.isWorkoutComplete) return
 
         val completedSet = CompletedSetRecord(
             setNumber = currentState.currentSet,
@@ -132,29 +234,65 @@ class ActiveWorkoutViewModel @Inject constructor(
         )
         val updatedCompleted = currentState.completedSets + completedSet
 
-        val nextSetNumber = currentState.currentSet + 1
-        val hasMoreSets = nextSetNumber <= currentState.totalSets
-
-        val nextSetText = if (hasMoreSets) {
-            "Set $nextSetNumber of ${currentState.totalSets} — ${currentState.exerciseName} (${currentState.targetReps} reps · ${currentState.targetWeightKg.toInt()} kg)"
-        } else {
-            "Workout Complete — ${currentState.workoutTag}"
-        }
-
-        // Set is marked completed, and user will be prompted with 'Start Next Set' after rest
-        _uiState.update {
-            it.copy(
-                completedSets = updatedCompleted,
-                isWaitingForNextSet = hasMoreSets,
-                isWorkoutComplete = !hasMoreSets
+        // Persist set log to Room database immediately so completed tick marks update live
+        viewModelScope.launch {
+            workoutSessionDao.upsertSetLog(
+                SetLogEntity(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = currentState.sessionId,
+                    exerciseId = currentState.exerciseId,
+                    exerciseName = currentState.exerciseName,
+                    setNumber = currentState.currentSet,
+                    targetReps = currentState.targetReps,
+                    targetWeightKg = currentState.targetWeightKg,
+                    actualReps = currentState.actualReps,
+                    actualWeightKg = currentState.actualWeightKg,
+                    completedAtEpochMs = System.currentTimeMillis(),
+                    isSynced = false
+                )
             )
         }
 
-        onNavigateToRest(nextSetText, currentState.restDurationSeconds)
+        val nextSetNumber = currentState.currentSet + 1
+        val hasMoreSets = nextSetNumber <= currentState.totalSets
+
+        if (hasMoreSets) {
+            val nextSetText = "Set $nextSetNumber of ${currentState.totalSets} — ${currentState.exerciseName} (${currentState.targetReps} reps · ${currentState.targetWeightKg.toInt()} kg)"
+            _uiState.update {
+                it.copy(
+                    completedSets = updatedCompleted,
+                    isWaitingForNextSet = true,
+                    isCurrentExerciseCompleted = false
+                )
+            }
+            onNavigateToRest(nextSetText, currentState.restDurationSeconds)
+        } else {
+            // All sets for this exercise are completed!
+            val updatedCompletedExerciseIds = currentState.completedExerciseIds + currentState.exerciseId
+            val hasNextEx = currentState.hasNextExercise
+
+            val nextSetText = if (hasNextEx) {
+                "Exercise Completed! Next: ${currentState.nextExerciseTitle}"
+            } else {
+                "All Exercises Complete — ${currentState.workoutTag}"
+            }
+
+            _uiState.update {
+                it.copy(
+                    completedSets = updatedCompleted,
+                    isWaitingForNextSet = false,
+                    isCurrentExerciseCompleted = true,
+                    completedExerciseIds = updatedCompletedExerciseIds,
+                    isWorkoutComplete = !hasNextEx
+                )
+            }
+
+            onNavigateToRest(nextSetText, currentState.restDurationSeconds)
+        }
     }
 
     /**
-     * Controlled set advancement: Called explicitly by user when ready to start the next set.
+     * Advances to the next set within the current exercise.
      */
     fun startNextSet() {
         val currentState = _uiState.value
@@ -171,6 +309,50 @@ class ActiveWorkoutViewModel @Inject constructor(
                     isPaused = false
                 )
             }
+        }
+    }
+
+    /**
+     * User advances to the next exercise in the routine.
+     */
+    fun openNextExercise() {
+        val currentState = _uiState.value
+        if (!currentState.hasNextExercise) return
+
+        val nextIndex = currentState.currentExerciseIndex + 1
+        if (nextIndex < currentState.routineExercises.size) {
+            loadExerciseAt(nextIndex, currentState.routineExercises)
+        }
+    }
+
+    /**
+     * Finalizes the workout session, saves summary in Room DB, and navigates out.
+     */
+    fun finishWorkout(onCloseWorkout: () -> Unit) {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val now = System.currentTimeMillis()
+            val duration = currentState.elapsedSeconds.coerceAtLeast(60L)
+
+            workoutSessionDao.upsertSession(
+                WorkoutSessionEntity(
+                    id = currentState.sessionId,
+                    memberId = userId,
+                    workoutTitle = currentState.workoutTag.ifBlank { "Workout Session" },
+                    startTimeEpochMs = now - (duration * 1000L),
+                    endTimeEpochMs = now,
+                    durationSeconds = duration,
+                    totalVolumeKg = 0f, // Room DAO recalculates volume from SetLogs
+                    caloriesBurned = ((duration / 60) * 7).toInt().coerceAtLeast(50),
+                    isCompleted = true,
+                    setsCompleted = currentState.completedSets.size,
+                    totalSets = currentState.totalSets,
+                    isSynced = false
+                )
+            )
+
+            onCloseWorkout()
         }
     }
 

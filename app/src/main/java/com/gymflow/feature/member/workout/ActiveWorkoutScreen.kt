@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -42,10 +44,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.core.components.ActiveWorkoutBadge
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
@@ -56,6 +62,7 @@ import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 
 @Composable
 fun ActiveWorkoutScreen(
@@ -77,6 +84,10 @@ fun ActiveWorkoutScreen(
             viewModel.completeSet(onNavigateToRest)
         },
         onStartNextSet = viewModel::startNextSet,
+        onOpenNextExercise = viewModel::openNextExercise,
+        onFinishWorkout = {
+            viewModel.finishWorkout(onCloseWorkout)
+        },
         onCloseWorkout = onCloseWorkout,
         modifier = modifier
     )
@@ -92,6 +103,8 @@ fun ActiveWorkoutContent(
     onDecrementWeight: () -> Unit,
     onCompleteSet: () -> Unit,
     onStartNextSet: () -> Unit,
+    onOpenNextExercise: () -> Unit,
+    onFinishWorkout: () -> Unit,
     onCloseWorkout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -115,7 +128,7 @@ fun ActiveWorkoutContent(
                     uiState.isWorkoutComplete -> {
                         GymFlowButton(
                             text = "Finish Workout",
-                            onClick = onCloseWorkout,
+                            onClick = onFinishWorkout,
                             style = GymFlowButtonStyle.PRIMARY,
                             modifier = Modifier.fillMaxWidth(),
                             leadingIcon = {
@@ -129,7 +142,33 @@ fun ActiveWorkoutContent(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "All ${uiState.totalSets} sets completed! Tap to finish and save.",
+                            text = "All ${uiState.totalExercisesCount} exercises completed! Tap to finish and save.",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowGreen,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    uiState.isCurrentExerciseCompleted && uiState.hasNextExercise -> {
+                        // Exercise completed -> Advance to Next Exercise
+                        GymFlowButton(
+                            text = "Next Exercise: ${uiState.nextExerciseTitle ?: "Continue"} ▶",
+                            onClick = onOpenNextExercise,
+                            style = GymFlowButtonStyle.PRIMARY,
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = GymFlowGreen,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Exercise ${uiState.currentExerciseIndex + 1} of ${uiState.totalExercisesCount} completed (✓) · Tap to start ${uiState.nextExerciseTitle}",
                             style = GymFlowTheme.typography.Caption,
                             color = GymFlowGreen,
                             textAlign = TextAlign.Center,
@@ -247,40 +286,143 @@ fun ActiveWorkoutContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Step Indicator / Exercise Stepper
+            if (uiState.totalExercisesCount > 1) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(GymFlowTheme.colors.surfaceVariant)
+                        .border(1.dp, GymFlowBorder, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "EXERCISE ${uiState.currentExerciseIndex + 1} OF ${uiState.totalExercisesCount}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
             // Exercise Title
             Text(
                 text = uiState.exerciseName,
                 style = GymFlowTheme.typography.Heading1.copy(fontSize = 28.sp),
-                color = GymFlowTheme.colors.textPrimary
+                color = GymFlowTheme.colors.textPrimary,
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Exercise Completed Checkmark Notice
+            if (uiState.isCurrentExerciseCompleted) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFDCFCE7))
+                        .border(1.dp, Color(0xFF86EFAC), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = GymFlowGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Exercise Completed! ✓",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowGreen
+                            )
+                            Text(
+                                text = if (uiState.hasNextExercise) "All ${uiState.totalSets} sets recorded. Tap below to start ${uiState.nextExerciseTitle}." else "All routine exercises completed! Tap Finish below to save.",
+                                fontSize = 11.sp,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                        }
+                    }
+                }
+            }
 
-            // Exercise Media Illustration Box
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Exercise Dynamic Movement Illustration Box
+            val mediaUrl = ExerciseVisuals.getGifUrl(uiState.exerciseId) ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
+                    .height(140.dp)
                     .clip(GymFlowShapesTokens.CardMain)
                     .background(Color(0xFF1E1E22))
                     .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.FitnessCenter,
-                        contentDescription = null,
-                        tint = GymFlowWhite,
-                        modifier = Modifier.size(36.dp)
+                if (!mediaUrl.isNullOrBlank()) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(mediaUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = uiState.exerciseName,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = GymFlowWhite,
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        },
+                        error = {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = uiState.exerciseName,
+                                    style = GymFlowTheme.typography.Caption,
+                                    color = GymFlowWhite.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Barbell Bench Press — Standard Grip",
-                        style = GymFlowTheme.typography.Caption,
-                        color = GymFlowWhite.copy(alpha = 0.8f)
-                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = GymFlowWhite,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.exerciseName,
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowWhite.copy(alpha = 0.8f)
+                        )
+                    }
                 }
             }
 

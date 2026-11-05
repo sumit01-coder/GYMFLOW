@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
+import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.notification.WorkoutReminderManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.ai.AiExerciseSuggestion
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
@@ -68,7 +70,8 @@ data class WorkoutScheduleUiState(
     val isAiCardExpanded: Boolean = true,
     val lastAppliedSuggestionTitle: String? = null,
     val reminderEnabled: Boolean = false,
-    val reminderTimeFormatted: String = "06:30 AM"
+    val reminderTimeFormatted: String = "06:30 AM",
+    val completedExerciseIds: Set<String> = emptySet()
 )
 
 @HiltViewModel
@@ -78,7 +81,8 @@ class WorkoutScheduleViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val tokenManager: TokenManager,
     private val userDao: UserDao,
-    private val workoutReminderManager: WorkoutReminderManager
+    private val workoutReminderManager: WorkoutReminderManager,
+    private val workoutSessionDao: WorkoutSessionDao
 ) : ViewModel() {
 
     private var cachedUserEntity: UserEntity? = null
@@ -94,6 +98,14 @@ class WorkoutScheduleViewModel @Inject constructor(
 
     private fun initializeExercisesAndPlan() {
         viewModelScope.launch {
+            // 0. Observe completed exercises for today to show tick marks
+            val startOfDayMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            launch {
+                workoutSessionDao.getCompletedExerciseIdsToday(startOfDayMs).collect { ids ->
+                    _uiState.update { it.copy(completedExerciseIds = ids.toSet()) }
+                }
+            }
+
             // 1. Seed & observe catalog
             exerciseRepository.seedDefaultCatalogIfEmpty()
             launch {

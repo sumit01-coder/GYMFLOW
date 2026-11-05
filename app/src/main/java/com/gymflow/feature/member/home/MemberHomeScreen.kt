@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -82,8 +84,9 @@ fun MemberHomeScreen(
         onNavigateToWeight = onNavigateToWeight,
         onNavigateToAchievements = onNavigateToAchievements,
         onStartWorkout = {
-            val firstExerciseId = uiState.todayExercises.firstOrNull()?.exerciseId ?: "ex_chest_press"
-            onStartWorkout(firstExerciseId)
+            val firstUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
+            val targetExerciseId = firstUncompleted?.exerciseId ?: uiState.todayExercises.firstOrNull()?.exerciseId ?: "ex_chest_press"
+            onStartWorkout(targetExerciseId)
         },
         modifier = modifier
     )
@@ -320,8 +323,10 @@ fun MemberHomeContent(
                 }
             } else {
                 uiState.todayExercises.forEach { exercise ->
+                    val isCompleted = uiState.completedExerciseIds.contains(exercise.exerciseId)
                     TodayExerciseItem(
                         exercise = exercise,
+                        isCompleted = isCompleted,
                         onClick = { onNavigateToExerciseDetails(exercise.exerciseId) }
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -330,13 +335,21 @@ fun MemberHomeContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Primary CTA: Start Workout ▶
+            // Primary CTA: Start Workout or Continue to Next Exercise
+            val completedCount = uiState.todayExercises.count { uiState.completedExerciseIds.contains(it.exerciseId) }
+            val nextUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
+            val buttonText = when {
+                completedCount == 0 -> "Start Workout"
+                completedCount >= uiState.todayExercises.size && uiState.todayExercises.isNotEmpty() -> "Workout Completed ✓"
+                else -> "Continue Workout: ${nextUncompleted?.exerciseName ?: "Next Exercise"}"
+            }
+
             GymFlowButton(
-                text = "Start Workout",
+                text = buttonText,
                 onClick = onStartWorkout,
                 trailingIcon = {
                     Icon(
-                        imageVector = Icons.Default.PlayArrow,
+                        imageVector = if (completedCount >= uiState.todayExercises.size && uiState.todayExercises.isNotEmpty()) Icons.Default.Check else Icons.Default.PlayArrow,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = GymFlowWhite
@@ -352,6 +365,7 @@ fun MemberHomeContent(
 @Composable
 private fun TodayExerciseItem(
     exercise: WorkoutExercise,
+    isCompleted: Boolean = false,
     onClick: () -> Unit
 ) {
     GymFlowCard(
@@ -365,6 +379,7 @@ private fun TodayExerciseItem(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(
+                modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Exercise Demonstration Thumbnail
@@ -413,12 +428,40 @@ private fun TodayExerciseItem(
                 }
             }
 
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = "Details",
-                modifier = Modifier.size(20.dp),
-                tint = GymFlowTheme.colors.textTertiary
-            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (isCompleted) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(GymFlowGreen.copy(alpha = 0.12f))
+                        .border(1.dp, GymFlowGreen.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Completed",
+                        modifier = Modifier.size(13.dp),
+                        tint = GymFlowGreen
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "COMPLETED",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowGreen,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "Details",
+                    modifier = Modifier.size(20.dp),
+                    tint = GymFlowTheme.colors.textTertiary
+                )
+            }
         }
     }
 }
