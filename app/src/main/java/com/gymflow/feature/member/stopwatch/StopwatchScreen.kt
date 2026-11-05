@@ -1,6 +1,10 @@
 package com.gymflow.feature.member.stopwatch
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -54,6 +58,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -63,6 +69,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
@@ -384,26 +392,66 @@ private fun CountdownDial(state: StopwatchUiState) {
         label = "countdownProgress"
     )
 
+    val infiniteTransition = rememberInfiniteTransition(label = "pulseCountdown")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 750),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlphaCountdown"
+    )
+
     Box(
-        modifier = Modifier.size(240.dp),
+        modifier = Modifier.size(265.dp),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 8.dp.toPx()
+            val centerOffset = Offset(size.width / 2f, size.height / 2f)
+            val outerTrackStroke = 8.dp.toPx()
+            val activeTrackStroke = 10.dp.toPx()
+            val radius = (size.width - activeTrackStroke) / 2f - 4.dp.toPx()
 
-            // Background Track Ring
+            // 1. Background Track Ring
             drawCircle(
                 color = Color(0xFFE5E7EB),
-                style = Stroke(width = strokeWidth)
+                radius = radius,
+                center = centerOffset,
+                style = Stroke(width = outerTrackStroke)
             )
 
-            // Reverse Active Ring (100% down to 0%)
+            // 2. 60 Chronograph Tick Marks inside bezel
+            val tickRadius = radius - (outerTrackStroke / 2f) - 6.dp.toPx()
+            for (i in 0 until 60) {
+                val angleDeg = i * 6f - 90f
+                val angleRad = Math.toRadians(angleDeg.toDouble())
+                val isMajor = (i % 5 == 0)
+                val tickLength = if (isMajor) 7.dp.toPx() else 3.5.dp.toPx()
+                val tickStroke = if (isMajor) 1.8.dp.toPx() else 1.0.dp.toPx()
+                val tickColor = if (isMajor) Color(0xFF64748B) else Color(0xFFCBD5E1)
+
+                val startX = (centerOffset.x + (tickRadius - tickLength) * cos(angleRad)).toFloat()
+                val startY = (centerOffset.y + (tickRadius - tickLength) * sin(angleRad)).toFloat()
+                val endX = (centerOffset.x + tickRadius * cos(angleRad)).toFloat()
+                val endY = (centerOffset.y + tickRadius * sin(angleRad)).toFloat()
+
+                drawLine(
+                    color = tickColor,
+                    start = Offset(startX, startY),
+                    end = Offset(endX, endY),
+                    strokeWidth = tickStroke,
+                    cap = StrokeCap.Round
+                )
+            }
+
+            // 3. Reverse Active Ring (100% down to 0%)
             val sweepAngle = animatedProgress * 360f
             if (sweepAngle > 0f) {
                 val ringColor = when {
                     state.isCountdownFinished -> Color(0xFFEF4444)
                     state.isCountdownRunning -> GymFlowBlack
-                    else -> Color(0xFFF97316)
+                    else -> Color(0xFFF59E0B)
                 }
 
                 drawArc(
@@ -411,8 +459,28 @@ private fun CountdownDial(state: StopwatchUiState) {
                     startAngle = -90f,
                     sweepAngle = sweepAngle,
                     useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    topLeft = Offset(centerOffset.x - radius, centerOffset.y - radius),
+                    size = Size(radius * 2f, radius * 2f),
+                    style = Stroke(width = activeTrackStroke, cap = StrokeCap.Round)
                 )
+
+                // 4. Glowing Precision Pointer Tip at active sweep end
+                if (sweepAngle > 1.5f && sweepAngle < 358.5f) {
+                    val tipAngleRad = Math.toRadians((-90f + sweepAngle).toDouble())
+                    val tipX = (centerOffset.x + radius * cos(tipAngleRad)).toFloat()
+                    val tipY = (centerOffset.y + radius * sin(tipAngleRad)).toFloat()
+
+                    drawCircle(
+                        color = if (state.isCountdownRunning) GymFlowGreen.copy(alpha = 0.35f) else ringColor.copy(alpha = 0.35f),
+                        radius = 6.dp.toPx(),
+                        center = Offset(tipX, tipY)
+                    )
+                    drawCircle(
+                        color = if (state.isCountdownRunning) GymFlowGreen else GymFlowWhite,
+                        radius = 3.5.dp.toPx(),
+                        center = Offset(tipX, tipY)
+                    )
+                }
             }
         }
 
@@ -420,51 +488,32 @@ private fun CountdownDial(state: StopwatchUiState) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Smooth 50fps countdown display: MM:SS.ss
+            // Tight athletic monospaced digital time readout (eliminates wide gaps)
             Row(
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = state.countdownMinutesPart,
-                    fontSize = 44.sp,
+                    text = "${state.countdownMinutesPart}:${state.countdownSecondsPart}",
+                    fontSize = 46.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
+                    letterSpacing = (-1).sp,
                     color = if (state.isCountdownFinished) Color(0xFFEF4444) else MemberTextPrimary
                 )
                 Text(
-                    text = ":",
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = if (state.isCountdownFinished) Color(0xFFEF4444) else MemberTextPrimary
-                )
-                Text(
-                    text = state.countdownSecondsPart,
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = if (state.isCountdownFinished) Color(0xFFEF4444) else MemberTextPrimary
-                )
-                Text(
-                    text = ".",
-                    fontSize = 28.sp,
+                    text = ".${state.countdownHundredthsPart}",
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = FontFamily.Monospace,
-                    color = if (state.isCountdownFinished) Color(0xFFEF4444) else MemberTextSecondary
-                )
-                Text(
-                    text = state.countdownHundredthsPart,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace,
-                    color = if (state.isCountdownFinished) Color(0xFFEF4444) else MemberTextSecondary
+                    color = if (state.isCountdownFinished) Color(0xFFEF4444) else MemberTextSecondary,
+                    modifier = Modifier.padding(start = 2.dp, top = 8.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Status Badge
+            // Status Badge with pulsing live LED dot
             val (badgeLabel, badgeColor) = when {
                 state.isCountdownFinished -> "TIME'S UP!" to Color(0xFFEF4444)
                 state.isCountdownRunning -> "COUNTING DOWN" to GymFlowGreen
@@ -472,15 +521,35 @@ private fun CountdownDial(state: StopwatchUiState) {
                 else -> "READY" to MemberTextSecondary
             }
 
-            Box(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(9999.dp))
                     .background(badgeColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                    .border(1.dp, badgeColor.copy(alpha = 0.28f), RoundedCornerShape(9999.dp))
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
+                if (state.isCountdownRunning) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(badgeColor.copy(alpha = pulseAlpha))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                } else if (state.isCountdownFinished) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFEF4444))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+
                 Text(
                     text = badgeLabel,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
                     color = badgeColor
@@ -586,13 +655,12 @@ private fun CountdownActionControls(
                 GymFlowButton(
                     text = "Reset",
                     onClick = onReset,
-                    style = GymFlowButtonStyle.DESTRUCTIVE,
+                    style = GymFlowButtonStyle.OUTLINED,
                     modifier = Modifier.weight(1f),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = null,
-                            tint = GymFlowWhite,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -686,15 +754,15 @@ private fun CountdownPresetChips(
                 val isSelected = selectedPreset == seconds
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(20.dp))
                         .background(if (isSelected) GymFlowBlack else MemberSurfaceSubtle)
                         .border(
                             1.dp,
                             if (isSelected) GymFlowBlack else MemberCardBorder,
-                            RoundedCornerShape(8.dp)
+                            RoundedCornerShape(20.dp)
                         )
                         .clickable { onSelectPreset(seconds) }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -711,15 +779,15 @@ private fun CountdownPresetChips(
                 val isCustomSelected = selectedPreset == null
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(20.dp))
                         .background(if (isCustomSelected) GymFlowBlack else MemberSurfaceSubtle)
                         .border(
                             1.dp,
                             if (isCustomSelected) GymFlowBlack else MemberCardBorder,
-                            RoundedCornerShape(8.dp)
+                            RoundedCornerShape(20.dp)
                         )
                         .clickable { onOpenCustom() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -940,28 +1008,91 @@ private fun StopwatchDial(state: StopwatchUiState) {
         label = "sweepAngle"
     )
 
+    val infiniteTransition = rememberInfiniteTransition(label = "pulseStopwatch")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 750),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlphaStopwatch"
+    )
+
     Box(
-        modifier = Modifier.size(240.dp),
+        modifier = Modifier.size(265.dp),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokeWidth = 8.dp.toPx()
+            val centerOffset = Offset(size.width / 2f, size.height / 2f)
+            val outerTrackStroke = 8.dp.toPx()
+            val activeTrackStroke = 10.dp.toPx()
+            val radius = (size.width - activeTrackStroke) / 2f - 4.dp.toPx()
 
-            // Background Track Ring
+            // 1. Background Track Ring
             drawCircle(
-                color = Color(0xFFF3F4F6),
-                style = Stroke(width = strokeWidth)
+                color = Color(0xFFE5E7EB),
+                radius = radius,
+                center = centerOffset,
+                style = Stroke(width = outerTrackStroke)
             )
 
-            // Animated Progress Sweep Ring
-            if (state.elapsedMillis > 0L) {
-                drawArc(
-                    color = if (state.isRunning) Color(0xFF111111) else Color(0xFFF97316),
-                    startAngle = -90f,
-                    sweepAngle = if (animatedSweep == 0f && state.elapsedMillis > 0) 360f else animatedSweep,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            // 2. 60 Chronograph Tick Marks inside bezel
+            val tickRadius = radius - (outerTrackStroke / 2f) - 6.dp.toPx()
+            for (i in 0 until 60) {
+                val angleDeg = i * 6f - 90f
+                val angleRad = Math.toRadians(angleDeg.toDouble())
+                val isMajor = (i % 5 == 0)
+                val tickLength = if (isMajor) 7.dp.toPx() else 3.5.dp.toPx()
+                val tickStroke = if (isMajor) 1.8.dp.toPx() else 1.0.dp.toPx()
+                val tickColor = if (isMajor) Color(0xFF64748B) else Color(0xFFCBD5E1)
+
+                val startX = (centerOffset.x + (tickRadius - tickLength) * cos(angleRad)).toFloat()
+                val startY = (centerOffset.y + (tickRadius - tickLength) * sin(angleRad)).toFloat()
+                val endX = (centerOffset.x + tickRadius * cos(angleRad)).toFloat()
+                val endY = (centerOffset.y + tickRadius * sin(angleRad)).toFloat()
+
+                drawLine(
+                    color = tickColor,
+                    start = Offset(startX, startY),
+                    end = Offset(endX, endY),
+                    strokeWidth = tickStroke,
+                    cap = StrokeCap.Round
                 )
+            }
+
+            // 3. Animated Progress Sweep Ring
+            if (state.elapsedMillis > 0L) {
+                val sweepAngle = if (animatedSweep == 0f && state.elapsedMillis > 0) 360f else animatedSweep
+                val ringColor = if (state.isRunning) GymFlowBlack else Color(0xFFF97316)
+
+                drawArc(
+                    color = ringColor,
+                    startAngle = -90f,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    topLeft = Offset(centerOffset.x - radius, centerOffset.y - radius),
+                    size = Size(radius * 2f, radius * 2f),
+                    style = Stroke(width = activeTrackStroke, cap = StrokeCap.Round)
+                )
+
+                // 4. Glowing Precision Pointer Tip
+                if (sweepAngle > 1.5f && sweepAngle < 358.5f) {
+                    val tipAngleRad = Math.toRadians((-90f + sweepAngle).toDouble())
+                    val tipX = (centerOffset.x + radius * cos(tipAngleRad)).toFloat()
+                    val tipY = (centerOffset.y + radius * sin(tipAngleRad)).toFloat()
+
+                    drawCircle(
+                        color = if (state.isRunning) GymFlowGreen.copy(alpha = 0.35f) else ringColor.copy(alpha = 0.35f),
+                        radius = 6.dp.toPx(),
+                        center = Offset(tipX, tipY)
+                    )
+                    drawCircle(
+                        color = if (state.isRunning) GymFlowGreen else GymFlowWhite,
+                        radius = 3.5.dp.toPx(),
+                        center = Offset(tipX, tipY)
+                    )
+                }
             }
         }
 
@@ -971,47 +1102,28 @@ private fun StopwatchDial(state: StopwatchUiState) {
         ) {
             // Main Time Digits: MM:SS.CC
             Row(
-                verticalAlignment = Alignment.Bottom,
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = state.minutesPart,
-                    fontSize = 44.sp,
+                    text = "${state.minutesPart}:${state.secondsPart}",
+                    fontSize = 46.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
+                    letterSpacing = (-1).sp,
                     color = MemberTextPrimary
                 )
                 Text(
-                    text = ":",
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = MemberTextPrimary
-                )
-                Text(
-                    text = state.secondsPart,
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    color = MemberTextPrimary
-                )
-                Text(
-                    text = ".",
-                    fontSize = 28.sp,
+                    text = ".${state.hundredthsPart}",
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = FontFamily.Monospace,
-                    color = MemberTextSecondary
-                )
-                Text(
-                    text = state.hundredthsPart,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace,
-                    color = MemberTextSecondary
+                    color = MemberTextSecondary,
+                    modifier = Modifier.padding(start = 2.dp, top = 8.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Status Badge
             val statusLabel = when {
@@ -1025,15 +1137,27 @@ private fun StopwatchDial(state: StopwatchUiState) {
                 else -> MemberTextSecondary
             }
 
-            Box(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(9999.dp))
                     .background(statusColor.copy(alpha = 0.12f))
-                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                    .border(1.dp, statusColor.copy(alpha = 0.28f), RoundedCornerShape(9999.dp))
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
+                if (state.isRunning) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(statusColor.copy(alpha = pulseAlpha))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+
                 Text(
                     text = statusLabel,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
                     color = statusColor
@@ -1109,13 +1233,12 @@ private fun StopwatchActionControls(
             GymFlowButton(
                 text = "Reset",
                 onClick = onReset,
-                style = GymFlowButtonStyle.DESTRUCTIVE,
+                style = GymFlowButtonStyle.OUTLINED,
                 modifier = Modifier.weight(1f),
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = null,
-                        tint = GymFlowWhite,
                         modifier = Modifier.size(18.dp)
                     )
                 }
