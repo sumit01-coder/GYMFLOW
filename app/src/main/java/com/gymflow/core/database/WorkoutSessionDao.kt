@@ -51,11 +51,21 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM set_logs WHERE sessionId = :sessionId ORDER BY completedAtEpochMs ASC")
     suspend fun getSetLogsSync(sessionId: String): List<SetLogEntity>
 
-    @Query("SELECT DISTINCT exerciseId FROM set_logs WHERE completedAtEpochMs >= :startOfDayMs")
-    fun getCompletedExerciseIdsToday(startOfDayMs: Long): Flow<List<String>>
+    @Query("""
+        SELECT DISTINCT sl.exerciseId FROM set_logs sl
+        INNER JOIN workout_sessions ws ON sl.sessionId = ws.id
+        WHERE sl.completedAtEpochMs >= :startOfDayMs
+        AND (ws.memberId = :memberId OR ws.memberId = 'default_member')
+    """)
+    fun getCompletedExerciseIdsToday(memberId: String, startOfDayMs: Long): Flow<List<String>>
 
-    @Query("SELECT DISTINCT exerciseId FROM set_logs WHERE completedAtEpochMs >= :startOfDayMs")
-    suspend fun getCompletedExerciseIdsTodaySync(startOfDayMs: Long): List<String>
+    @Query("""
+        SELECT DISTINCT sl.exerciseId FROM set_logs sl
+        INNER JOIN workout_sessions ws ON sl.sessionId = ws.id
+        WHERE sl.completedAtEpochMs >= :startOfDayMs
+        AND (ws.memberId = :memberId OR ws.memberId = 'default_member')
+    """)
+    suspend fun getCompletedExerciseIdsTodaySync(memberId: String, startOfDayMs: Long): List<String>
 
     @Query("UPDATE workout_sessions SET isSynced = :synced WHERE id = :sessionId")
     suspend fun markSessionSynced(sessionId: String, synced: Boolean = true)

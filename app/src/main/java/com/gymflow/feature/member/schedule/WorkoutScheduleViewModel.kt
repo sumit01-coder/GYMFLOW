@@ -100,8 +100,9 @@ class WorkoutScheduleViewModel @Inject constructor(
         viewModelScope.launch {
             // 0. Observe completed exercises for today to show tick marks
             val startOfDayMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
             launch {
-                workoutSessionDao.getCompletedExerciseIdsToday(startOfDayMs).collect { ids ->
+                workoutSessionDao.getCompletedExerciseIdsToday(userId, startOfDayMs).collect { ids ->
                     _uiState.update { it.copy(completedExerciseIds = ids.toSet()) }
                 }
             }
@@ -118,7 +119,6 @@ class WorkoutScheduleViewModel @Inject constructor(
             }
 
             // 2. Observe active plan for user
-            val userId = tokenManager.getUserIdSync() ?: "default_member"
             launch {
                 planDao.getActivePlanWithDays(userId).collect { planWithDays ->
                     if (planWithDays != null) {

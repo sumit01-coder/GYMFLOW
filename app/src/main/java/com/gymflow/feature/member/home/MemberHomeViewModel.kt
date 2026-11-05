@@ -92,7 +92,7 @@ class MemberHomeViewModel @Inject constructor(
             val userId = tokenManager.getUserIdSync() ?: "default_member"
             combine(
                 planDao.getActivePlanWithDays(userId),
-                workoutSessionDao.getCompletedExerciseIdsToday(startOfDayMs),
+                workoutSessionDao.getCompletedExerciseIdsToday(userId, startOfDayMs),
                 workoutSessionDao.getActiveSessionTodayFlow(userId, startOfDayMs)
             ) { planWithDays, completedIdsList, activeSession ->
                 val completedSet = completedIdsList.toSet()

@@ -105,7 +105,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             if (activeSession != null) {
                 // Resume existing active session with preserved duration and completed sets
                 val pastSetLogs = workoutSessionDao.getSetLogsSync(activeSession.id)
-                val completedIdsToday = workoutSessionDao.getCompletedExerciseIdsTodaySync(startOfDayMs).toSet()
+                val completedIdsToday = workoutSessionDao.getCompletedExerciseIdsTodaySync(userId, startOfDayMs).toSet()
 
                 val exerciseLogs = pastSetLogs.filter { it.exerciseId == initialExerciseId }
                 val completedRecords = exerciseLogs.map { log ->
@@ -124,7 +124,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                     current.copy(
                         sessionId = activeSession.id,
                         elapsedSeconds = activeSession.durationSeconds,
-                        isPaused = activeSession.durationSeconds > 0,
+                        isPaused = false, // Always auto-resume timer when user re-opens the workout
                         completedSets = completedRecords,
                         currentSet = nextSetNumber,
                         isCurrentExerciseCompleted = isExerciseCompleted,
