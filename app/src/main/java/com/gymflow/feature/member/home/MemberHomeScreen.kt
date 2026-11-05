@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gymflow.core.components.GymFlowBadge
@@ -335,13 +336,55 @@ fun MemberHomeContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Primary CTA: Start Workout or Continue to Next Exercise
+            // Primary CTA: Start Workout, Resume Paused Workout, or Next Exercise
             val completedCount = uiState.todayExercises.count { uiState.completedExerciseIds.contains(it.exerciseId) }
             val nextUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
+            val isAllCompleted = completedCount >= uiState.todayExercises.size && uiState.todayExercises.isNotEmpty()
+
+            if (uiState.hasActiveSession && !isAllCompleted) {
+                val mins = uiState.activeSessionDurationSeconds / 60
+                val secs = uiState.activeSessionDurationSeconds % 60
+                val timeFormatted = String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFFFEF3C7))
+                        .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFD97706))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "WORKOUT IN PROGRESS · $timeFormatted",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF92400E)
+                        )
+                    }
+                    Text(
+                        text = "Tap to Resume",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFB45309)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+
             val buttonText = when {
-                completedCount == 0 -> "Start Workout"
-                completedCount >= uiState.todayExercises.size && uiState.todayExercises.isNotEmpty() -> "Workout Completed ✓"
-                else -> "Continue Workout: ${nextUncompleted?.exerciseName ?: "Next Exercise"}"
+                isAllCompleted -> "Workout Completed ✓"
+                uiState.hasActiveSession -> "Resume Workout: ${nextUncompleted?.exerciseName ?: "Continue"}"
+                completedCount > 0 -> "Continue Workout: ${nextUncompleted?.exerciseName ?: "Next Exercise"}"
+                else -> "Start Workout"
             }
 
             GymFlowButton(
@@ -349,7 +392,7 @@ fun MemberHomeContent(
                 onClick = onStartWorkout,
                 trailingIcon = {
                     Icon(
-                        imageVector = if (completedCount >= uiState.todayExercises.size && uiState.todayExercises.isNotEmpty()) Icons.Default.Check else Icons.Default.PlayArrow,
+                        imageVector = if (isAllCompleted) Icons.Default.Check else Icons.Default.PlayArrow,
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = GymFlowWhite
@@ -387,48 +430,60 @@ private fun TodayExerciseItem(
                     imageUrl = ExerciseVisuals.getImageUrl(exercise.exerciseId),
                     category = exercise.category,
                     equipment = "Machine",
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier.size(48.dp)
                 )
 
                 Spacer(modifier = Modifier.width(14.dp))
 
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = exercise.exerciseName,
-                            style = GymFlowTheme.typography.BodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = GymFlowTheme.colors.textPrimary
-                        )
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = exercise.exerciseName,
+                        style = GymFlowTheme.typography.BodyMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        ),
+                        color = GymFlowTheme.colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         if (exercise.category.isNotBlank()) {
-                            Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(GymFlowBlack)
-                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = exercise.category.uppercase(),
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = GymFlowWhite
+                                    color = GymFlowWhite,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
+
+                        Text(
+                            text = "${exercise.targetSets} sets · ${exercise.targetReps} reps · ${exercise.targetWeightKg} kg" +
+                                    if (exercise.notes.isNotBlank()) " · ${exercise.notes}" else "",
+                            style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
+                            color = GymFlowTheme.colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${exercise.targetSets} sets · ${exercise.targetReps} reps · ${exercise.targetWeightKg} kg" +
-                                if (exercise.notes.isNotBlank()) " · ${exercise.notes}" else "",
-                        style = GymFlowTheme.typography.Caption,
-                        color = GymFlowTheme.colors.textSecondary
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             if (isCompleted) {
                 Row(

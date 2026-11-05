@@ -36,8 +36,14 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId ORDER BY startTimeEpochMs DESC")
     fun getRecentSessions(memberId: String): Flow<List<WorkoutSessionEntity>>
 
-    @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId AND isCompleted = 0 ORDER BY startTimeEpochMs DESC LIMIT 1")
+    @Query("SELECT * FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0 ORDER BY startTimeEpochMs DESC LIMIT 1")
     suspend fun getActiveSession(memberId: String): WorkoutSessionEntity?
+
+    @Query("SELECT * FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0 AND startTimeEpochMs >= :startOfDayMs ORDER BY startTimeEpochMs DESC LIMIT 1")
+    suspend fun getActiveSessionToday(memberId: String, startOfDayMs: Long): WorkoutSessionEntity?
+
+    @Query("SELECT * FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0 AND startTimeEpochMs >= :startOfDayMs ORDER BY startTimeEpochMs DESC LIMIT 1")
+    fun getActiveSessionTodayFlow(memberId: String, startOfDayMs: Long): Flow<WorkoutSessionEntity?>
 
     @Query("SELECT * FROM set_logs WHERE sessionId = :sessionId ORDER BY completedAtEpochMs ASC")
     fun getSetLogs(sessionId: String): Flow<List<SetLogEntity>>

@@ -11,6 +11,8 @@ import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.feature.member.exercises.ExerciseCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
@@ -87,9 +90,52 @@ class ActiveWorkoutViewModel @Inject constructor(
     private var isRoutineLoaded = false
 
     init {
-        startTimer()
-        loadRoutineForToday()
-        ensureSessionRecordCreated()
+        restoreOrCreateSession()
+    }
+
+    private fun restoreOrCreateSession() {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val startOfDayMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+            val activeSession = workoutSessionDao.getActiveSessionToday(userId, startOfDayMs)
+
+            if (activeSession != null) {
+                // Resume existing active session with preserved duration and completed sets
+                val pastSetLogs = workoutSessionDao.getSetLogsSync(activeSession.id)
+                val completedIdsToday = workoutSessionDao.getCompletedExerciseIdsTodaySync(startOfDayMs).toSet()
+
+                val exerciseLogs = pastSetLogs.filter { it.exerciseId == initialExerciseId }
+                val completedRecords = exerciseLogs.map { log ->
+                    CompletedSetRecord(
+                        setNumber = log.setNumber,
+                        reps = log.actualReps,
+                        weightKg = log.actualWeightKg
+                    )
+                }
+
+                val targetSets = _uiState.value.totalSets
+                val isExerciseCompleted = completedRecords.size >= targetSets && targetSets > 0
+                val nextSetNumber = if (isExerciseCompleted) targetSets else (completedRecords.size + 1)
+
+                _uiState.update { current ->
+                    current.copy(
+                        sessionId = activeSession.id,
+                        elapsedSeconds = activeSession.durationSeconds,
+                        isPaused = false,
+                        completedSets = completedRecords,
+                        currentSet = nextSetNumber,
+                        isCurrentExerciseCompleted = isExerciseCompleted,
+                        completedExerciseIds = completedIdsToday
+                    )
+                }
+            } else {
+                ensureSessionRecordCreated()
+            }
+
+            startTimer()
+            loadRoutineForToday()
+        }
     }
 
     private fun ensureSessionRecordCreated() {
@@ -191,28 +237,43 @@ class ActiveWorkoutViewModel @Inject constructor(
         val hasNext = index < exercises.lastIndex
         val nextTitle = if (hasNext) exercises[index + 1].exerciseName else null
 
-        _uiState.update { current ->
-            current.copy(
-                workoutTag = currentEx.category.ifBlank { "Workout" },
-                exerciseId = currentEx.exerciseId,
-                exerciseName = currentEx.exerciseName,
-                currentSet = 1,
-                totalSets = currentEx.targetSets.coerceAtLeast(1),
-                targetReps = currentEx.targetReps.coerceAtLeast(1),
-                targetWeightKg = currentEx.targetWeightKg,
-                actualReps = currentEx.targetReps.coerceAtLeast(1),
-                actualWeightKg = currentEx.targetWeightKg,
-                restDurationSeconds = currentEx.restDurationSeconds.coerceAtLeast(30),
-                completedSets = emptyList(),
-                isWaitingForNextSet = false,
-                isCurrentExerciseCompleted = false,
-                isWorkoutComplete = false,
-                currentExerciseIndex = index,
-                totalExercisesCount = exercises.size,
-                hasNextExercise = hasNext,
-                nextExerciseTitle = nextTitle,
-                routineExercises = exercises
-            )
+        viewModelScope.launch {
+            val pastLogsForThis = workoutSessionDao.getSetLogsSync(_uiState.value.sessionId)
+                .filter { it.exerciseId == currentEx.exerciseId }
+            val completedRecords = pastLogsForThis.map {
+                CompletedSetRecord(
+                    setNumber = it.setNumber,
+                    reps = it.actualReps,
+                    weightKg = it.actualWeightKg
+                )
+            }
+            val targetSets = currentEx.targetSets.coerceAtLeast(1)
+            val isExerciseDone = completedRecords.size >= targetSets
+            val setNumber = if (isExerciseDone) targetSets else (completedRecords.size + 1)
+
+            _uiState.update { current ->
+                current.copy(
+                    workoutTag = currentEx.category.ifBlank { "Workout" },
+                    exerciseId = currentEx.exerciseId,
+                    exerciseName = currentEx.exerciseName,
+                    currentSet = setNumber,
+                    totalSets = targetSets,
+                    targetReps = currentEx.targetReps.coerceAtLeast(1),
+                    targetWeightKg = currentEx.targetWeightKg,
+                    actualReps = currentEx.targetReps.coerceAtLeast(1),
+                    actualWeightKg = currentEx.targetWeightKg,
+                    restDurationSeconds = currentEx.restDurationSeconds.coerceAtLeast(30),
+                    completedSets = completedRecords,
+                    isWaitingForNextSet = false,
+                    isCurrentExerciseCompleted = isExerciseDone,
+                    isWorkoutComplete = false,
+                    currentExerciseIndex = index,
+                    totalExercisesCount = exercises.size,
+                    hasNextExercise = hasNext,
+                    nextExerciseTitle = nextTitle,
+                    routineExercises = exercises
+                )
+            }
         }
     }
 
@@ -222,14 +283,32 @@ class ActiveWorkoutViewModel @Inject constructor(
             while (isActive) {
                 delay(1000)
                 if (!_uiState.value.isPaused && !_uiState.value.isWorkoutComplete) {
-                    _uiState.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
+                    val updatedSeconds = _uiState.value.elapsedSeconds + 1
+                    _uiState.update { it.copy(elapsedSeconds = updatedSeconds) }
+                    // Keep duration synced periodically so unexpected exit preserves time
+                    if (updatedSeconds % 3L == 0L) {
+                        val session = workoutSessionDao.getSessionById(_uiState.value.sessionId)
+                        if (session != null && !session.isCompleted) {
+                            workoutSessionDao.upsertSession(session.copy(durationSeconds = updatedSeconds))
+                        }
+                    }
                 }
             }
         }
     }
 
     fun togglePause() {
-        _uiState.update { it.copy(isPaused = !it.isPaused) }
+        val willPause = !_uiState.value.isPaused
+        _uiState.update { it.copy(isPaused = willPause) }
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            val existing = workoutSessionDao.getSessionById(currentState.sessionId)
+            if (existing != null && !existing.isCompleted) {
+                workoutSessionDao.upsertSession(
+                    existing.copy(durationSeconds = currentState.elapsedSeconds)
+                )
+            }
+        }
     }
 
     fun incrementReps() {
@@ -421,5 +500,16 @@ class ActiveWorkoutViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        val currentState = _uiState.value
+        if (!currentState.isWorkoutComplete) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val existing = workoutSessionDao.getSessionById(currentState.sessionId)
+                if (existing != null && !existing.isCompleted) {
+                    workoutSessionDao.upsertSession(
+                        existing.copy(durationSeconds = currentState.elapsedSeconds)
+                    )
+                }
+            }
+        }
     }
 }

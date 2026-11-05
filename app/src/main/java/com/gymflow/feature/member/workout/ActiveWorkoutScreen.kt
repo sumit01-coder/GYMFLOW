@@ -359,15 +359,15 @@ fun ActiveWorkoutContent(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Exercise Dynamic Movement Illustration Box
+            // Exercise Dynamic Movement Illustration Box (Full Height & Scaled without Clipping)
             val mediaUrl = ExerciseVisuals.getGifUrl(uiState.exerciseId) ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(GymFlowShapesTokens.CardMain)
-                    .background(Color(0xFF1E1E22))
-                    .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF18181B))
+                    .border(1.dp, GymFlowBorder, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (!mediaUrl.isNullOrBlank()) {
@@ -377,8 +377,10 @@ fun ActiveWorkoutContent(
                             .crossfade(true)
                             .build(),
                         contentDescription = uiState.exerciseName,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(8.dp),
                         loading = {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
@@ -392,22 +394,64 @@ fun ActiveWorkoutContent(
                             }
                         },
                         error = {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.FitnessCenter,
-                                    contentDescription = null,
-                                    tint = GymFlowWhite,
-                                    modifier = Modifier.size(36.dp)
+                            val fallbackStaticUrl = ExerciseVisuals.getImageUrl(uiState.exerciseId)
+                            if (!fallbackStaticUrl.isNullOrBlank() && fallbackStaticUrl != mediaUrl) {
+                                SubcomposeAsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(fallbackStaticUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = uiState.exerciseName,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(8.dp)
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = uiState.exerciseName,
-                                    style = GymFlowTheme.typography.Caption,
-                                    color = GymFlowWhite.copy(alpha = 0.8f)
-                                )
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.FitnessCenter,
+                                        contentDescription = null,
+                                        tint = GymFlowWhite,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = uiState.exerciseName,
+                                        style = GymFlowTheme.typography.Caption,
+                                        color = GymFlowWhite.copy(alpha = 0.8f)
+                                    )
+                                }
                             }
                         }
                     )
+
+                    // Form Guide Badge in top right corner
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(10.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowGreen)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = "FORM GUIDE",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
+                    }
                 } else {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(

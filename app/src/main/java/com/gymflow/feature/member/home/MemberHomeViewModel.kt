@@ -47,6 +47,8 @@ data class MemberHomeUiState(
     val todayWorkoutTitle: String = "No Workout Scheduled",
     val todayExercises: List<WorkoutExercise> = emptyList(),
     val completedExerciseIds: Set<String> = emptySet(),
+    val hasActiveSession: Boolean = false,
+    val activeSessionDurationSeconds: Long = 0L,
     val hasUnreadNotifications: Boolean = false,
     val isLoading: Boolean = false,
     val userInitials: String = "GF"
@@ -86,9 +88,13 @@ class MemberHomeViewModel @Inject constructor(
             val userId = tokenManager.getUserIdSync() ?: "default_member"
             combine(
                 planDao.getActivePlanWithDays(userId),
-                workoutSessionDao.getCompletedExerciseIdsToday(startOfDayMs)
-            ) { planWithDays, completedIdsList ->
+                workoutSessionDao.getCompletedExerciseIdsToday(startOfDayMs),
+                workoutSessionDao.getActiveSessionTodayFlow(userId, startOfDayMs)
+            ) { planWithDays, completedIdsList, activeSession ->
                 val completedSet = completedIdsList.toSet()
+                val hasActive = activeSession != null && !activeSession.isCompleted
+                val activeDuration = activeSession?.durationSeconds ?: 0L
+
                 if (planWithDays != null) {
                     val domainPlan = planWithDays.toDomain()
                     val today = LocalDate.now()
@@ -108,7 +114,9 @@ class MemberHomeViewModel @Inject constructor(
                                     todayExercises = emptyList(),
                                     exercisesProgress = "Rest",
                                     workoutDurationMinutes = "0",
-                                    completedExerciseIds = emptySet()
+                                    completedExerciseIds = emptySet(),
+                                    hasActiveSession = false,
+                                    activeSessionDurationSeconds = 0L
                                 )
                             }
                         } else {
@@ -121,7 +129,9 @@ class MemberHomeViewModel @Inject constructor(
                                     todayExercises = todayDay.exercises,
                                     completedExerciseIds = completedSet,
                                     exercisesProgress = "$completedCount/$count",
-                                    workoutDurationMinutes = "$estMinutes"
+                                    workoutDurationMinutes = "$estMinutes",
+                                    hasActiveSession = hasActive,
+                                    activeSessionDurationSeconds = activeDuration
                                 )
                             }
                         }
