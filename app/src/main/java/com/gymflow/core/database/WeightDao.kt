@@ -55,6 +55,9 @@ interface WeightDao {
     @Query("DELETE FROM hydration_logs WHERE id = :id")
     suspend fun deleteHydrationLog(id: String)
 
+    @Query("DELETE FROM hydration_logs WHERE memberId = :memberId AND recordedAtEpochMs >= :startOfDayMs")
+    suspend fun clearTodayHydrationLogs(memberId: String, startOfDayMs: Long)
+
     @Query("UPDATE hydration_logs SET isSynced = :synced WHERE id = :id")
     suspend fun markHydrationLogSynced(id: String, synced: Boolean = true)
 

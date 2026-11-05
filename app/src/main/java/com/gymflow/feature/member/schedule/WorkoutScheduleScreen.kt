@@ -53,6 +53,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -63,6 +65,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -125,6 +128,9 @@ fun WorkoutScheduleScreen(
         onDismissAiSuggestion = { id -> viewModel.dismissAiSuggestion(id) },
         onToggleAiCard = { viewModel.toggleAiCardExpanded() },
         onToggleReminder = { viewModel.toggleDailyReminder() },
+        onOpenCustomAlarmDialog = { viewModel.openCustomAlarmDialog() },
+        onCloseCustomAlarmDialog = { viewModel.closeCustomAlarmDialog() },
+        onSetCustomAlarmTime = { h, m -> viewModel.setCustomAlarmTime(h, m) },
         onNavigateBack = onNavigateBack,
         onNavigateToHome = onNavigateToHome,
         onNavigateToProgress = onNavigateToProgress,
@@ -156,6 +162,9 @@ fun WorkoutScheduleContent(
     onDismissAiSuggestion: (String) -> Unit = {},
     onToggleAiCard: () -> Unit = {},
     onToggleReminder: () -> Unit = {},
+    onOpenCustomAlarmDialog: () -> Unit = {},
+    onCloseCustomAlarmDialog: () -> Unit = {},
+    onSetCustomAlarmTime: (Int, Int) -> Unit = { _, _ -> },
     onNavigateBack: () -> Unit,
     onNavigateToHome: () -> Unit,
     onNavigateToProgress: () -> Unit,
@@ -212,12 +221,12 @@ fun WorkoutScheduleContent(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Quick Reminder Indicator
+                    // Quick Reminder Indicator & Custom Alarm Time Picker Opener
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(20.dp))
                             .background(if (uiState.reminderEnabled) GymFlowBlack else GymFlowTheme.colors.surfaceVariant)
-                            .clickable(onClick = onToggleReminder)
+                            .clickable(onClick = onOpenCustomAlarmDialog)
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -228,15 +237,13 @@ fun WorkoutScheduleContent(
                                 modifier = Modifier.size(16.dp),
                                 tint = if (uiState.reminderEnabled) GymFlowWhite else GymFlowTheme.colors.textPrimary
                             )
-                            if (uiState.reminderEnabled) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = uiState.reminderTimeFormatted,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = GymFlowWhite
-                                )
-                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (uiState.reminderEnabled) uiState.reminderTimeFormatted else "Set Alarm",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.reminderEnabled) GymFlowWhite else GymFlowTheme.colors.textPrimary
+                            )
                         }
                     }
 
@@ -575,6 +582,118 @@ fun WorkoutScheduleContent(
                 )
             )
         }
+    }
+
+    if (uiState.isCustomAlarmDialogOpen) {
+        val context = LocalContext.current
+        val timePickerDialog = remember(context, uiState.customAlarmHour, uiState.customAlarmMinute) {
+            android.app.TimePickerDialog(
+                context,
+                { _, selectedHour: Int, selectedMinute: Int ->
+                    onSetCustomAlarmTime(selectedHour, selectedMinute)
+                },
+                uiState.customAlarmHour,
+                uiState.customAlarmMinute,
+                false
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = onCloseCustomAlarmDialog,
+            title = {
+                Text(
+                    text = "Workout Reminder Alarm",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Customize your daily workout alarm so you stay consistent with your routine.",
+                        style = GymFlowTheme.typography.BodyRegular,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Daily Alarm",
+                                style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                            Text(
+                                text = if (uiState.reminderEnabled) "Active daily" else "Turned off",
+                                style = GymFlowTheme.typography.Caption,
+                                color = if (uiState.reminderEnabled) GymFlowGreen else GymFlowTheme.colors.textSecondary
+                            )
+                        }
+                        Switch(
+                            checked = uiState.reminderEnabled,
+                            onCheckedChange = { onToggleReminder() },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = GymFlowTheme.colors.surface,
+                                checkedTrackColor = GymFlowTheme.colors.textPrimary
+                            )
+                        )
+                    }
+
+                    HorizontalDivider(color = GymFlowTheme.colors.border)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .clickable { timePickerDialog.show() }
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Alarm Time",
+                                style = GymFlowTheme.typography.Caption,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                            Text(
+                                text = uiState.reminderTimeFormatted,
+                                style = GymFlowTheme.typography.Heading2.copy(fontSize = 20.sp),
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Change",
+                                style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Time",
+                                modifier = Modifier.size(16.dp),
+                                tint = GymFlowTheme.colors.textPrimary
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onCloseCustomAlarmDialog) {
+                    Text(text = "Done", color = GymFlowTheme.colors.textPrimary, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 

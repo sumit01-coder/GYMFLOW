@@ -58,8 +58,19 @@ class WorkoutReminderManager @Inject constructor(
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     }
 
+    private val _reminderEnabledFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val reminderEnabledFlow: kotlinx.coroutines.flow.StateFlow<Boolean> = _reminderEnabledFlow
+
+    private val _reminderTimeFlow = kotlinx.coroutines.flow.MutableStateFlow(Pair(DEFAULT_HOUR, DEFAULT_MINUTE))
+    val reminderTimeFlow: kotlinx.coroutines.flow.StateFlow<Pair<Int, Int>> = _reminderTimeFlow
+
     init {
         createNotificationChannel()
+        _reminderEnabledFlow.value = prefs.getBoolean(KEY_REMINDER_ENABLED, false)
+        _reminderTimeFlow.value = Pair(
+            prefs.getInt(KEY_REMINDER_HOUR, DEFAULT_HOUR),
+            prefs.getInt(KEY_REMINDER_MINUTE, DEFAULT_MINUTE)
+        )
     }
 
     /**
@@ -97,8 +108,27 @@ class WorkoutReminderManager @Inject constructor(
             .putInt(KEY_REMINDER_MINUTE, minute)
             .apply()
 
+        _reminderEnabledFlow.value = true
+        _reminderTimeFlow.value = Pair(hour, minute)
+
         scheduleExactAlarm(hour, minute)
         Log.d(TAG, "Reminder scheduled for ${formatTime(hour, minute)}")
+    }
+
+    /**
+     * Updates the custom alarm time and reschedules if active.
+     */
+    fun updateReminderTime(hour: Int, minute: Int) {
+        prefs.edit()
+            .putInt(KEY_REMINDER_HOUR, hour)
+            .putInt(KEY_REMINDER_MINUTE, minute)
+            .apply()
+
+        _reminderTimeFlow.value = Pair(hour, minute)
+
+        if (isReminderEnabled()) {
+            scheduleExactAlarm(hour, minute)
+        }
     }
 
     /**
@@ -108,6 +138,8 @@ class WorkoutReminderManager @Inject constructor(
         prefs.edit()
             .putBoolean(KEY_REMINDER_ENABLED, false)
             .apply()
+
+        _reminderEnabledFlow.value = false
 
         val pendingIntent = createAlarmPendingIntent()
         alarmManager.cancel(pendingIntent)

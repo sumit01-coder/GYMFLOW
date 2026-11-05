@@ -49,6 +49,7 @@ data class ProfileUiState(
     val weightRemindersEnabled: Boolean = true,
     val selectedTheme: String = "Light",
     val isLogoutDialogOpen: Boolean = false,
+    val gender: String = "Male",
     val graceDaysRemaining: Int = 7
 )
 
@@ -95,17 +96,28 @@ class ProfileViewModel @Inject constructor(
     }
 
     private fun initializeReminderState() {
-        val isEnabled = workoutReminderManager.isReminderEnabled()
-        val (hour, minute) = workoutReminderManager.getReminderTime()
-        val formatted = workoutReminderManager.formatTime(hour, minute)
-        _uiState.update { current ->
-            current.copy(
-                workoutRemindersEnabled = isEnabled,
-                reminderHour = hour,
-                reminderMinute = minute,
-                formattedReminderTime = formatted
-            )
+        viewModelScope.launch {
+            workoutReminderManager.reminderEnabledFlow.collect { isEnabled ->
+                _uiState.update { it.copy(workoutRemindersEnabled = isEnabled) }
+            }
         }
+        viewModelScope.launch {
+            workoutReminderManager.reminderTimeFlow.collect { (hour, minute) ->
+                _uiState.update {
+                    it.copy(
+                        reminderHour = hour,
+                        reminderMinute = minute,
+                        formattedReminderTime = workoutReminderManager.formatTime(hour, minute)
+                    )
+                }
+            }
+        }
+        _uiState.update { it.copy(gender = tokenManager.getUserGenderSync()) }
+    }
+
+    fun setGender(gender: String) {
+        tokenManager.saveUserGender(gender)
+        _uiState.update { it.copy(gender = gender) }
     }
 
     fun refreshVerificationStatus() {

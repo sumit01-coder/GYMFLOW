@@ -64,6 +64,7 @@ import com.gymflow.core.components.GymFlowPrimaryButton
 import com.gymflow.core.components.GymFlowSecondaryButton
 import com.gymflow.core.components.GymFlowTextField
 import com.gymflow.core.components.GymFlowTopBar
+import com.gymflow.core.theme.GymFlowRed
 import com.gymflow.core.theme.MemberBg
 import com.gymflow.core.theme.MemberBtnPrimaryBg
 import com.gymflow.core.theme.MemberCardBorder
@@ -199,13 +200,29 @@ fun HydrationScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Today's Hydration Logs
-            Text(
-                text = "Today's Intake History",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MemberTextPrimary,
-                modifier = Modifier.align(Alignment.Start)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Today's Intake History",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MemberTextPrimary
+                )
+                if (state.todayLogs.isNotEmpty()) {
+                    Text(
+                        text = "Clear All",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = GymFlowRed,
+                        modifier = Modifier
+                            .clickable { viewModel.resetDaily() }
+                            .padding(4.dp)
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(10.dp))
 
             if (state.todayLogs.isEmpty()) {

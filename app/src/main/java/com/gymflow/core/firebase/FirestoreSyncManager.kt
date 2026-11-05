@@ -308,6 +308,30 @@ class FirestoreSyncManager @Inject constructor(
             .await()
     }
 
+    suspend fun deleteHydrationLog(logId: String) {
+        try {
+            firestore.collection(COLLECTION_HYDRATION_LOGS)
+                .document(logId)
+                .delete()
+                .await()
+        } catch (_: Exception) {}
+    }
+
+    suspend fun clearTodayHydrationLogs(memberId: String, startOfDayMs: Long) {
+        try {
+            val snapshot = firestore.collection(COLLECTION_HYDRATION_LOGS)
+                .whereEqualTo("memberId", memberId)
+                .whereGreaterThanOrEqualTo("recordedAtEpochMs", startOfDayMs)
+                .get()
+                .await()
+            for (doc in snapshot.documents) {
+                try {
+                    doc.reference.delete().await()
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+    }
+
     // 6. Sync Body Measurements
     suspend fun saveBodyMeasurement(measurement: BodyMeasurementEntity) {
         val measurementMap = mapOf(

@@ -29,6 +29,7 @@ class TokenManager @Inject constructor(
     private val _userIdFlow = MutableStateFlow<String?>(null)
     private val _userEmailFlow = MutableStateFlow<String?>(null)
     private val _userNameFlow = MutableStateFlow<String?>(null)
+    private val _userGenderFlow = MutableStateFlow<String>("Male")
     private val _emailVerifiedFlow = MutableStateFlow<Boolean>(false)
 
     init {
@@ -37,6 +38,7 @@ class TokenManager @Inject constructor(
         _userIdFlow.value = prefs.getString(KEY_USER_ID, null)
         _userEmailFlow.value = prefs.getString(KEY_USER_EMAIL, null)
         _userNameFlow.value = prefs.getString(KEY_USER_NAME, null)
+        _userGenderFlow.value = prefs.getString(KEY_USER_GENDER, "Male") ?: "Male"
         _emailVerifiedFlow.value = prefs.getBoolean(KEY_EMAIL_VERIFIED, false)
         val roleStr = prefs.getString(KEY_USER_ROLE, null)
         _roleFlow.value = roleStr?.let {
@@ -189,6 +191,15 @@ class TokenManager @Inject constructor(
 
     fun isAuthenticatedSync(): Boolean = !getTokenSync().isNullOrBlank()
 
+    fun saveUserGender(gender: String) {
+        prefs.edit().putString(KEY_USER_GENDER, gender).apply()
+        _userGenderFlow.value = gender
+    }
+
+    fun getUserGender(): Flow<String> = _userGenderFlow.asStateFlow()
+
+    fun getUserGenderSync(): String = _userGenderFlow.value ?: prefs.getString(KEY_USER_GENDER, "Male") ?: "Male"
+
     // Clear session
     fun clearAll() {
         prefs.edit().clear().apply()
@@ -196,6 +207,7 @@ class TokenManager @Inject constructor(
         _userIdFlow.value = null
         _userEmailFlow.value = null
         _userNameFlow.value = null
+        _userGenderFlow.value = "Male"
         _roleFlow.value = null
         _emailVerifiedFlow.value = false
     }
@@ -208,6 +220,7 @@ class TokenManager @Inject constructor(
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME = "user_name"
+        private const val KEY_USER_GENDER = "user_gender"
         private const val KEY_EMAIL_VERIFIED = "email_verified"
         private const val KEY_ACCOUNT_CREATED_AT = "account_created_at"
     }

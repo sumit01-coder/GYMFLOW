@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Notifications
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -84,6 +86,20 @@ fun MemberProfileScreen(
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isAgeDialogOpen by remember { mutableStateOf(false) }
     var isHeightDialogOpen by remember { mutableStateOf(false) }
+    var isGenderDialogOpen by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val timePickerDialog = remember(context, uiState.reminderHour, uiState.reminderMinute) {
+        android.app.TimePickerDialog(
+            context,
+            { _, selectedHour: Int, selectedMinute: Int ->
+                viewModel.updateReminderTime(selectedHour, selectedMinute)
+            },
+            uiState.reminderHour,
+            uiState.reminderMinute,
+            false
+        )
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -308,6 +324,26 @@ fun MemberProfileScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = uiState.profile.fitnessGoal.ifBlank { "Set Goal" },
+                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { isGenderDialogOpen = true }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "GENDER",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = uiState.gender,
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary
                         )
@@ -634,6 +670,72 @@ fun MemberProfileScreen(
         )
     }
 
+    // Dialog 1d: Edit Gender Dialog
+    if (isGenderDialogOpen) {
+        val genders = listOf("Male", "Female", "Other")
+        AlertDialog(
+            onDismissRequest = { isGenderDialogOpen = false },
+            title = {
+                Text(
+                    text = "Select Gender",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 20.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Used by GymFlow AI to calibrate muscle fiber fatigue, hormonal recovery, and kinematic joint angles.",
+                        style = GymFlowTheme.typography.BodyRegular,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    genders.forEach { option ->
+                        val isSelected = uiState.gender.equals(option, ignoreCase = true)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) GymFlowBlack else GymFlowTheme.colors.surfaceVariant)
+                                .clickable {
+                                    viewModel.setGender(option)
+                                    isGenderDialogOpen = false
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = option,
+                                style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (isSelected) GymFlowWhite else GymFlowTheme.colors.textPrimary
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Selected",
+                                    tint = GymFlowWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { isGenderDialogOpen = false }) {
+                    Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
     // Dialog 2: Notifications & Reminders Dialog
     if (isNotificationDialogOpen) {
         AlertDialog(
@@ -704,6 +806,40 @@ fun MemberProfileScreen(
                                 checkedTrackColor = GymFlowTheme.colors.textPrimary
                             )
                         )
+                    }
+
+                    if (uiState.workoutRemindersEnabled) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .clickable { timePickerDialog.show() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Reminder Time",
+                                style = GymFlowTheme.typography.BodySmall,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = uiState.formattedReminderTime,
+                                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = GymFlowTheme.colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Time",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = GymFlowTheme.colors.textSecondary
+                                )
+                            }
+                        }
                     }
 
                     HorizontalDivider(color = GymFlowTheme.colors.border, thickness = 1.dp)

@@ -116,6 +116,19 @@ class HydrationViewModel @Inject constructor(
     }
 
     fun deleteLog(logId: String) {
+        val targetLog = _uiState.value.todayLogs.find { it.id == logId }
+        val amount = targetLog?.amountMl ?: 0
+        // Optimistic UI update so the log vanishes instantly and intake is reduced
+        _uiState.update { current ->
+            val updatedLogs = current.todayLogs.filter { it.id != logId }
+            val updatedTotal = (current.currentIntakeMl - amount).coerceAtLeast(0)
+            val updatedDeficit = (current.postWorkoutDeficitMl + amount).coerceAtLeast(0)
+            current.copy(
+                todayLogs = updatedLogs,
+                currentIntakeMl = updatedTotal,
+                postWorkoutDeficitMl = updatedDeficit
+            )
+        }
         viewModelScope.launch {
             weightRepository.deleteHydrationLog(logId).collect {}
         }
@@ -138,11 +151,15 @@ class HydrationViewModel @Inject constructor(
     }
 
     fun resetDaily() {
+        val userId = currentUserId()
         _uiState.update {
             it.copy(
                 currentIntakeMl = 0,
                 todayLogs = emptyList()
             )
+        }
+        viewModelScope.launch {
+            weightRepository.clearTodayHydration(userId).collect {}
         }
     }
 }

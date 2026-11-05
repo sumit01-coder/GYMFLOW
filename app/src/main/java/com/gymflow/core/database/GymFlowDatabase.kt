@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SyncQueueEntity::class,
         ExerciseEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -79,7 +79,7 @@ abstract class GymFlowDatabase : RoomDatabase() {
                         id TEXT NOT NULL PRIMARY KEY,
                         memberId TEXT NOT NULL,
                         preWeightKg REAL NOT NULL,
-                        postWeightKg REAL NOT NULL DEFAULT 0.0,
+                        postWeightKg REAL NOT NULL,
                         deltaKg REAL NOT NULL,
                         recordedAtEpochMs INTEGER NOT NULL,
                         notes TEXT NOT NULL,
@@ -109,7 +109,7 @@ abstract class GymFlowDatabase : RoomDatabase() {
                         id TEXT NOT NULL PRIMARY KEY,
                         memberId TEXT NOT NULL,
                         preWeightKg REAL NOT NULL,
-                        postWeightKg REAL NOT NULL DEFAULT 0.0,
+                        postWeightKg REAL NOT NULL,
                         deltaKg REAL NOT NULL,
                         recordedAtEpochMs INTEGER NOT NULL,
                         notes TEXT NOT NULL,
@@ -123,6 +123,30 @@ abstract class GymFlowDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("DROP TABLE weight_logs")
                 db.execSQL("ALTER TABLE weight_logs_v7 RENAME TO weight_logs")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS weight_logs_v8 (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        memberId TEXT NOT NULL,
+                        preWeightKg REAL NOT NULL,
+                        postWeightKg REAL NOT NULL,
+                        deltaKg REAL NOT NULL,
+                        recordedAtEpochMs INTEGER NOT NULL,
+                        notes TEXT NOT NULL,
+                        isSynced INTEGER NOT NULL,
+                        postRecordedAtEpochMs INTEGER
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO weight_logs_v8 (id, memberId, preWeightKg, postWeightKg, deltaKg, recordedAtEpochMs, notes, isSynced, postRecordedAtEpochMs)
+                    SELECT id, memberId, preWeightKg, COALESCE(postWeightKg, 0.0), deltaKg, recordedAtEpochMs, notes, isSynced, postRecordedAtEpochMs FROM weight_logs
+                """.trimIndent())
+                db.execSQL("DROP TABLE weight_logs")
+                db.execSQL("ALTER TABLE weight_logs_v8 RENAME TO weight_logs")
             }
         }
     }

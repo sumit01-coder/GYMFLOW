@@ -196,9 +196,26 @@ class WeightRepositoryImpl @Inject constructor(
         emit(Resource.Loading)
         try {
             weightDao.deleteHydrationLog(id)
+            try {
+                firestoreSyncManager.deleteHydrationLog(id)
+            } catch (_: Exception) {}
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Failed to delete hydration log: ${e.localizedMessage}", e))
+        }
+    }
+
+    override fun clearTodayHydration(memberId: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            val startOfDay = getTodayStartEpochMs()
+            weightDao.clearTodayHydrationLogs(memberId, startOfDay)
+            try {
+                firestoreSyncManager.clearTodayHydrationLogs(memberId, startOfDay)
+            } catch (_: Exception) {}
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error("Failed to clear today's hydration: ${e.localizedMessage}", e))
         }
     }
 

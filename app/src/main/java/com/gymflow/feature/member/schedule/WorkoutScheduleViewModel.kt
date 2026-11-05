@@ -6,9 +6,11 @@ import androidx.lifecycle.viewModelScope
 import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.gymflow.core.database.BodyMeasurementEntity
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
+import com.gymflow.core.database.WeightDao
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.notification.WorkoutReminderManager
 import com.gymflow.core.security.TokenManager
@@ -78,6 +80,9 @@ data class WorkoutScheduleUiState(
     val lastAppliedSuggestionTitle: String? = null,
     val reminderEnabled: Boolean = false,
     val reminderTimeFormatted: String = "06:30 AM",
+    val isCustomAlarmDialogOpen: Boolean = false,
+    val customAlarmHour: Int = 6,
+    val customAlarmMinute: Int = 30,
     val completedExerciseIds: Set<String> = emptySet()
 )
 
@@ -89,11 +94,22 @@ class WorkoutScheduleViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val tokenManager: TokenManager,
     private val userDao: UserDao,
+    private val weightDao: WeightDao,
     private val workoutReminderManager: WorkoutReminderManager,
     private val workoutSessionDao: WorkoutSessionDao
 ) : ViewModel() {
 
+    companion object {
+        private const val AI_PREFS = "gymflow_ai_suggestions_prefs"
+        private const val KEY_DISMISSED_SUGGESTIONS = "key_dismissed_suggestions"
+    }
+
+    private val aiPrefs by lazy {
+        context.getSharedPreferences(AI_PREFS, Context.MODE_PRIVATE)
+    }
+
     private var cachedUserEntity: UserEntity? = null
+    private var cachedMeasurement: BodyMeasurementEntity? = null
 
     private val _uiState = MutableStateFlow(WorkoutScheduleUiState())
     val uiState: StateFlow<WorkoutScheduleUiState> = _uiState.asStateFlow()
@@ -102,6 +118,10 @@ class WorkoutScheduleViewModel @Inject constructor(
         val today = LocalDate.now()
         loadScheduleForDate(today)
         initializeExercisesAndPlan()
+    }
+
+    private fun getDismissedSuggestions(): Set<String> {
+        return aiPrefs.getStringSet(KEY_DISMISSED_SUGGESTIONS, emptySet()) ?: emptySet()
     }
 
     private fun initializeExercisesAndPlan() {
@@ -151,13 +171,30 @@ class WorkoutScheduleViewModel @Inject constructor(
                 }
             }
 
-            // 4. Initialize reminder state
-            val (hour, minute) = workoutReminderManager.getReminderTime()
-            _uiState.update {
-                it.copy(
-                    reminderEnabled = workoutReminderManager.isReminderEnabled(),
-                    reminderTimeFormatted = workoutReminderManager.formatTime(hour, minute)
-                )
+            // 3b. Observe body measurements for AI biometric analysis
+            launch {
+                weightDao.getLatestMeasurement(userId).collect { measurement ->
+                    cachedMeasurement = measurement
+                    refreshAiOptimizerSuggestions()
+                }
+            }
+
+            // 4. Reactively observe reminder state from WorkoutReminderManager
+            launch {
+                workoutReminderManager.reminderEnabledFlow.collect { isEnabled ->
+                    _uiState.update { it.copy(reminderEnabled = isEnabled) }
+                }
+            }
+            launch {
+                workoutReminderManager.reminderTimeFlow.collect { (hour, min) ->
+                    _uiState.update {
+                        it.copy(
+                            customAlarmHour = hour,
+                            customAlarmMinute = min,
+                            reminderTimeFormatted = workoutReminderManager.formatTime(hour, min)
+                        )
+                    }
+                }
             }
         }
     }
@@ -438,6 +475,10 @@ class WorkoutScheduleViewModel @Inject constructor(
     }
 
     fun dismissAiSuggestion(suggestionId: String) {
+        val currentSet = getDismissedSuggestions().toMutableSet()
+        currentSet.add(suggestionId)
+        aiPrefs.edit().putStringSet(KEY_DISMISSED_SUGGESTIONS, currentSet).apply()
+
         _uiState.update { current ->
             current.copy(
                 aiSuggestions = current.aiSuggestions.filter { it.id != suggestionId }
@@ -457,9 +498,31 @@ class WorkoutScheduleViewModel @Inject constructor(
         } else {
             workoutReminderManager.scheduleReminder(hour, minute)
         }
+    }
+
+    fun openCustomAlarmDialog() {
+        val (hour, min) = workoutReminderManager.getReminderTime()
         _uiState.update {
             it.copy(
-                reminderEnabled = !currentlyEnabled,
+                isCustomAlarmDialogOpen = true,
+                customAlarmHour = hour,
+                customAlarmMinute = min
+            )
+        }
+    }
+
+    fun closeCustomAlarmDialog() {
+        _uiState.update { it.copy(isCustomAlarmDialogOpen = false) }
+    }
+
+    fun setCustomAlarmTime(hour: Int, minute: Int) {
+        workoutReminderManager.scheduleReminder(hour, minute)
+        _uiState.update {
+            it.copy(
+                isCustomAlarmDialogOpen = false,
+                reminderEnabled = true,
+                customAlarmHour = hour,
+                customAlarmMinute = minute,
                 reminderTimeFormatted = workoutReminderManager.formatTime(hour, minute)
             )
         }
@@ -471,25 +534,44 @@ class WorkoutScheduleViewModel @Inject constructor(
         val height = user?.heightCm ?: 175f
         val weight = user?.currentWeightKg ?: 75f
         val goal = user?.fitnessGoal ?: "General Fitness"
+        val gender = tokenManager.getUserGenderSync()
+
+        val measurement = cachedMeasurement
+        val chest = measurement?.chestCm ?: 0f
+        val waist = measurement?.waistCm ?: 0f
+        val arms = measurement?.armsCm ?: 0f
+        val thighs = measurement?.thighsCm ?: 0f
+        val hips = measurement?.hipsCm ?: 0f
 
         val selectedDayShort = _uiState.value.selectedDate.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
         val currentDayEntry = _uiState.value.scheduleEntries.find { matchesDay(it.dayName, selectedDayShort) }
         val dayExercises = currentDayEntry?.exercises ?: emptyList()
 
-        val suggestions = GymFlowAiOptimizer.optimize(
+        val allSuggestions = GymFlowAiOptimizer.optimize(
             age = age,
+            gender = gender,
             heightCm = height,
             weightKg = weight,
+            chestCm = chest,
+            waistCm = waist,
+            armsCm = arms,
+            thighsCm = thighs,
+            hipsCm = hips,
             goal = goal,
             experienceLevel = "Intermediate",
             exercises = dayExercises
         )
 
+        val dismissedIds = getDismissedSuggestions()
+        val activeSuggestions = allSuggestions.filter { it.id !in dismissedIds }
+
         val (hour, minute) = workoutReminderManager.getReminderTime()
         _uiState.update {
             it.copy(
-                aiSuggestions = suggestions,
+                aiSuggestions = activeSuggestions,
                 reminderEnabled = workoutReminderManager.isReminderEnabled(),
+                customAlarmHour = hour,
+                customAlarmMinute = minute,
                 reminderTimeFormatted = workoutReminderManager.formatTime(hour, minute)
             )
         }
