@@ -28,11 +28,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -68,6 +70,7 @@ import com.gymflow.core.theme.MemberCardBorder
 import com.gymflow.core.theme.MemberSurfaceSubtle
 import com.gymflow.core.theme.MemberTextPrimary
 import com.gymflow.core.theme.MemberTextSecondary
+import com.gymflow.core.theme.MemberTextTertiary
 import com.gymflow.core.theme.MemberTextTertiary
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
@@ -258,12 +261,26 @@ fun HydrationScreen(
                                 }
                             }
 
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color(0xFF16A34A),
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color(0xFF16A34A),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                IconButton(
+                                    onClick = { viewModel.deleteLog(log.id) },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Delete entry",
+                                        tint = MemberTextTertiary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -182,6 +182,29 @@ class WeightRepositoryImpl @Inject constructor(
         return weightDao.getTodayHydrationTotal(memberId, startOfDayMs).map { it ?: 0 }
     }
 
+    override fun getTodayHydrationLogs(memberId: String): Flow<List<HydrationLog>> {
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfDayMs = calendar.timeInMillis
+        return weightDao.getTodayHydrationLogs(memberId, startOfDayMs).map { entities ->
+            entities.map { it.toDomain() }
+        }
+    }
+
+    override fun deleteHydrationLog(id: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading)
+        try {
+            weightDao.deleteHydrationLog(id)
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error("Failed to delete hydration log: ${e.localizedMessage}", e))
+        }
+    }
+
     override fun logBodyMeasurement(measurement: BodyMeasurement): Flow<Resource<BodyMeasurement>> = flow {
         emit(Resource.Loading)
         try {

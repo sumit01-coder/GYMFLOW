@@ -43,8 +43,17 @@ interface WeightDao {
     @Query("SELECT * FROM hydration_logs WHERE memberId = :memberId AND recordedAtEpochMs BETWEEN :startMs AND :endMs ORDER BY recordedAtEpochMs ASC")
     fun getHydrationLogsForRange(memberId: String, startMs: Long, endMs: Long): Flow<List<HydrationLogEntity>>
 
-    @Query("SELECT SUM(amountMl) FROM hydration_logs WHERE memberId = :memberId AND recordedAtEpochMs >= :startOfDayMs")
+    @Query("SELECT SUM(amountMl) FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs")
     fun getTodayHydrationTotal(memberId: String, startOfDayMs: Long): Flow<Int?>
+
+    @Query("SELECT * FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs ORDER BY recordedAtEpochMs DESC")
+    fun getTodayHydrationLogs(memberId: String, startOfDayMs: Long): Flow<List<HydrationLogEntity>>
+
+    @Query("SELECT * FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member') ORDER BY recordedAtEpochMs DESC")
+    fun getAllHydrationLogs(memberId: String): Flow<List<HydrationLogEntity>>
+
+    @Query("DELETE FROM hydration_logs WHERE id = :id")
+    suspend fun deleteHydrationLog(id: String)
 
     @Query("UPDATE hydration_logs SET isSynced = :synced WHERE id = :id")
     suspend fun markHydrationLogSynced(id: String, synced: Boolean = true)

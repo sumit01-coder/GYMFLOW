@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -46,11 +47,17 @@ class HydrationViewModel @Inject constructor(
     private fun observeTodayHydration() {
         val userId = currentUserId()
         viewModelScope.launch {
-            weightRepository.getTodayHydration(userId).collect { totalMl ->
+            combine(
+                weightRepository.getTodayHydration(userId),
+                weightRepository.getTodayHydrationLogs(userId)
+            ) { totalMl, logs ->
                 _uiState.update { current ->
-                    current.copy(currentIntakeMl = totalMl)
+                    current.copy(
+                        currentIntakeMl = totalMl,
+                        todayLogs = logs
+                    )
                 }
-            }
+            }.collect {}
         }
     }
 
@@ -59,13 +66,6 @@ class HydrationViewModel @Inject constructor(
         val goal = _uiState.value.dailyGoalMl
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
-            val newLog = HydrationLog(
-                id = UUID.randomUUID().toString(),
-                memberId = userId,
-                amountMl = amountMl,
-                dailyGoalMl = goal,
-                recordedAtEpochMs = System.currentTimeMillis()
-            )
 
             weightRepository.logHydration(
                 memberId = userId,
@@ -75,12 +75,10 @@ class HydrationViewModel @Inject constructor(
                 when (resource) {
                     is Resource.Success -> {
                         _uiState.update { current ->
-                            val updatedLogs = listOf(newLog) + current.todayLogs
                             val updatedDeficit = (current.postWorkoutDeficitMl - amountMl).coerceAtLeast(0)
                             current.copy(
                                 isSaving = false,
                                 isCustomDialogOpen = false,
-                                todayLogs = updatedLogs,
                                 postWorkoutDeficitMl = updatedDeficit
                             )
                         }
@@ -102,6 +100,12 @@ class HydrationViewModel @Inject constructor(
         val delta = clampedTarget - current
         if (delta != 0) {
             addWater(delta)
+        }
+    }
+
+    fun deleteLog(logId: String) {
+        viewModelScope.launch {
+            weightRepository.deleteHydrationLog(logId).collect {}
         }
     }
 

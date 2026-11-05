@@ -31,6 +31,10 @@ interface WeightRepository {
 
     fun getTodayHydration(memberId: String): Flow<Int>
 
+    fun getTodayHydrationLogs(memberId: String): Flow<List<HydrationLog>>
+
+    fun deleteHydrationLog(id: String): Flow<Resource<Unit>>
+
     fun logBodyMeasurement(measurement: BodyMeasurement): Flow<Resource<BodyMeasurement>>
 
     fun getLatestMeasurement(memberId: String): Flow<BodyMeasurement?>

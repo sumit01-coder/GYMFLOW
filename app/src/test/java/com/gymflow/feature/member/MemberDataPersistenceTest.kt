@@ -654,10 +654,30 @@ class FakeWeightDao : WeightDao {
     override fun getTodayHydrationTotal(memberId: String, startOfDayMs: Long): Flow<Int?> =
         hydrationFlow.map { list ->
             val total = list
-                .filter { it.memberId == memberId && it.recordedAtEpochMs >= startOfDayMs }
+                .filter { (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs }
                 .sumOf { it.amountMl }
-            if (total == 0 && list.none { it.memberId == memberId && it.recordedAtEpochMs >= startOfDayMs }) null else total
+            if (total == 0 && list.none { (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs }) null else total
         }
+
+    override fun getTodayHydrationLogs(
+        memberId: String,
+        startOfDayMs: Long
+    ): Flow<List<HydrationLogEntity>> =
+        hydrationFlow.map { list ->
+            list.filter { (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs }
+                .sortedByDescending { it.recordedAtEpochMs }
+        }
+
+    override fun getAllHydrationLogs(memberId: String): Flow<List<HydrationLogEntity>> =
+        hydrationFlow.map { list ->
+            list.filter { it.memberId == memberId || it.memberId == "default_member" }
+                .sortedByDescending { it.recordedAtEpochMs }
+        }
+
+    override suspend fun deleteHydrationLog(id: String) {
+        hydrationLogs.remove(id)
+        hydrationFlow.value = hydrationLogs.values.toList()
+    }
 
     override suspend fun markHydrationLogSynced(id: String, synced: Boolean) {
         hydrationLogs[id]?.let {
