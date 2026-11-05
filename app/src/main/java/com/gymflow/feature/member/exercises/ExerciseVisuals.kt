@@ -119,7 +119,12 @@ object ExerciseVisuals {
         "ex_cable_fly" to "1261",
         "ex_deadlift" to "0032",
         "ex_barbell_curl" to "0031",
-        "ex_triceps_pushdown" to "0241"
+        "ex_triceps_pushdown" to "0241",
+        "ex_overhead_press" to "0103",
+        "ex_sh_overhead_press" to "0103",
+        "ex_sh_seated_dumbbell_press" to "0290",
+        "ex_sh_cable_lateral_raise" to "0178",
+        "ex_sh_reverse_pec_deck" to "1022"
     )
 
     fun getGifUrl(exerciseId: String?): String? {
@@ -235,7 +240,8 @@ object ExerciseVisuals {
         "ex_cable_fly" to "Cable_Crossover/0.jpg",
         "ex_deadlift" to "Barbell_Deadlift/0.jpg",
         "ex_barbell_curl" to "Barbell_Curl/0.jpg",
-        "ex_triceps_pushdown" to "Triceps_Pushdown_-_Rope_Attachment/0.jpg"
+        "ex_triceps_pushdown" to "Triceps_Pushdown_-_Rope_Attachment/0.jpg",
+        "ex_overhead_press" to "Standing_Military_Press/0.jpg"
     )
 
     fun getImageUrl(exerciseId: String?): String? {

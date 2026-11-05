@@ -71,8 +71,8 @@ object ExerciseCatalog {
 
         "ex_overhead_press" to ExerciseDetailData(
             exerciseId = "ex_overhead_press",
-            exerciseName = "Overhead Shoulder Press",
-            metadataSubhead = "4 sets · 10 reps · 40 kg",
+            exerciseName = "Standing Overhead Barbell Press",
+            metadataSubhead = "4 sets · 8 reps · 40 kg",
             videoTitle = "Strict Standing Overhead Press Form",
             instructions = listOf(
                 "Rest the barbell across your front deltoids with forearms perpendicular to the floor.",
@@ -85,6 +85,75 @@ object ExerciseCatalog {
             secondaryMuscles = listOf("Triceps Brachii", "Upper Trapezius", "Upper Chest"),
             equipmentRequired = "Olympic Barbell & Squat Stand",
             coachTip = "Do not arch your lower back. Squeeze your glutes hard throughout the entire pressing phase."
+        ),
+
+        "ex_sh_overhead_press" to ExerciseDetailData(
+            exerciseId = "ex_sh_overhead_press",
+            exerciseName = "Standing Overhead Barbell Press",
+            metadataSubhead = "4 sets · 8 reps · 40 kg",
+            videoTitle = "Strict Standing Overhead Press Form",
+            instructions = listOf(
+                "Rest the barbell across your front deltoids with forearms perpendicular to the floor.",
+                "Brace your glutes, thighs, and core tightly to establish a rock-solid foundation.",
+                "Press the barbell straight overhead, tilting chin back slightly as the bar clears your nose.",
+                "Lock elbows out overhead with the bar positioned directly above your shoulder joints.",
+                "Lower the bar under strict 2-second control back to your clavicles."
+            ),
+            primaryMuscle = "Anterior & Lateral Deltoids",
+            secondaryMuscles = listOf("Triceps Brachii", "Upper Trapezius", "Upper Chest"),
+            equipmentRequired = "Squat Stand / Power Rack & Barbell",
+            coachTip = "Do not arch your lower back. Squeeze your glutes hard throughout the entire pressing phase."
+        ),
+
+        "ex_sh_seated_dumbbell_press" to ExerciseDetailData(
+            exerciseId = "ex_sh_seated_dumbbell_press",
+            exerciseName = "Seated Dumbbell Shoulder Press",
+            metadataSubhead = "3 sets · 10 reps · 18 kg",
+            videoTitle = "Seated Dumbbell Overhead Press Technique",
+            instructions = listOf(
+                "Sit upright on an incline/utility bench set to 90 degrees.",
+                "Bring dumbbells up to ear level with elbows angled roughly 45 degrees forward.",
+                "Press dumbbells smoothly overhead until arms are nearly straight.",
+                "Lower under control over 2 seconds back to ear level."
+            ),
+            primaryMuscle = "Anterior & Lateral Deltoids",
+            secondaryMuscles = listOf("Triceps Brachii", "Upper Trapezius"),
+            equipmentRequired = "90° Upright Utility Bench & Dumbbells",
+            coachTip = "Avoid excessive arch in the lower back by keeping your feet firmly planted."
+        ),
+
+        "ex_sh_cable_lateral_raise" to ExerciseDetailData(
+            exerciseId = "ex_sh_cable_lateral_raise",
+            exerciseName = "Cable Lateral Raise",
+            metadataSubhead = "3 sets · 15 reps · 8 kg",
+            videoTitle = "Cable Lateral Raise Isolation",
+            instructions = listOf(
+                "Set the cable pulley to its lowest point and attach a single handle.",
+                "Stand sideways to the machine and grip the handle with the far hand across your body.",
+                "Raise the handle outward and upward to shoulder level with a slight bend in the elbow.",
+                "Pause for 1 second at shoulder height, then lower under tension over 2 seconds."
+            ),
+            primaryMuscle = "Lateral Deltoids (Side Delts)",
+            secondaryMuscles = listOf("Anterior Deltoids", "Supraspinatus"),
+            equipmentRequired = "Low Pulley Cable Column (Single Handle)",
+            coachTip = "Lead with your elbow rather than your wrist to direct tension into the side delt head."
+        ),
+
+        "ex_sh_reverse_pec_deck" to ExerciseDetailData(
+            exerciseId = "ex_sh_reverse_pec_deck",
+            exerciseName = "Reverse Pec Deck (Rear Delts)",
+            metadataSubhead = "3 sets · 15 reps · 35 kg",
+            videoTitle = "Reverse Pec Deck Machine Execution",
+            instructions = listOf(
+                "Sit facing the machine with your chest firmly against the pad.",
+                "Adjust handles so arms are parallel to the floor at shoulder height.",
+                "Sweep handles outward and backward in a wide arc using your rear shoulders.",
+                "Contract rear deltoids forcefully at peak contraction, then resist the return."
+            ),
+            primaryMuscle = "Posterior Deltoids (Rear Delts)",
+            secondaryMuscles = listOf("Rhomboids", "Infraspinatus", "Middle Trapezius"),
+            equipmentRequired = "Dual Rear Delt / Pec Deck Machine",
+            coachTip = "Keep your chest glued to the support pad and avoid shrugging your traps up."
         ),
 
         "ex_cable_fly" to ExerciseDetailData(

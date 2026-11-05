@@ -84,10 +84,39 @@ class ActiveWorkoutViewModel @Inject constructor(
     val uiState: StateFlow<ActiveWorkoutUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+    private var isRoutineLoaded = false
 
     init {
         startTimer()
         loadRoutineForToday()
+        ensureSessionRecordCreated()
+    }
+
+    private fun ensureSessionRecordCreated() {
+        viewModelScope.launch {
+            val currentState = _uiState.value
+            val existing = workoutSessionDao.getSessionById(currentState.sessionId)
+            if (existing == null) {
+                val userId = tokenManager.getUserIdSync() ?: "default_member"
+                val now = System.currentTimeMillis()
+                workoutSessionDao.upsertSession(
+                    WorkoutSessionEntity(
+                        id = currentState.sessionId,
+                        memberId = userId,
+                        workoutTitle = currentState.workoutTag.ifBlank { "Workout Session" },
+                        startTimeEpochMs = now,
+                        endTimeEpochMs = null,
+                        durationSeconds = 0,
+                        totalVolumeKg = 0f,
+                        caloriesBurned = 0,
+                        isCompleted = false,
+                        setsCompleted = 0,
+                        totalSets = currentState.totalSets,
+                        isSynced = false
+                    )
+                )
+            }
+        }
     }
 
     private fun buildInitialUiState(id: String): ActiveWorkoutUiState {
@@ -133,7 +162,7 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = tokenManager.getUserIdSync() ?: "default_member"
             planDao.getActivePlanWithDays(userId).collect { planWithDays ->
-                if (planWithDays != null) {
+                if (!isRoutineLoaded && planWithDays != null) {
                     val domainPlan = planWithDays.toDomain()
                     val today = LocalDate.now()
                     val currentDayFull = today.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.US)
@@ -145,6 +174,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                     }
 
                     if (todayDay != null && todayDay.exercises.isNotEmpty()) {
+                        isRoutineLoaded = true
                         val exercises = todayDay.exercises
                         val foundIndex = exercises.indexOfFirst { it.exerciseId == initialExerciseId }
                         val targetIndex = if (foundIndex >= 0) foundIndex else 0
@@ -236,6 +266,35 @@ class ActiveWorkoutViewModel @Inject constructor(
 
         // Persist set log to Room database immediately so completed tick marks update live
         viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val existing = workoutSessionDao.getSessionById(currentState.sessionId)
+            if (existing == null) {
+                val now = System.currentTimeMillis() - (currentState.elapsedSeconds * 1000L)
+                workoutSessionDao.upsertSession(
+                    WorkoutSessionEntity(
+                        id = currentState.sessionId,
+                        memberId = userId,
+                        workoutTitle = currentState.workoutTag.ifBlank { "Workout Session" },
+                        startTimeEpochMs = now,
+                        endTimeEpochMs = null,
+                        durationSeconds = currentState.elapsedSeconds,
+                        totalVolumeKg = 0f,
+                        caloriesBurned = 0,
+                        isCompleted = false,
+                        setsCompleted = 1,
+                        totalSets = currentState.totalSets,
+                        isSynced = false
+                    )
+                )
+            } else {
+                workoutSessionDao.upsertSession(
+                    existing.copy(
+                        setsCompleted = existing.setsCompleted + 1,
+                        durationSeconds = currentState.elapsedSeconds
+                    )
+                )
+            }
+
             workoutSessionDao.upsertSetLog(
                 SetLogEntity(
                     id = UUID.randomUUID().toString(),
@@ -335,18 +394,21 @@ class ActiveWorkoutViewModel @Inject constructor(
             val now = System.currentTimeMillis()
             val duration = currentState.elapsedSeconds.coerceAtLeast(60L)
 
+            val existing = workoutSessionDao.getSessionById(currentState.sessionId)
+            val startTime = existing?.startTimeEpochMs ?: (now - (duration * 1000L))
+
             workoutSessionDao.upsertSession(
                 WorkoutSessionEntity(
                     id = currentState.sessionId,
                     memberId = userId,
                     workoutTitle = currentState.workoutTag.ifBlank { "Workout Session" },
-                    startTimeEpochMs = now - (duration * 1000L),
+                    startTimeEpochMs = startTime,
                     endTimeEpochMs = now,
                     durationSeconds = duration,
                     totalVolumeKg = 0f, // Room DAO recalculates volume from SetLogs
                     caloriesBurned = ((duration / 60) * 7).toInt().coerceAtLeast(50),
                     isCompleted = true,
-                    setsCompleted = currentState.completedSets.size,
+                    setsCompleted = existing?.setsCompleted ?: currentState.completedSets.size,
                     totalSets = currentState.totalSets,
                     isSynced = false
                 )
