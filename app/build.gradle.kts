@@ -128,6 +128,9 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
 
+    // Google Play Core In-App Updates
+    implementation(libs.play.app.update)
+
     // Kotlinx Serialization & Coroutines
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.core)

@@ -64,11 +64,73 @@ class AppUpdateManager @Inject constructor(
     fun startDownload(info: AppUpdateInfo) {
         lastUpdateInfo = info
         scope.launch {
+            // Attempt fast delta patch download & reconstruction if available
+            if (info.isDeltaPatchAvailable) {
+                val baseApk = ApkDeltaPatcher.getInstalledBaseApk(context)
+                val patchUrl = info.patchDownloadUrl
+                val patchName = info.patchFileName ?: "GymFlow-${info.latestVersion}.patch"
+
+                if (baseApk != null && patchUrl != null) {
+                    try {
+                        _updateState.value = AppUpdateState.Downloading(
+                            info = info,
+                            progress = 0f,
+                            downloadedBytes = 0L,
+                            totalBytes = info.patchSizeBytes,
+                            isDeltaPatch = true
+                        )
+
+                        val patchFile = downloadApk(patchUrl, patchName) { progress, downloaded, total ->
+                            _updateState.value = AppUpdateState.Downloading(
+                                info = info,
+                                progress = progress,
+                                downloadedBytes = downloaded,
+                                totalBytes = total,
+                                isDeltaPatch = true
+                            )
+                        }
+
+                        _updateState.value = AppUpdateState.Patching(info = info, progress = 0.5f)
+
+                        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                            ?: context.cacheDir
+                        val targetApk = File(downloadDir, info.fileName)
+
+                        val patchResult = ApkDeltaPatcher.applyPatch(
+                            sourceApkFile = baseApk,
+                            patchFile = patchFile,
+                            targetApkFile = targetApk,
+                            expectedSha256 = info.targetApkSha256
+                        ) { patchProgress ->
+                            _updateState.value = AppUpdateState.Patching(info = info, progress = patchProgress)
+                        }
+
+                        if (patchResult.isSuccess) {
+                            val readyApk = patchResult.getOrThrow()
+                            val authority = "${context.packageName}.fileprovider"
+                            val apkUri = androidx.core.content.FileProvider.getUriForFile(context, authority, readyApk)
+
+                            _updateState.value = AppUpdateState.ReadyToInstall(
+                                info = info,
+                                apkUri = apkUri,
+                                apkFile = readyApk
+                            )
+                            return@launch
+                        }
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        // Seamlessly fall through to full APK download
+                    }
+                }
+            }
+
+            // Standard full APK download (fallback or baseline)
             _updateState.value = AppUpdateState.Downloading(
                 info = info,
                 progress = 0f,
                 downloadedBytes = 0L,
-                totalBytes = info.fileSizeBytes
+                totalBytes = info.fileSizeBytes,
+                isDeltaPatch = false
             )
 
             try {
@@ -77,7 +139,8 @@ class AppUpdateManager @Inject constructor(
                         info = info,
                         progress = progress,
                         downloadedBytes = downloaded,
-                        totalBytes = total
+                        totalBytes = total,
+                        isDeltaPatch = false
                     )
                 }
 

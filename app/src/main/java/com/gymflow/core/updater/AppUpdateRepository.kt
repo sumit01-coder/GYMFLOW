@@ -104,15 +104,32 @@ class AppUpdateRepository @Inject constructor(
                 val fileName = apkAsset.name.ifEmpty { "GymFlow-$remoteTag.apk" }
                 val fileSizeBytes = apkAsset.size
 
+                val cleanCurrent = currentVersion.removePrefix("v").removePrefix("V").trim()
+                val cleanRemote = remoteTag.removePrefix("v").removePrefix("V").trim()
+
+                // Look for matching delta patch asset (e.g. GymFlow-1.0.20-to-1.0.21.patch or *.patch)
+                val patchAsset = release.assets.firstOrNull { asset ->
+                    asset.name.endsWith(".patch", ignoreCase = true) &&
+                            (asset.name.contains(cleanCurrent) || release.assets.count { it.name.endsWith(".patch", ignoreCase = true) } == 1)
+                }
+
+                // Extract expected SHA-256 if published in release notes
+                val shaRegex = Regex("""(?i)\b([a-f0-9]{64})\b""")
+                val targetSha256 = release.body?.let { body -> shaRegex.find(body)?.value }
+
                 val info = AppUpdateInfo(
                     currentVersion = currentVersion,
-                    latestVersion = remoteTag.removePrefix("v").removePrefix("V"),
+                    latestVersion = cleanRemote,
                     releaseTitle = release.name ?: "GymFlow $remoteTag",
                     changelog = release.body ?: "Performance improvements, UI refinements, and stability fixes.",
                     downloadUrl = downloadUrl,
                     fileName = fileName,
                     fileSizeBytes = fileSizeBytes,
-                    releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases"
+                    releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases",
+                    patchDownloadUrl = patchAsset?.downloadUrl?.ifEmpty { null },
+                    patchFileName = patchAsset?.name?.ifEmpty { null },
+                    patchSizeBytes = patchAsset?.size ?: 0L,
+                    targetApkSha256 = targetSha256
                 )
                 cachedUpdateInfo = info
                 lastCheckTimestamp = now

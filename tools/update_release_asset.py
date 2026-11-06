@@ -57,3 +57,4 @@ upload_req = urllib.request.Request(
 with urllib.request.urlopen(upload_req) as upload_resp:
     asset_data = json.loads(upload_resp.read().decode('utf-8'))
     print(f"Uploaded signed asset successfully: {asset_data['name']} URL: {asset_data['browser_download_url']}")
+

@@ -679,6 +679,14 @@ class FakeWeightDao : WeightDao {
         hydrationFlow.value = hydrationLogs.values.toList()
     }
 
+    override suspend fun clearTodayHydrationLogs(memberId: String, startOfDayMs: Long) {
+        val toRemove = hydrationLogs.values.filter {
+            (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs
+        }.map { it.id }
+        toRemove.forEach { hydrationLogs.remove(it) }
+        hydrationFlow.value = hydrationLogs.values.toList()
+    }
+
     override suspend fun markHydrationLogSynced(id: String, synced: Boolean) {
         hydrationLogs[id]?.let {
             hydrationLogs[id] = it.copy(isSynced = synced)

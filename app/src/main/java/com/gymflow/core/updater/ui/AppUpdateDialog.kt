@@ -113,7 +113,15 @@ fun AppUpdateDialog(
                         info = state.info,
                         progress = state.progress,
                         downloadedBytes = state.downloadedBytes,
-                        totalBytes = state.totalBytes
+                        totalBytes = state.totalBytes,
+                        isDeltaPatch = state.isDeltaPatch
+                    )
+                }
+
+                is AppUpdateState.Patching -> {
+                    PatchingContent(
+                        info = state.info,
+                        progress = state.progress
                     )
                 }
 
@@ -338,7 +346,8 @@ private fun DownloadingContent(
     info: AppUpdateInfo,
     progress: Float,
     downloadedBytes: Long,
-    totalBytes: Long
+    totalBytes: Long,
+    isDeltaPatch: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -357,15 +366,33 @@ private fun DownloadingContent(
         ) {
             CircularProgressIndicator(
                 progress = { progress },
-                color = Color(0xFF22C55E),
+                color = if (isDeltaPatch) Color(0xFF38BDF8) else Color(0xFF22C55E),
                 trackColor = Color(0xFF272735),
                 strokeWidth = 3.dp,
                 modifier = Modifier.size(44.dp)
             )
         }
 
+        if (isDeltaPatch) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFF0369A1).copy(alpha = 0.2f))
+                    .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f), RoundedCornerShape(50))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = "⚡ FAST DELTA UPDATE",
+                    color = Color(0xFF38BDF8),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp
+                )
+            }
+        }
+
         Text(
-            text = "Downloading v${info.latestVersion}...",
+            text = if (isDeltaPatch) "Downloading Update Patch..." else "Downloading v${info.latestVersion}...",
             color = Color.White,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
@@ -373,7 +400,7 @@ private fun DownloadingContent(
 
         LinearProgressIndicator(
             progress = { progress },
-            color = Color(0xFF22C55E),
+            color = if (isDeltaPatch) Color(0xFF38BDF8) else Color(0xFF22C55E),
             trackColor = Color(0xFF1E1E28),
             modifier = Modifier
                 .fillMaxWidth()
@@ -395,8 +422,67 @@ private fun DownloadingContent(
         )
 
         Text(
-            text = "The system installer will launch automatically once the download completes.",
+            text = if (isDeltaPatch) {
+                "Only downloading changes. Binary delta patching reduces download size by ~85%."
+            } else {
+                "The system installer will launch automatically once the download completes."
+            },
             color = Color(0xFF64748B),
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun PatchingContent(
+    info: AppUpdateInfo,
+    progress: Float
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF181822))
+                .border(1.dp, Color(0xFF272735), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                progress = { progress },
+                color = Color(0xFF38BDF8),
+                trackColor = Color(0xFF272735),
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(44.dp)
+            )
+        }
+
+        Text(
+            text = "Applying Delta Patch...",
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        LinearProgressIndicator(
+            progress = { progress },
+            color = Color(0xFF38BDF8),
+            trackColor = Color(0xFF1E1E28),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+        )
+
+        Text(
+            text = "Reconstructing v${info.latestVersion} APK from local base app...",
+            color = Color(0xFF94A3B8),
             fontSize = 12.sp,
             textAlign = TextAlign.Center
         )
