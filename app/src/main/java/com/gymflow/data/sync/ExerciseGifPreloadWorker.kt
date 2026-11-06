@@ -20,6 +20,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 class ExerciseGifPreloadWorker(
@@ -64,34 +67,50 @@ class ExerciseGifPreloadWorker(
             val exerciseDao = entryPoint.exerciseDao()
             val imageLoader = Coil.imageLoader(applicationContext)
 
-            // 1. Priority 1: Preload all 43 Core Workout routine exercise GIFs
-            for ((_, gid) in ExerciseVisuals.EXERCISE_GIF_IDS) {
-                val url = ExerciseVisuals.BASE_GIF_URL + "$gid.gif"
-                try {
-                    val req = ImageRequest.Builder(applicationContext)
-                        .data(url)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .build()
-                    imageLoader.execute(req)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed preloading core GIF: $url - ${e.message}")
+            // 1. Priority 1: Concurrently preload all 43 Core Workout routine exercise GIFs in parallel batches of 4
+            val coreUrls = ExerciseVisuals.EXERCISE_GIF_IDS.values.distinct().map { gid ->
+                ExerciseVisuals.BASE_GIF_URL + "$gid.gif"
+            }
+
+            coroutineScope {
+                coreUrls.chunked(4).forEach { batch ->
+                    batch.map { url ->
+                        async {
+                            try {
+                                val req = ImageRequest.Builder(applicationContext)
+                                    .data(url)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .build()
+                                imageLoader.execute(req)
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed preloading core GIF: $url - ${e.message}")
+                            }
+                        }
+                    }.awaitAll()
                 }
             }
 
-            // 2. Priority 2: Preload catalog exercises with stored gifUrls
+            // 2. Priority 2: Preload catalog exercises with stored gifUrls in parallel batches of 4
             val exercises = exerciseDao.getExercisesWithGifs()
-            for (ex in exercises) {
-                val url = ex.gifUrl ?: continue
-                try {
-                    val req = ImageRequest.Builder(applicationContext)
-                        .data(url)
-                        .diskCachePolicy(CachePolicy.ENABLED)
-                        .memoryCachePolicy(CachePolicy.ENABLED)
-                        .build()
-                    imageLoader.execute(req)
-                } catch (_: Exception) {
-                    // Non-fatal, continue preloading remaining catalog GIFs
+            val catalogUrls = exercises.mapNotNull { it.gifUrl }.distinct()
+
+            coroutineScope {
+                catalogUrls.chunked(4).forEach { batch ->
+                    batch.map { url ->
+                        async {
+                            try {
+                                val req = ImageRequest.Builder(applicationContext)
+                                    .data(url)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .build()
+                                imageLoader.execute(req)
+                            } catch (_: Exception) {
+                                // Non-fatal, continue preloading remaining catalog GIFs
+                            }
+                        }
+                    }.awaitAll()
                 }
             }
 

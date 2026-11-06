@@ -103,7 +103,7 @@ class ExerciseDetailsViewModel @Inject constructor(
             videoTitle = details.videoTitle,
             mediaUrl = photoUrl,
             gifUrl = gifUrl,
-            isPlayingGif = !gifUrl.isNullOrBlank(),
+            isPlayingGif = false, // Start on static photo so user can tap "VIEW GIF" for instant animated demo
             selectedTab = ExerciseTab.INSTRUCTIONS,
             instructions = details.instructions,
             primaryMuscle = details.primaryMuscle,

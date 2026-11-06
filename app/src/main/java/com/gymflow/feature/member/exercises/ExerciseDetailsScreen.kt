@@ -1,5 +1,7 @@
 package com.gymflow.feature.member.exercises
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,6 +34,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -49,11 +53,13 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.Coil
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.request.SuccessResult
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.theme.GymFlowBlack
@@ -157,15 +163,42 @@ fun ExerciseDetailsContent(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Hero Media Container (Demonstration Animated GIF & HD Photo)
+            // Hero Media Container (Instant Animated GIF & Crisp HD Photo Dual-Layer)
+            val context = LocalContext.current
             val haptic = LocalHapticFeedback.current
-            var isMediaLoading by remember { mutableStateOf(false) }
             val isGifActive = uiState.isPlayingGif && !uiState.gifUrl.isNullOrBlank()
-            val demonstrationUrl = if (isGifActive) {
-                uiState.gifUrl
-            } else {
-                uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
+            var isGifLoaded by remember { mutableStateOf(false) }
+            var isGifLoading by remember { mutableStateOf(false) }
+
+            // Screen-level high-priority eager background preload as soon as screen opens
+            LaunchedEffect(uiState.gifUrl) {
+                val url = uiState.gifUrl
+                if (!url.isNullOrBlank()) {
+                    isGifLoading = true
+                    try {
+                        val req = ImageRequest.Builder(context)
+                            .data(url)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build()
+                        val result = Coil.imageLoader(context).execute(req)
+                        if (result is SuccessResult) {
+                            isGifLoaded = true
+                        }
+                    } catch (_: Exception) {
+                    } finally {
+                        isGifLoading = false
+                    }
+                }
             }
+
+            val gifAlpha by animateFloatAsState(
+                targetValue = if (isGifActive) 1f else 0f,
+                animationSpec = tween(durationMillis = 200),
+                label = "gifTransitionAlpha"
+            )
+
+            val photoUrl = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
 
             Box(
                 modifier = Modifier
@@ -176,65 +209,45 @@ fun ExerciseDetailsContent(
                     .border(1.dp, GymFlowBorder, GymFlowShapesTokens.CardMain),
                 contentAlignment = Alignment.Center
             ) {
-                if (!demonstrationUrl.isNullOrBlank()) {
-                    val fallbackPhoto = uiState.mediaUrl ?: ExerciseVisuals.getImageUrl(uiState.exerciseId)
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(demonstrationUrl)
-                            .crossfade(150)
-                            .diskCachePolicy(CachePolicy.ENABLED)
-                            .memoryCachePolicy(CachePolicy.ENABLED)
-                            .build(),
-                        contentDescription = uiState.exerciseName,
-                        contentScale = ContentScale.Fit,
-                        onLoading = { isMediaLoading = true },
-                        onSuccess = { isMediaLoading = false },
-                        onError = { isMediaLoading = false },
-                        placeholder = rememberAsyncImagePainter(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(fallbackPhoto)
+                if (!photoUrl.isNullOrBlank() || !uiState.gifUrl.isNullOrBlank()) {
+                    // Layer 1: Base HD Static Photo (Persistent, never flashes or unloads)
+                    if (!photoUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(photoUrl)
                                 .crossfade(true)
                                 .diskCachePolicy(CachePolicy.ENABLED)
                                 .memoryCachePolicy(CachePolicy.ENABLED)
-                                .build()
-                        ),
-                        error = rememberAsyncImagePainter(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(fallbackPhoto)
-                                .crossfade(true)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .build()
-                        ),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(GymFlowShapesTokens.CardMain)
-                    )
-
-                    // If actively streaming/loading the GIF, show an immediate responsive feedback pill
-                    if (isGifActive && isMediaLoading) {
-                        Box(
+                                .build(),
+                            contentDescription = uiState.exerciseName,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Color.Black.copy(alpha = 0.65f))
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                androidx.compose.material3.CircularProgressIndicator(
-                                    modifier = Modifier.size(14.dp),
-                                    color = GymFlowWhite,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Loading Movement Loop...",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = GymFlowWhite
-                                )
-                            }
-                        }
+                                .fillMaxSize()
+                                .clip(GymFlowShapesTokens.CardMain)
+                        )
+                    }
+
+                    // Layer 2: Live Animated GIF Loop (Crossfades seamlessly over photo)
+                    if (!uiState.gifUrl.isNullOrBlank() && (isGifActive || gifAlpha > 0f)) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(uiState.gifUrl)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
+                            contentDescription = "${uiState.exerciseName} Live Demonstration Loop",
+                            contentScale = ContentScale.Fit,
+                            onLoading = { isGifLoading = true },
+                            onSuccess = {
+                                isGifLoaded = true
+                                isGifLoading = false
+                            },
+                            onError = { isGifLoading = false },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(GymFlowShapesTokens.CardMain)
+                                .graphicsLayer { alpha = gifAlpha }
+                        )
                     }
 
                     // Scrim gradient at the bottom for readability
@@ -307,7 +320,7 @@ fun ExerciseDetailsContent(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (isGifActive && isMediaLoading) {
+                                if (isGifActive && isGifLoading && !isGifLoaded) {
                                     androidx.compose.material3.CircularProgressIndicator(
                                         modifier = Modifier.size(10.dp),
                                         strokeWidth = 1.5.dp,
