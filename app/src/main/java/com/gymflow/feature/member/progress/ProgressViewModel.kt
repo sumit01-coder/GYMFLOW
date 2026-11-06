@@ -3,6 +3,7 @@ package com.gymflow.feature.member.progress
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.SetLogEntity
+import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.database.WorkoutSessionWithSets
 import com.gymflow.core.security.TokenManager
@@ -58,14 +59,20 @@ data class ProgressUiState(
     val weightProgressPoints: List<ProgressChartPoint> = emptyList(),
     val minY: Float = 0f,
     val maxY: Float = 100f,
-    val personalRecords: List<PersonalRecordItem> = emptyList()
+    val personalRecords: List<PersonalRecordItem> = emptyList(),
+    // ── user profile stats ──
+    val userAge: Int = 0,
+    val userHeightCm: Int = 0,
+    val userGoal: String = "",
+    val userGender: String = ""
 )
 
 @HiltViewModel
 class ProgressViewModel @Inject constructor(
     private val workoutSessionDao: WorkoutSessionDao,
     private val weightRepository: WeightRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val userDao: UserDao
 ) : ViewModel() {
 
     private val _selectedTab = MutableStateFlow(TimeRangeTab.THIRTY_DAYS)
@@ -83,9 +90,15 @@ class ProgressViewModel @Inject constructor(
             combine(
                 _selectedTab,
                 workoutSessionDao.getAllSessionsWithSets(userId),
-                weightRepository.getWeightHistory(userId)
-            ) { tab, sessionsWithSets, weightLogs ->
-                buildUiState(tab, sessionsWithSets, weightLogs)
+                weightRepository.getWeightHistory(userId),
+                userDao.getUserFlow(userId)
+            ) { tab, sessionsWithSets, weightLogs, userEntity ->
+                buildUiState(tab, sessionsWithSets, weightLogs,
+                    userAge = userEntity?.age ?: 0,
+                    userHeightCm = userEntity?.heightCm?.toInt() ?: 0,
+                    userGoal = userEntity?.fitnessGoal ?: "",
+                    userGender = tokenManager.getUserGenderSync()
+                )
             }.collect { newState ->
                 _uiState.value = newState
             }
@@ -99,7 +112,11 @@ class ProgressViewModel @Inject constructor(
     private fun buildUiState(
         tab: TimeRangeTab,
         sessionsWithSets: List<WorkoutSessionWithSets>,
-        weightLogs: List<WeightLog>
+        weightLogs: List<WeightLog>,
+        userAge: Int = 0,
+        userHeightCm: Int = 0,
+        userGoal: String = "",
+        userGender: String = ""
     ): ProgressUiState {
         // Filter completed sessions
         val completedSessions = sessionsWithSets.filter { it.session.isCompleted || it.session.endTimeEpochMs != null }
@@ -156,7 +173,11 @@ class ProgressViewModel @Inject constructor(
             weightProgressPoints = chartPoints,
             minY = minY,
             maxY = maxY,
-            personalRecords = personalRecords
+            personalRecords = personalRecords,
+            userAge = userAge,
+            userHeightCm = userHeightCm,
+            userGoal = userGoal,
+            userGender = userGender
         )
     }
 

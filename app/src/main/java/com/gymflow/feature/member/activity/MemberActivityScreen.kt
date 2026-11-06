@@ -28,12 +28,24 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -204,6 +216,15 @@ fun MemberActivityScreen(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            // Date Filter Bar
+            WorkoutHistoryFilterBar(
+                selectedFilter = state.selectedFilter,
+                onFilterSelected = { viewModel.setHistoryFilter(it) },
+                onCustomRange = { start, end -> viewModel.setCustomRange(start, end) }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (state.workoutHistory.isEmpty()) {
                 // Empty state card when user has no completed sessions yet
@@ -436,6 +457,82 @@ private fun ActivityHubCard(
                     tint = GymFlowTheme.colors.textTertiary
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun WorkoutHistoryFilterBar(
+    selectedFilter: HistoryFilter,
+    onFilterSelected: (HistoryFilter) -> Unit,
+    onCustomRange: (Long, Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDateRangePickerState()
+
+    LazyRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(HistoryFilter.values().toList()) { filter ->
+            val isSelected = selectedFilter == filter
+            val isCustom = filter == HistoryFilter.CUSTOM
+
+            FilterChip(
+                selected = isSelected,
+                onClick = {
+                    if (isCustom) {
+                        showDatePicker = true
+                    } else {
+                        onFilterSelected(filter)
+                    }
+                },
+                label = {
+                    Text(
+                        text = filter.label,
+                        fontSize = 12.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = GymFlowBlack,
+                    selectedLabelColor = GymFlowWhite,
+                    containerColor = GymFlowTheme.colors.surfaceVariant,
+                    labelColor = GymFlowTheme.colors.textPrimary
+                ),
+                border = null,
+                shape = RoundedCornerShape(20.dp)
+            )
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val start = datePickerState.selectedStartDateMillis
+                    val end = datePickerState.selectedEndDateMillis
+                    if (start != null && end != null) {
+                        onCustomRange(start, end + 86_400_000L - 1)
+                    }
+                    showDatePicker = false
+                }) {
+                    Text("Apply", color = GymFlowBlack, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel", color = GymFlowTheme.colors.textSecondary)
+                }
+            }
+        ) {
+            DateRangePicker(
+                state = datePickerState,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -80,6 +82,17 @@ fun ProgressAnalyticsScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            // User Profile Stats Bar (Age, Height, Goal, Gender)
+            UserProfileStatsBar(
+                age = if (state.userAge > 0) state.userAge else 25,
+                heightCm = if (state.userHeightCm > 0) state.userHeightCm else 166,
+                goal = state.userGoal.ifBlank { "General Fitness" },
+                gender = state.userGender.ifBlank { "Male" },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Time Range Tabs: 7D, 30D, 3M, 6M, 1Y
             GymFlowSegmentedControl(
                 items = TimeRangeTab.values().map { it.label },
@@ -222,13 +235,26 @@ fun ProgressAnalyticsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Personal Records Unlocked
-            Text(
-                text = "Personal Records (PRs)",
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MemberTextPrimary
-            )
+            // Personal Records Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Personal Records (PRs)",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MemberTextPrimary
+                )
+                Text(
+                    text = "ESTIMATED 1RM",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MemberTextTertiary,
+                    letterSpacing = 0.6.sp
+                )
+            }
             Spacer(modifier = Modifier.height(10.dp))
 
             state.personalRecords.forEach { pr ->
@@ -243,32 +269,50 @@ fun ProgressAnalyticsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 12.dp)
+                        ) {
                             Text(
                                 text = pr.exerciseName,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MemberTextPrimary
+                                color = MemberTextPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Best: ${pr.bestSet} · ${pr.achievedDate}",
                                 fontSize = 12.sp,
-                                color = MemberTextSecondary
+                                color = MemberTextSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        Column(horizontalAlignment = Alignment.End) {
+                        Column(
+                            horizontalAlignment = Alignment.End,
+                            modifier = Modifier.widthIn(min = 76.dp)
+                        ) {
+                            val oneRmDisplay = if (pr.oneRepMaxKg % 1f == 0f) {
+                                "${pr.oneRepMaxKg.toInt()} kg"
+                            } else {
+                                "${pr.oneRepMaxKg} kg"
+                            }
                             Text(
-                                text = "${pr.oneRepMaxKg} kg",
+                                text = oneRmDisplay,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MemberTextPrimary
+                                color = MemberTextPrimary,
+                                maxLines = 1
                             )
                             Text(
-                                text = "Est. 1RM",
+                                text = "1RM Peak",
                                 fontSize = 11.sp,
-                                color = MemberTextTertiary
+                                color = MemberTextTertiary,
+                                maxLines = 1
                             )
                         }
                     }
@@ -467,6 +511,65 @@ fun ProgressWeightChart(
                         pt.x,
                         height - 4f,
                         paint
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UserProfileStatsBar(
+    age: Int,
+    heightCm: Int,
+    goal: String,
+    gender: String,
+    modifier: Modifier = Modifier
+) {
+    GymFlowCard(
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = 14.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val items = listOf(
+                "AGE" to age.toString(),
+                "HEIGHT" to "$heightCm cm",
+                "GOAL" to goal,
+                "GENDER" to gender
+            )
+
+            items.forEachIndexed { index, (label, value) ->
+                if (index > 0) {
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(28.dp)
+                            .background(Color(0xFFE5E7EB))
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MemberTextTertiary,
+                        letterSpacing = 0.8.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = value,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MemberTextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
