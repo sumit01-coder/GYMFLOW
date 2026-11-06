@@ -11,6 +11,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.telemetry.GymFlowBugReporter
 import com.gymflow.data.sync.ExerciseGifPreloadWorker
 import com.gymflow.feature.member.exercises.ExerciseVisuals
@@ -18,9 +19,13 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltAndroidApp
 class GymFlowApplication : Application(), ImageLoaderFactory {
+
+    @Inject
+    lateinit var firestoreConnectionManager: FirestoreConnectionManager
 
     override fun onCreate() {
         super.onCreate()

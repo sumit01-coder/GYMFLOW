@@ -36,6 +36,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId ORDER BY startTimeEpochMs DESC")
     fun getRecentSessions(memberId: String): Flow<List<WorkoutSessionEntity>>
 
+    @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId ORDER BY startTimeEpochMs DESC")
+    suspend fun getRecentSessionsSync(memberId: String): List<WorkoutSessionEntity>
+
     @Query("SELECT * FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0 ORDER BY startTimeEpochMs DESC LIMIT 1")
     suspend fun getActiveSession(memberId: String): WorkoutSessionEntity?
 

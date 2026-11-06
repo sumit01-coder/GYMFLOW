@@ -56,6 +56,7 @@ import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.components.MetricCard
+import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowBorder
 import com.gymflow.core.theme.GymFlowGreen
@@ -174,6 +175,38 @@ fun MemberHomeContent(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Cloud Connection Status Pill
+                    val (statusText, statusBg, statusColor) = when (uiState.connectionStatus) {
+                        FirestoreConnectionStatus.CONNECTED -> Triple("Cloud Live", Color(0xFF10B981).copy(alpha = 0.15f), Color(0xFF10B981))
+                        FirestoreConnectionStatus.SYNCING -> Triple("Syncing...", Color(0xFFF59E0B).copy(alpha = 0.15f), Color(0xFFF59E0B))
+                        FirestoreConnectionStatus.OFFLINE -> Triple("Offline", Color.Gray.copy(alpha = 0.15f), Color.Gray)
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(statusBg)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(statusColor, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = statusText,
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = statusColor
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
                     // Notification Icon with Unread Dot
                     Box(
                         modifier = Modifier

@@ -301,6 +301,15 @@ class FirestoreSyncManager @Inject constructor(
             .await()
     }
 
+    suspend fun deleteWeightLog(logId: String) {
+        try {
+            firestore.collection(COLLECTION_WEIGHT_LOGS)
+                .document(logId)
+                .delete()
+                .await()
+        } catch (_: Exception) {}
+    }
+
     // 5. Sync Hydration Logs
     suspend fun saveHydrationLog(log: HydrationLogEntity) {
         val hydrationMap = mapOf(

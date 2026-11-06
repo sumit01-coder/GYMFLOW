@@ -124,6 +124,9 @@ class WeightRepositoryImpl @Inject constructor(
         emit(Resource.Loading)
         try {
             weightDao.deleteWeightLog(id)
+            try {
+                firestoreSyncManager.deleteWeightLog(id)
+            } catch (_: Exception) {}
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error("Failed to delete weight log: ${e.localizedMessage}", e))

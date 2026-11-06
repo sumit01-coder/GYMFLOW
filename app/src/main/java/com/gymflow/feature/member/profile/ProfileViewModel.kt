@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.firebase.FirestoreConnectionManager
+import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.MemberProfile
@@ -50,7 +52,8 @@ data class ProfileUiState(
     val selectedTheme: String = "Light",
     val isLogoutDialogOpen: Boolean = false,
     val gender: String = "Male",
-    val graceDaysRemaining: Int = 7
+    val graceDaysRemaining: Int = 7,
+    val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED
 )
 
 @HiltViewModel
@@ -60,6 +63,7 @@ class ProfileViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val firebaseAuth: FirebaseAuth,
     private val firestoreSyncManager: FirestoreSyncManager,
+    private val firestoreConnectionManager: FirestoreConnectionManager,
     private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager,
     private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager
 ) : ViewModel() {
@@ -93,6 +97,15 @@ class ProfileViewModel @Inject constructor(
         observeUserData()
         refreshVerificationStatus()
         initializeReminderState()
+        observeConnectionStatus()
+    }
+
+    private fun observeConnectionStatus() {
+        viewModelScope.launch {
+            firestoreConnectionManager.connectionStatus.collect { status ->
+                _uiState.update { it.copy(connectionStatus = status) }
+            }
+        }
     }
 
     private fun initializeReminderState() {

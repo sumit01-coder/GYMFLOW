@@ -208,6 +208,17 @@ fun MemberProfileScreen(
                         textColor = Color(0xFF059669)
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                val (connText, connBg, connColor) = when (uiState.connectionStatus) {
+                    com.gymflow.core.firebase.FirestoreConnectionStatus.CONNECTED -> Triple("CLOUD SYNCED", Color(0xFFECFDF5), Color(0xFF059669))
+                    com.gymflow.core.firebase.FirestoreConnectionStatus.SYNCING -> Triple("SYNCING", Color(0xFFFEF3C7), Color(0xFFD97706))
+                    com.gymflow.core.firebase.FirestoreConnectionStatus.OFFLINE -> Triple("OFFLINE CACHE", Color(0xFFF3F4F6), Color(0xFF6B7280))
+                }
+                GymFlowBadge(
+                    text = connText,
+                    backgroundColor = connBg,
+                    textColor = connColor
+                )
             }
 
             if (!uiState.user.isEmailVerified) {

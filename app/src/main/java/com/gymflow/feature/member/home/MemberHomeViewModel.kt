@@ -10,6 +10,8 @@ import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
 import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.firebase.FirestoreConnectionManager
+import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ExerciseSet
@@ -61,7 +63,8 @@ data class MemberHomeUiState(
     val isLoading: Boolean = false,
     val userInitials: String = "GF",
     val isEmailVerified: Boolean = true,
-    val graceDaysRemaining: Int = 7
+    val graceDaysRemaining: Int = 7,
+    val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED
 )
 
 @HiltViewModel
@@ -72,7 +75,8 @@ class MemberHomeViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
     private val planDao: PlanDao,
     private val workoutSessionDao: WorkoutSessionDao,
-    private val firestoreSyncManager: FirestoreSyncManager
+    private val firestoreSyncManager: FirestoreSyncManager,
+    private val firestoreConnectionManager: FirestoreConnectionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberHomeUiState())
@@ -83,6 +87,15 @@ class MemberHomeViewModel @Inject constructor(
         observeCurrentUser()
         observeLatestWeight()
         observeTodayWorkout()
+        observeConnectionStatus()
+    }
+
+    private fun observeConnectionStatus() {
+        viewModelScope.launch {
+            firestoreConnectionManager.connectionStatus.collect { status ->
+                _uiState.update { it.copy(connectionStatus = status) }
+            }
+        }
     }
 
     fun discardActiveSession() {

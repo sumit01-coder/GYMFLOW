@@ -81,6 +81,16 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun refreshPlanFromServer(memberId: String): Flow<Resource<WorkoutPlan>> = flow {
         emit(Resource.Loading)
+        try {
+            firestoreSyncManager.pullAllUserDataFromFirestore(memberId)
+            val updatedPlan = planDao.getActivePlanWithDaysSync(memberId)?.toDomain()
+            if (updatedPlan != null) {
+                emit(Resource.Success(updatedPlan))
+                return@flow
+            }
+        } catch (_: Exception) {}
+
+        // Fallback to API client
         val response = apiClient.getActivePlan(memberId)
         if (response.success && response.data != null) {
             val remotePlan = response.data
@@ -178,6 +188,14 @@ class WorkoutRepositoryImpl @Inject constructor(
                 )
                 workoutSessionDao.upsertSession(completedSession)
 
+                // Direct connection-oriented push to Cloud Firestore
+                val setLogs = workoutSessionDao.getSetLogsSync(sessionId)
+                try {
+                    firestoreSyncManager.saveWorkoutSessionWithSets(completedSession, setLogs)
+                    workoutSessionDao.markSessionSynced(sessionId, true)
+                    setLogs.forEach { log -> workoutSessionDao.markSetLogSynced(log.id, true) }
+                } catch (_: Exception) {}
+
                 val domainSession = completedSession.toDomain()
 
                 // Queue entire session for sync
@@ -222,6 +240,10 @@ class WorkoutRepositoryImpl @Inject constructor(
 
     override fun refreshSessionsFromServer(memberId: String): Flow<Resource<List<WorkoutSession>>> = flow {
         emit(Resource.Loading)
+        try {
+            firestoreSyncManager.pullAllUserDataFromFirestore(memberId)
+        } catch (_: Exception) {}
+
         val response = apiClient.getRecentSessions(memberId)
         if (response.success && response.data != null) {
             val sessions = response.data
@@ -230,7 +252,12 @@ class WorkoutRepositoryImpl @Inject constructor(
             }
             emit(Resource.Success(sessions))
         } else {
-            emit(Resource.Error(response.message ?: "Failed to refresh sessions"))
+            val localSessions = workoutSessionDao.getRecentSessionsSync(memberId).map { it.toDomain() }
+            if (localSessions.isNotEmpty()) {
+                emit(Resource.Success(localSessions))
+            } else {
+                emit(Resource.Error(response.message ?: "Failed to refresh sessions"))
+            }
         }
     }
 }

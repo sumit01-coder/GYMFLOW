@@ -724,4 +724,9 @@ class FakeWeightDao : WeightDao {
 
     override suspend fun getUnsyncedMeasurements(): List<BodyMeasurementEntity> =
         measurements.values.filter { !it.isSynced }
+
+    override suspend fun deleteMeasurement(id: String) {
+        measurements.remove(id)
+        measurementFlow.value = measurements.values.toList()
+    }
 }

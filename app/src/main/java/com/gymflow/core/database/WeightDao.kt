@@ -79,4 +79,7 @@ interface WeightDao {
 
     @Query("SELECT * FROM body_measurements WHERE isSynced = 0")
     suspend fun getUnsyncedMeasurements(): List<BodyMeasurementEntity>
+
+    @Query("DELETE FROM body_measurements WHERE id = :id")
+    suspend fun deleteMeasurement(id: String)
 }
