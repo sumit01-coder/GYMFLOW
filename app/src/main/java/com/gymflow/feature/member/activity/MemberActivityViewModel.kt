@@ -114,6 +114,12 @@ class MemberActivityViewModel @Inject constructor(
         _historyFilter.value = HistoryFilter.CUSTOM
     }
 
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            workoutSessionDao.deleteSession(sessionId)
+        }
+    }
+
     private fun observeActivityData() {
         val memberId = tokenManager.getUserIdSync() ?: "default_member"
 

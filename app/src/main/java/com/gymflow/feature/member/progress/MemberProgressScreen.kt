@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -281,7 +283,12 @@ fun MemberProgressScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
@@ -299,31 +306,40 @@ fun MemberProgressScreen(
 
                                 Spacer(modifier = Modifier.width(12.dp))
 
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = pr.exerciseName,
                                         style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = GymFlowTheme.colors.textPrimary
+                                        color = GymFlowTheme.colors.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "Best: ${pr.bestSet} · ${pr.achievedDate}",
                                         style = GymFlowTheme.typography.Caption,
-                                        color = GymFlowTheme.colors.textSecondary
+                                        color = GymFlowTheme.colors.textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
 
-                            Column(horizontalAlignment = Alignment.End) {
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.widthIn(min = 76.dp)
+                            ) {
                                 Text(
                                     text = "${pr.oneRepMaxKg.toInt()} kg",
                                     style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = GymFlowTheme.colors.textPrimary
+                                    color = GymFlowTheme.colors.textPrimary,
+                                    maxLines = 1
                                 )
                                 Text(
                                     text = "1RM Peak",
                                     style = GymFlowTheme.typography.Caption,
-                                    color = GymFlowTheme.colors.textTertiary
+                                    color = GymFlowTheme.colors.textTertiary,
+                                    maxLines = 1
                                 )
                             }
                         }

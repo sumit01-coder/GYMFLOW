@@ -1,7 +1,9 @@
 package com.gymflow.core.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
@@ -15,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GymFlowCard(
     modifier: Modifier = Modifier,
@@ -24,12 +27,20 @@ fun GymFlowCard(
     borderWidth: Dp = 1.dp,
     contentPadding: Dp = 16.dp,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val clickableModifier = if (onClick != null) {
-        modifier.clickable(onClick = onClick)
-    } else {
-        modifier
+    val clickableModifier = when {
+        onLongClick != null -> {
+            modifier.combinedClickable(
+                onClick = { onClick?.invoke() },
+                onLongClick = onLongClick
+            )
+        }
+        onClick != null -> {
+            modifier.clickable(onClick = onClick)
+        }
+        else -> modifier
     }
 
     Surface(

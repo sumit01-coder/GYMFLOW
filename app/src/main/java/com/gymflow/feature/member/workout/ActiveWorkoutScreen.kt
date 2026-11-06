@@ -214,7 +214,8 @@ fun ActiveWorkoutContent(
                                 text = if (uiState.isPaused) "Resume" else "Pause",
                                 onClick = onTogglePause,
                                 style = GymFlowButtonStyle.OUTLINED,
-                                modifier = Modifier.weight(0.38f),
+                                modifier = Modifier.weight(0.40f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = if (uiState.isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
@@ -228,7 +229,8 @@ fun ActiveWorkoutContent(
                                 text = "Complete Set",
                                 onClick = onCompleteSet,
                                 style = GymFlowButtonStyle.PRIMARY,
-                                modifier = Modifier.weight(0.62f),
+                                modifier = Modifier.weight(0.60f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.Check,

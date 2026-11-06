@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,6 +79,7 @@ fun MemberActivityScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    var sessionToDelete by remember { mutableStateOf<ActivityWorkoutItem?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -303,7 +305,10 @@ fun MemberActivityScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 10.dp),
-                        contentPadding = 14.dp
+                        contentPadding = 14.dp,
+                        onLongClick = {
+                            sessionToDelete = item
+                        }
                     ) {
                         Column {
                             Row(
@@ -382,6 +387,53 @@ fun MemberActivityScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        if (sessionToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { sessionToDelete = null },
+                title = {
+                    Text(
+                        text = "Delete Workout Session?",
+                        style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Are you sure you want to remove \"${sessionToDelete?.title}\" (${sessionToDelete?.timeFormatted}) from your workout history? This cannot be undone.",
+                        style = GymFlowTheme.typography.BodyMedium,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val toDelete = sessionToDelete
+                            sessionToDelete = null
+                            if (toDelete != null) {
+                                viewModel.deleteSession(toDelete.id)
+                            }
+                        }
+                    ) {
+                        Text(
+                            text = "Delete",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFEF4444)
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { sessionToDelete = null }) {
+                        Text(
+                            text = "Cancel",
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                    }
+                },
+                containerColor = GymFlowTheme.colors.surface,
+                shape = RoundedCornerShape(16.dp)
+            )
         }
     }
 }

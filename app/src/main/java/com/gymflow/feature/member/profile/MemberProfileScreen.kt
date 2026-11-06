@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -262,90 +263,140 @@ fun MemberProfileScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Personal Info Summary (3 cols: Age, Height, Goal)
-            GymFlowCard(modifier = Modifier.fillMaxWidth()) {
+            // Personal Info Summary (4 cols: Age, Height, Goal, Gender)
+            GymFlowCard(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = 12.dp
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
+                            .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { isAgeDialogOpen = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(vertical = 4.dp, horizontal = 2.dp)
                     ) {
                         Text(
                             text = "AGE",
-                            style = GymFlowTheme.typography.Caption,
-                            color = GymFlowTheme.colors.textSecondary
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = GymFlowTheme.colors.textSecondary,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = if (uiState.profile.age > 0) "${uiState.profile.age}" else "--",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = GymFlowTheme.colors.textPrimary
+                            color = GymFlowTheme.colors.textPrimary,
+                            maxLines = 1
                         )
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(26.dp)
+                            .background(GymFlowTheme.colors.border)
+                    )
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
+                            .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { isHeightDialogOpen = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(vertical = 4.dp, horizontal = 2.dp)
                     ) {
                         Text(
                             text = "HEIGHT",
-                            style = GymFlowTheme.typography.Caption,
-                            color = GymFlowTheme.colors.textSecondary
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = GymFlowTheme.colors.textSecondary,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = if (uiState.profile.heightCm > 0f) "${uiState.profile.heightCm.toInt()} cm" else "--",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = GymFlowTheme.colors.textPrimary
+                            color = GymFlowTheme.colors.textPrimary,
+                            maxLines = 1
                         )
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(26.dp)
+                            .background(GymFlowTheme.colors.border)
+                    )
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
+                            .weight(1.1f)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { isGoalDialogOpen = true }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(vertical = 4.dp, horizontal = 2.dp)
                     ) {
                         Text(
                             text = "GOAL",
-                            style = GymFlowTheme.typography.Caption,
-                            color = GymFlowTheme.colors.textSecondary
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = GymFlowTheme.colors.textSecondary,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = uiState.profile.fitnessGoal.ifBlank { "Set Goal" },
-                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = GymFlowTheme.colors.textPrimary
+                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp),
+                            color = GymFlowTheme.colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(26.dp)
+                            .background(GymFlowTheme.colors.border)
+                    )
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
+                            .weight(1f)
                             .clip(RoundedCornerShape(8.dp))
                             .clickable { isGenderDialogOpen = true }
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .padding(vertical = 4.dp, horizontal = 2.dp)
                     ) {
                         Text(
                             text = "GENDER",
-                            style = GymFlowTheme.typography.Caption,
-                            color = GymFlowTheme.colors.textSecondary
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = GymFlowTheme.colors.textSecondary,
+                            maxLines = 1
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = uiState.gender,
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                            color = GymFlowTheme.colors.textPrimary
+                            color = GymFlowTheme.colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

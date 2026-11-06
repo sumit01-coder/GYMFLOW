@@ -49,7 +49,8 @@ fun GymFlowButton(
     leadingIcon: (@Composable () -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
     height: Dp = 52.dp,
-    fullWidth: Boolean = true
+    fullWidth: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp)
 ) {
     val buttonModifier = if (fullWidth) {
         modifier.fillMaxWidth().height(height)
@@ -70,7 +71,7 @@ fun GymFlowButton(
                     disabledContainerColor = GymFlowTheme.colors.border,
                     disabledContentColor = GymFlowTheme.colors.textTertiary
                 ),
-                contentPadding = PaddingValues(horizontal = 24.dp)
+                contentPadding = contentPadding
             ) {
                 ButtonContent(
                     text = text,
@@ -93,7 +94,7 @@ fun GymFlowButton(
                     contentColor = GymFlowTheme.colors.textPrimary,
                     disabledContentColor = GymFlowTheme.colors.textTertiary
                 ),
-                contentPadding = PaddingValues(horizontal = 24.dp)
+                contentPadding = contentPadding
             ) {
                 ButtonContent(
                     text = text,
@@ -116,7 +117,7 @@ fun GymFlowButton(
                     disabledContainerColor = GymFlowTheme.colors.border,
                     disabledContentColor = GymFlowTheme.colors.textTertiary
                 ),
-                contentPadding = PaddingValues(horizontal = 24.dp)
+                contentPadding = contentPadding
             ) {
                 ButtonContent(
                     text = text,
@@ -137,7 +138,7 @@ fun GymFlowButton(
                     containerColor = GymFlowTheme.colors.accentDestructive,
                     contentColor = GymFlowWhite
                 ),
-                contentPadding = PaddingValues(horizontal = 24.dp)
+                contentPadding = contentPadding
             ) {
                 ButtonContent(
                     text = text,
@@ -156,7 +157,8 @@ fun GymFlowButton(
                 shape = GymFlowShapesTokens.ButtonPill,
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = GymFlowTheme.colors.textPrimary
-                )
+                ),
+                contentPadding = contentPadding
             ) {
                 ButtonContent(
                     text = text,
@@ -275,7 +277,9 @@ private fun ButtonContent(
             Text(
                 text = text,
                 style = GymFlowTheme.typography.Button,
-                color = contentColor
+                color = contentColor,
+                maxLines = 1,
+                softWrap = false
             )
             if (trailingIcon != null) {
                 Spacer(modifier = Modifier.width(8.dp))
