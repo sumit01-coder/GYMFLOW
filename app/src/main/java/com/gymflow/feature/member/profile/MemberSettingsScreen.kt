@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -38,7 +39,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,6 +75,7 @@ fun MemberSettingsScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    var showBugReportDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val timePickerDialog = remember(context, state.reminderHour, state.reminderMinute) {
         TimePickerDialog(
@@ -320,6 +324,13 @@ fun MemberSettingsScreen(
                 )
                 HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
                 SettingClickableRow(
+                    icon = Icons.Default.BugReport,
+                    title = "Report a Bug / Diagnostics",
+                    value = "Direct to Firebase",
+                    onClick = { showBugReportDialog = true }
+                )
+                HorizontalDivider(color = MemberCardBorder, thickness = 0.5.dp)
+                SettingClickableRow(
                     icon = Icons.Default.Info,
                     title = "GYMFLOW Version",
                     value = "${com.gymflow.BuildConfig.VERSION_NAME} (Build ${com.gymflow.BuildConfig.VERSION_CODE})"
@@ -392,6 +403,12 @@ fun MemberSettingsScreen(
             },
             containerColor = Color.White,
             shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    if (showBugReportDialog) {
+        BugReportDialog(
+            onDismissRequest = { showBugReportDialog = false }
         )
     }
 }

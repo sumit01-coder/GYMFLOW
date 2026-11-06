@@ -49,42 +49,55 @@ jobs:
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
 
-      - name: Build Debug APK
+      - name: Build Release and Debug APKs
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
           CLEAN_VERSION="${TAG#v}"
           echo "Building GymFlow APK for version: $CLEAN_VERSION (Tag: $TAG)"
-          ./gradlew :app:assembleDebug -PappVersionName="$CLEAN_VERSION" --stacktrace
+          ./gradlew :app:assembleRelease :app:assembleDebug -PappVersionName="$CLEAN_VERSION" --stacktrace
 
-      - name: Rename APK Asset
-        id: rename_apk
+      - name: Prepare Release Assets & Checksums
+        id: prepare_assets
         run: |
           TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
-          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          APK_PATH="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          fi
           TARGET_NAME="GymFlow-${TAG}.apk"
-          TARGET_PATH="app/build/outputs/apk/debug/${TARGET_NAME}"
+          TARGET_PATH="app/build/outputs/apk/release/${TARGET_NAME}"
+          mkdir -p "app/build/outputs/apk/release"
           cp "$APK_PATH" "$TARGET_PATH"
+          
+          # Generate SHA-256 checksum
+          cd "app/build/outputs/apk/release"
+          sha256sum "$TARGET_NAME" > "${TARGET_NAME}.sha256"
+          cd -
+          
           echo "apk_path=$TARGET_PATH" >> $GITHUB_OUTPUT
+          echo "sha256_path=${TARGET_PATH}.sha256" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release and Upload APK
+      - name: Create GitHub Release and Upload Assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ steps.rename_apk.outputs.tag }}"
-          APK_FILE="${{ steps.rename_apk.outputs.apk_path }}"
-          TITLE="${{ github.event.inputs.release_name || format('GymFlow {0}', steps.rename_apk.outputs.tag) }}"
+          TAG="${{ steps.prepare_assets.outputs.tag }}"
+          APK_FILE="${{ steps.prepare_assets.outputs.apk_path }}"
+          SHA_FILE="${{ steps.prepare_assets.outputs.sha256_path }}"
+          TITLE="${{ github.event.inputs.release_name || format('GymFlow {0}', steps.prepare_assets.outputs.tag) }}"
           NOTES="${{ github.event.inputs.release_notes || github.event.head_commit.message }}"
           
           echo "Release Tag: $TAG"
           echo "APK File: $APK_FILE"
+          echo "SHA256 File: $SHA_FILE"
           
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG exists, uploading asset..."
-            gh release upload "$TAG" "$APK_FILE" --clobber
+            echo "Release $TAG exists, uploading assets..."
+            gh release upload "$TAG" "$APK_FILE" "$SHA_FILE" --clobber
           else
-            echo "Creating new release $TAG and uploading asset..."
-            gh release create "$TAG" "$APK_FILE" --title "$TITLE" --notes "$NOTES"
+            echo "Creating new release $TAG and uploading assets..."
+            gh release create "$TAG" "$APK_FILE" "$SHA_FILE" --title "$TITLE" --notes "$NOTES"
           fi
           
           echo "Verifying release assets..."

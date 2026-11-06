@@ -11,6 +11,7 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.gymflow.core.telemetry.GymFlowBugReporter
 import com.gymflow.data.sync.ExerciseGifPreloadWorker
 import com.gymflow.feature.member.exercises.ExerciseVisuals
 import dagger.hilt.android.HiltAndroidApp
@@ -23,6 +24,9 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        // 0. Initialize enterprise bug & crash telemetry with Firebase Firestore
+        GymFlowBugReporter.initialize(this)
+
         // 1. Enqueue background WorkManager task to pre-download and cache exercise catalog GIFs
         ExerciseGifPreloadWorker.enqueue(this)
 

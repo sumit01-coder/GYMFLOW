@@ -3,6 +3,8 @@ package com.gymflow.core.updater
 import android.content.Context
 import android.os.Environment
 import com.gymflow.BuildConfig
+import com.gymflow.core.telemetry.BugCategory
+import com.gymflow.core.telemetry.GymFlowBugReporter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -116,9 +118,22 @@ class AppUpdateManager @Inject constructor(
                                 apkFile = readyApk
                             )
                             return@launch
+                        } else {
+                            GymFlowBugReporter.reportBug(
+                                category = BugCategory.DELTA_PATCH,
+                                title = "Delta Patch Reconstruction Failed",
+                                error = patchResult.exceptionOrNull(),
+                                metadata = mapOf("patchName" to patchName, "targetVersion" to info.latestVersion)
+                            )
                         }
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
+                        GymFlowBugReporter.reportBug(
+                            category = BugCategory.DELTA_PATCH,
+                            title = "Delta Patch Fetch Error: ${e.message}",
+                            error = e,
+                            metadata = mapOf("targetVersion" to info.latestVersion)
+                        )
                         // Seamlessly fall through to full APK download
                     }
                 }
@@ -154,6 +169,11 @@ class AppUpdateManager @Inject constructor(
                 )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
+                GymFlowBugReporter.reportUpdateError(
+                    title = "Update APK Download Failed: ${e.message}",
+                    error = e,
+                    metadata = mapOf("downloadUrl" to info.downloadUrl, "version" to info.latestVersion)
+                )
                 _updateState.value = AppUpdateState.Error(
                     e.message ?: "Download could not be completed. Please tap Retry."
                 )
@@ -163,7 +183,34 @@ class AppUpdateManager @Inject constructor(
 
     fun installUpdate(apkFile: File) {
         if (!apkFile.exists() || apkFile.length() < 1000000L) {
-            _updateState.value = AppUpdateState.Error("Downloaded update file is missing or corrupted. Please retry download.")
+            val err = "Downloaded update file is missing or corrupted (${apkFile.length()} bytes). Please retry download."
+            GymFlowBugReporter.reportUpdateError(
+                title = "Corrupted Update File",
+                error = IllegalStateException(err),
+                targetApk = apkFile
+            )
+            _updateState.value = AppUpdateState.Error(err)
+            return
+        }
+
+        // 1. Verify Cryptographic Signature & Version Compatibility before triggering installer
+        val compat = PackageSignatureVerifier.verifyApkCompatibility(context, apkFile)
+        if (!compat.isCompatible) {
+            val errorMsg = compat.errorMessage ?: "APK signature or version is incompatible with currently installed app."
+            GymFlowBugReporter.reportUpdateError(
+                title = "Incompatible Update APK Blocked Before Install",
+                error = IllegalStateException(errorMsg),
+                targetApk = apkFile,
+                metadata = mapOf(
+                    "installedSignature" to (compat.installedSignatureSha256 ?: "none"),
+                    "targetSignature" to (compat.targetSignatureSha256 ?: "none"),
+                    "installedVersionCode" to compat.installedVersionCode,
+                    "targetVersionCode" to compat.targetVersionCode
+                )
+            )
+            _updateState.value = AppUpdateState.Error(
+                "$errorMsg\n\nIf you have a development build installed from before the release keystore was unified, please uninstall it once so all future updates install seamlessly."
+            )
             return
         }
 
@@ -174,6 +221,11 @@ class AppUpdateManager @Inject constructor(
 
         val result = AppInstallHelper.installApk(context, apkFile)
         result.onFailure {
+            GymFlowBugReporter.reportUpdateError(
+                title = "PackageInstaller Launch Failed: ${it.message}",
+                error = it,
+                targetApk = apkFile
+            )
             _updateState.value = AppUpdateState.Error("Installation could not be started: ${it.message}")
         }
     }
