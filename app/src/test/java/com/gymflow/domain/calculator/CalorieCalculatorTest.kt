@@ -106,4 +106,68 @@ class CalorieCalculatorTest {
     @Test
     fun estimate1Rm_outOfRange_returnsNull() =
         assertNull(CalorieCalculator.estimate1Rm(100f, 15))
+
+    @Test
+    fun userProfile_exactScenario_chestPressAndBicepsCurl() {
+        // 1. User profile parameters from screenshot: Height 166 cm, Male
+        val bodyWeightKg = CalorieCalculator.resolveBodyWeightKg(null, 166, Gender.MALE)
+        assertEquals(60.6f, bodyWeightKg, 0.1f)
+
+        // 2. PR history from screenshot: Chest Press 28 kg, Biceps Curl 6 kg
+        val prHistory = mapOf(
+            "Chest Press" to 28f,
+            "Barbell Biceps Curl With Arm Blaster" to 6f
+        )
+
+        // 3. User logged workout:
+        // Chest Press: 20 kg x 12 reps -> 20 / 28 = 71.4% (MODERATE: MET 5.0)
+        // Biceps Curl: 5 kg x 10 reps -> 5 / 6 = 83.3% (VIGOROUS: MET 6.0)
+        val sets = listOf(
+            SetInput("Chest Press", 12, 20f),
+            SetInput("Chest Press", 12, 20f),
+            SetInput("Chest Press", 12, 20f),
+            SetInput("Barbell Biceps Curl With Arm Blaster", 10, 5f),
+            SetInput("Barbell Biceps Curl With Arm Blaster", 10, 5f),
+            SetInput("Barbell Biceps Curl With Arm Blaster", 10, 5f)
+        )
+
+        // 4. Test with 45 minutes measured session (2700s)
+        val result45Min = CalorieCalculator.estimateSession(
+            sets = sets,
+            bodyWeightKg = bodyWeightKg,
+            sessionSeconds = 45 * 60L,
+            best1RmByExercise = prHistory
+        )
+
+        println("=== TEST 1: User Profile 45-min Session Simulation ===")
+        println("User Body Weight (BMI-22): $bodyWeightKg kg")
+        println("Method: ${result45Min.method}")
+        println("Total Net Calories: ${result45Min.totalKcal} kcal")
+        result45Min.perExercise.forEach { (exercise, kcal) ->
+            println(" -> $exercise: $kcal kcal")
+        }
+
+        // Note: 6 sets estimated active time is ~501s (~8.3 min). The 2.5x guard rail caps the 45-min
+        // session at 1,252s (~20.8 min) to prevent idle pause inflation, yielding ~94 net kcal.
+        assertTrue("45 min workout capped by guard rail should burn between 70 and 200 net kcal", result45Min.totalKcal in 70..200)
+        assertEquals(SessionKcal.Method.MEASURED_DURATION, result45Min.method)
+
+        // 5. Test with estimated duration (no timer, pure set-effort estimate)
+        val resultEstimated = CalorieCalculator.estimateSession(
+            sets = sets,
+            bodyWeightKg = bodyWeightKg,
+            sessionSeconds = null,
+            best1RmByExercise = prHistory
+        )
+
+        println("\n=== TEST 2: Estimated Duration (No Timer) ===")
+        println("Method: ${resultEstimated.method}")
+        println("Total Net Calories: ${resultEstimated.totalKcal} kcal")
+        resultEstimated.perExercise.forEach { (exercise, kcal) ->
+            println(" -> $exercise: $kcal kcal")
+        }
+
+        assertTrue("Estimated duration should produce realistic calories", resultEstimated.totalKcal > 0)
+        assertEquals(SessionKcal.Method.ESTIMATED_DURATION, resultEstimated.method)
+    }
 }
