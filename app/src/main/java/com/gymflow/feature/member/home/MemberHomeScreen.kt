@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
@@ -30,13 +31,18 @@ import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -86,9 +92,16 @@ fun MemberHomeScreen(
         onNavigateToWeight = onNavigateToWeight,
         onNavigateToAchievements = onNavigateToAchievements,
         onStartWorkout = {
-            val firstUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
-            val targetExerciseId = firstUncompleted?.exerciseId ?: uiState.todayExercises.firstOrNull()?.exerciseId ?: "ex_chest_press"
-            onStartWorkout(targetExerciseId)
+            if (uiState.todayExercises.isNotEmpty() || uiState.hasActiveSession) {
+                val firstUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
+                val targetExerciseId = firstUncompleted?.exerciseId ?: uiState.todayExercises.firstOrNull()?.exerciseId ?: "ex_chest_press"
+                onStartWorkout(targetExerciseId)
+            } else {
+                onNavigateToSchedule()
+            }
+        },
+        onDiscardActiveSession = {
+            viewModel.discardActiveSession()
         },
         modifier = modifier
     )
@@ -105,6 +118,7 @@ fun MemberHomeContent(
     onStartWorkout: () -> Unit,
     onNavigateToWeight: () -> Unit = {},
     onNavigateToAchievements: () -> Unit = {},
+    onDiscardActiveSession: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -394,6 +408,8 @@ fun MemberHomeContent(
             val nextUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
             val isAllCompleted = completedCount >= uiState.todayExercises.size && uiState.todayExercises.isNotEmpty()
 
+            var showDiscardDialog by remember { mutableStateOf(false) }
+
             if (uiState.hasActiveSession && !isAllCompleted) {
                 val mins = uiState.activeSessionDurationSeconds / 60
                 val secs = uiState.activeSessionDurationSeconds % 60
@@ -408,7 +424,12 @@ fun MemberHomeContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onStartWorkout() },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -423,19 +444,79 @@ fun MemberHomeContent(
                             color = Color(0xFF92400E)
                         )
                     }
-                    Text(
-                        text = "Tap to Resume",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFB45309)
-                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Resume",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFB45309),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { onStartWorkout() }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Discard",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFDC2626),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { showDiscardDialog = true }
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
+            }
+
+            if (showDiscardDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDiscardDialog = false },
+                    title = {
+                        Text(
+                            text = "Discard Active Workout?",
+                            style = GymFlowTheme.typography.Heading2.copy(fontSize = 18.sp),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "This will clear your in-progress workout session for today. Uncompleted sets will be reset.",
+                            style = GymFlowTheme.typography.BodyMedium,
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDiscardDialog = false
+                                onDiscardActiveSession()
+                            }
+                        ) {
+                            Text(
+                                text = "Discard",
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFEF4444)
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDiscardDialog = false }) {
+                            Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                        }
+                    },
+                    containerColor = GymFlowTheme.colors.surface,
+                    shape = RoundedCornerShape(16.dp)
+                )
             }
 
             val buttonText = when {
                 isAllCompleted -> "Workout Completed ✓"
                 uiState.hasActiveSession -> "Resume Workout: ${nextUncompleted?.exerciseName ?: "Continue"}"
+                uiState.todayExercises.isEmpty() -> "View Workout Schedule"
                 completedCount > 0 -> "Continue Workout: ${nextUncompleted?.exerciseName ?: "Next Exercise"}"
                 else -> "Start Workout"
             }
@@ -445,7 +526,11 @@ fun MemberHomeContent(
                 onClick = onStartWorkout,
                 trailingIcon = {
                     Icon(
-                        imageVector = if (isAllCompleted) Icons.Default.Check else Icons.Default.PlayArrow,
+                        imageVector = when {
+                            isAllCompleted -> Icons.Default.Check
+                            uiState.todayExercises.isEmpty() && !uiState.hasActiveSession -> Icons.Default.DateRange
+                            else -> Icons.Default.PlayArrow
+                        },
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint = GymFlowWhite

@@ -116,7 +116,14 @@ class MemberActivityViewModel @Inject constructor(
 
     fun deleteSession(sessionId: String) {
         viewModelScope.launch {
+            // 1. Delete from local Room SQLite database
+            workoutSessionDao.deleteSetLogsForSession(sessionId)
             workoutSessionDao.deleteSession(sessionId)
+
+            // 2. Delete from Cloud Firestore so it never gets pulled back on page switch
+            try {
+                firestoreSyncManager.deleteWorkoutSession(sessionId)
+            } catch (_: Exception) {}
         }
     }
 

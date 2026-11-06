@@ -272,6 +272,15 @@ class FirestoreSyncManager @Inject constructor(
             .await()
     }
 
+    suspend fun deleteWorkoutSession(sessionId: String) {
+        try {
+            firestore.collection(COLLECTION_SESSIONS)
+                .document(sessionId)
+                .delete()
+                .await()
+        } catch (_: Exception) {}
+    }
+
     // 4. Sync Weight Logs
     suspend fun saveWeightLog(log: WeightLogEntity) {
         val weightMap = mapOf(

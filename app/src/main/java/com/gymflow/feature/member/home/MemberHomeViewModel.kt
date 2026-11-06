@@ -85,6 +85,19 @@ class MemberHomeViewModel @Inject constructor(
         observeTodayWorkout()
     }
 
+    fun discardActiveSession() {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            workoutSessionDao.discardActiveSessions(userId)
+            _uiState.update { current ->
+                current.copy(
+                    hasActiveSession = false,
+                    activeSessionDurationSeconds = 0L
+                )
+            }
+        }
+    }
+
     private fun extractInitials(name: String): String {
         val parts = name.trim().split(" ").filter { it.isNotBlank() }
         return when {
@@ -136,13 +149,18 @@ class MemberHomeViewModel @Inject constructor(
                             val estMinutes = (count * 10).coerceAtLeast(30)
                             val completedCount = todayDay.exercises.count { completedSet.contains(it.exerciseId) }
                             prefetchExerciseVisuals(todayDay.exercises)
+                            val formattedTitle = if (count == 0) {
+                                "${todayDay.title} (0 exercises · Rest / Free Day)"
+                            } else {
+                                "${todayDay.title} ($count exercises · $estMinutes min)"
+                            }
                             _uiState.update { current ->
                                 current.copy(
-                                    todayWorkoutTitle = "${todayDay.title} ($count exercises · $estMinutes min)",
+                                    todayWorkoutTitle = formattedTitle,
                                     todayExercises = todayDay.exercises,
                                     completedExerciseIds = completedSet,
-                                    exercisesProgress = "$completedCount/$count",
-                                    workoutDurationMinutes = "$estMinutes",
+                                    exercisesProgress = if (count == 0) "0/0" else "$completedCount/$count",
+                                    workoutDurationMinutes = if (count == 0) "0" else "$estMinutes",
                                     hasActiveSession = hasActive,
                                     activeSessionDurationSeconds = activeDuration
                                 )

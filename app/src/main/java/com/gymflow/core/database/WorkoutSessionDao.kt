@@ -81,4 +81,10 @@ interface WorkoutSessionDao {
 
     @Query("DELETE FROM workout_sessions WHERE id = :sessionId")
     suspend fun deleteSession(sessionId: String)
+
+    @Query("DELETE FROM set_logs WHERE sessionId = :sessionId")
+    suspend fun deleteSetLogsForSession(sessionId: String)
+
+    @Query("DELETE FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0")
+    suspend fun discardActiveSessions(memberId: String)
 }
