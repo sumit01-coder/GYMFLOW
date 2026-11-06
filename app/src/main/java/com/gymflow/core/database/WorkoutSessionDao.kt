@@ -76,8 +76,11 @@ interface WorkoutSessionDao {
     @Query("UPDATE set_logs SET isSynced = :synced WHERE id = :logId")
     suspend fun markSetLogSynced(logId: String, synced: Boolean = true)
 
-    @Query("SELECT * FROM workout_sessions WHERE isSynced = 0")
+    @Query("SELECT * FROM workout_sessions WHERE isSynced = 0 AND isCompleted = 1")
     suspend fun getUnsyncedSessions(): List<WorkoutSessionEntity>
+
+    @Query("SELECT * FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0")
+    suspend fun getAllActiveSessionsSync(memberId: String): List<WorkoutSessionEntity>
 
     @Query("SELECT * FROM set_logs WHERE isSynced = 0")
     suspend fun getUnsyncedSetLogs(): List<SetLogEntity>
@@ -87,6 +90,9 @@ interface WorkoutSessionDao {
 
     @Query("DELETE FROM set_logs WHERE sessionId = :sessionId")
     suspend fun deleteSetLogsForSession(sessionId: String)
+
+    @Query("DELETE FROM set_logs WHERE sessionId IN (SELECT id FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0)")
+    suspend fun deleteSetLogsForActiveSessions(memberId: String)
 
     @Query("DELETE FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0")
     suspend fun discardActiveSessions(memberId: String)

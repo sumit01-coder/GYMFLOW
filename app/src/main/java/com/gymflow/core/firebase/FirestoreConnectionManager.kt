@@ -265,6 +265,10 @@ class FirestoreConnectionManager @Inject constructor(
 
                             when (change.type) {
                                 DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    val isCompleted = doc.getBoolean("isCompleted") ?: false
+                                    if (!isCompleted) {
+                                        continue
+                                    }
                                     val sessionEntity = WorkoutSessionEntity(
                                         id = sessionId,
                                         memberId = doc.getString("memberId") ?: userId,

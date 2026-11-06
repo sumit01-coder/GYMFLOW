@@ -101,13 +101,33 @@ class MemberHomeViewModel @Inject constructor(
     fun discardActiveSession() {
         viewModelScope.launch {
             val userId = tokenManager.getUserIdSync() ?: "default_member"
+
+            // 1. Capture active session IDs before deletion
+            val activeSessions = workoutSessionDao.getAllActiveSessionsSync(userId)
+
+            // 2. Delete active set logs & active sessions from Room SQLite
+            workoutSessionDao.deleteSetLogsForActiveSessions(userId)
             workoutSessionDao.discardActiveSessions(userId)
+
+            // 3. Update UI state immediately
             _uiState.update { current ->
                 current.copy(
                     hasActiveSession = false,
                     activeSessionDurationSeconds = 0L
                 )
             }
+
+            // 4. Remove session documents from Cloud Firestore
+            for (s in activeSessions) {
+                try {
+                    firestoreSyncManager.deleteWorkoutSession(s.id)
+                } catch (_: Exception) {}
+            }
+
+            // 5. Clean up any lingering incomplete sessions in Cloud Firestore
+            try {
+                firestoreSyncManager.deleteIncompleteSessions(userId)
+            } catch (_: Exception) {}
         }
     }
 

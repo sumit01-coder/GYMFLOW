@@ -281,6 +281,29 @@ class FirestoreSyncManager @Inject constructor(
         } catch (_: Exception) {}
     }
 
+    suspend fun deleteIncompleteSessions(userId: String) {
+        try {
+            val userSessions = firestore.collection(COLLECTION_SESSIONS)
+                .whereEqualTo("memberId", userId)
+                .whereEqualTo("isCompleted", false)
+                .get()
+                .await()
+            for (doc in userSessions.documents) {
+                try { doc.reference.delete().await() } catch (_: Exception) {}
+            }
+            if (userId != "default_member") {
+                val defaultSessions = firestore.collection(COLLECTION_SESSIONS)
+                    .whereEqualTo("memberId", "default_member")
+                    .whereEqualTo("isCompleted", false)
+                    .get()
+                    .await()
+                for (doc in defaultSessions.documents) {
+                    try { doc.reference.delete().await() } catch (_: Exception) {}
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     // 4. Sync Weight Logs
     suspend fun saveWeightLog(log: WeightLogEntity) {
         val weightMap = mapOf(
@@ -386,6 +409,7 @@ class FirestoreSyncManager @Inject constructor(
             // 2. Sync Workout Sessions & Sets
             val unsyncedSessions = workoutSessionDao.getUnsyncedSessions()
             for (session in unsyncedSessions) {
+                if (!session.isCompleted) continue
                 val setLogs = workoutSessionDao.getSetLogsSync(session.id)
                 saveWorkoutSessionWithSets(session, setLogs)
                 workoutSessionDao.markSessionSynced(session.id, true)
@@ -443,6 +467,9 @@ class FirestoreSyncManager @Inject constructor(
                     .await()
 
                 for (doc in sessionsSnapshot.documents) {
+                    val isCompleted = doc.getBoolean("isCompleted") ?: false
+                    if (!isCompleted) continue
+
                     val sessionEntity = WorkoutSessionEntity(
                         id = doc.getString("id") ?: doc.id,
                         memberId = doc.getString("memberId") ?: userId,

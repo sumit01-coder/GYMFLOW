@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
@@ -447,62 +448,108 @@ fun MemberHomeContent(
                 val mins = uiState.activeSessionDurationSeconds / 60
                 val secs = uiState.activeSessionDurationSeconds % 60
                 val timeFormatted = String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFFEF3C7))
-                        .border(1.dp, Color(0xFFF59E0B).copy(alpha = 0.45f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color(0xFFFFFBEB))
+                        .border(1.dp, Color(0xFFFDE68A), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onStartWorkout() },
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFD97706))
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "WORKOUT IN PROGRESS · $timeFormatted",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF92400E)
-                        )
+                                .background(Color(0xFFFEF3C7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFD97706))
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "ACTIVE WORKOUT",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFB45309),
+                                letterSpacing = 0.5.sp
+                            )
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = timeFormatted,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black,
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                        }
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Resume",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFB45309),
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Discard Button Pill
+                        Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { onStartWorkout() }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Discard",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFDC2626),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFFFEE2E2))
                                 .clickable { showDiscardDialog = true }
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Discard",
+                                tint = Color(0xFFDC2626),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Discard",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFDC2626)
+                            )
+                        }
+
+                        // Resume Button Pill
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowBlack)
+                                .clickable { onStartWorkout() }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Resume",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Resume",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             if (showDiscardDialog) {

@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -189,11 +191,13 @@ fun MemberProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+            @OptIn(ExperimentalLayoutApi::class)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 GymFlowBadge(
                     text = "MEMBER · ${uiState.joinedDateFormatted.uppercase()}",
@@ -201,14 +205,12 @@ fun MemberProfileScreen(
                     textColor = GymFlowTheme.colors.textSecondary
                 )
                 if (uiState.user.isEmailVerified) {
-                    Spacer(modifier = Modifier.width(8.dp))
                     GymFlowBadge(
                         text = "VERIFIED",
                         backgroundColor = Color(0xFFECFDF5),
                         textColor = Color(0xFF059669)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
                 val (connText, connBg, connColor) = when (uiState.connectionStatus) {
                     com.gymflow.core.firebase.FirestoreConnectionStatus.CONNECTED -> Triple("CLOUD SYNCED", Color(0xFFECFDF5), Color(0xFF059669))
                     com.gymflow.core.firebase.FirestoreConnectionStatus.SYNCING -> Triple("SYNCING", Color(0xFFFEF3C7), Color(0xFFD97706))

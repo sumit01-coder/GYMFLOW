@@ -66,7 +66,9 @@ fun GymFlowBadge(
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.5.sp
             ),
-            color = finalFg
+            color = finalFg,
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
