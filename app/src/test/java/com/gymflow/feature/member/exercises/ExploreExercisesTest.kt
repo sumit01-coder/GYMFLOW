@@ -1,6 +1,11 @@
 package com.gymflow.feature.member.exercises
 
 import androidx.lifecycle.SavedStateHandle
+import com.gymflow.domain.model.Exercise
+import com.gymflow.domain.repository.ExerciseRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -8,6 +13,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExploreExercisesTest {
+
+    private class FakeExerciseRepository(
+        initialExercises: List<Exercise> = emptyList()
+    ) : ExerciseRepository {
+        private val list = initialExercises.toMutableList()
+        private val flow = MutableStateFlow<List<Exercise>>(list)
+
+        override fun getExercises(): Flow<List<Exercise>> = flow
+        override fun getExercisesByCategory(category: String): Flow<List<Exercise>> =
+            flow.map { l -> if (category.equals("All", true)) l else l.filter { it.category.equals(category, true) } }
+        override fun getExercisesByCategoryAndEquipment(category: String, equipment: String): Flow<List<Exercise>> =
+            flow.map { l -> l.filter { (category.equals("All", true) || it.category.equals(category, true)) && (equipment.equals("All", true) || it.equipment.equals(equipment, true)) } }
+        override fun searchExercises(query: String): Flow<List<Exercise>> =
+            flow.map { l -> l.filter { it.name.contains(query, true) || it.category.contains(query, true) } }
+        override fun getExerciseById(id: String): Flow<Exercise?> =
+            flow.map { l -> l.find { it.id == id } }
+        override suspend fun seedDefaultCatalogIfEmpty() {}
+        override suspend fun syncExercisesWithFirestore() {}
+        override suspend fun saveCustomExercise(exercise: Exercise) {
+            list.add(exercise)
+            flow.value = list.toList()
+        }
+    }
 
     @Test
     fun `exercise catalog contains exercises across all muscle groups`() {
@@ -47,17 +75,25 @@ class ExploreExercisesTest {
     }
 
     @Test
-    fun `stretching catalog contains 17 comprehensive routines`() {
+    fun `stretching catalog contains 73 comprehensive routines with real gifs`() {
         val stretches = StretchingCatalog.stretches
-        assertEquals(17, stretches.size)
+        assertEquals(73, stretches.size)
 
+        var openSourceGifsCount = 0
         for (stretch in stretches) {
             assertTrue(stretch.name.isNotBlank())
             assertTrue(stretch.instructions.isNotEmpty())
             assertTrue(stretch.breathingCue.isNotBlank())
             assertTrue(stretch.coachTip.isNotBlank())
             assertTrue(stretch.recommendedDurationSeconds > 0)
+            if (!stretch.gifUrl.isNullOrBlank()) {
+                assertTrue("GIF URL should be a valid web link", stretch.gifUrl.startsWith("http"))
+                if (stretch.gifUrl.contains("jsdelivr.net")) {
+                    openSourceGifsCount++
+                }
+            }
         }
+        assertTrue("Should contain open-source GIFs from jsDelivr CDN", openSourceGifsCount >= 50)
     }
 
     @Test
@@ -72,8 +108,32 @@ class ExploreExercisesTest {
 
     @Test
     fun `explore exercises viewmodel filters categories and queries correctly`() {
+        val sampleExercises = listOf(
+            Exercise(
+                id = "ex_chest_press",
+                name = "Barbell Bench Press",
+                category = "Chest",
+                muscleGroup = "Pectorals",
+                equipment = "Barbell"
+            ),
+            Exercise(
+                id = "ex_lat_pulldown",
+                name = "Lat Pulldown",
+                category = "Back",
+                muscleGroup = "Lats",
+                equipment = "Cable"
+            )
+        )
+        val fakeRepo = FakeExerciseRepository(sampleExercises)
         val savedStateHandle = SavedStateHandle(mapOf("category" to "CHEST"))
-        val viewModel = ExploreExercisesViewModel(savedStateHandle)
+        val viewModel = ExploreExercisesViewModel(
+            exerciseRepository = fakeRepo,
+            context = null,
+            savedStateHandle = savedStateHandle
+        )
+
+        // Wait a tick for coroutine collection
+        Thread.sleep(150)
 
         val initialState = viewModel.uiState.value
         assertEquals(MuscleCategory.CHEST, initialState.selectedCategory)
@@ -84,7 +144,7 @@ class ExploreExercisesTest {
         viewModel.onSelectCategory(MuscleCategory.STRETCHING)
         val stretchState = viewModel.uiState.value
         assertEquals(MuscleCategory.STRETCHING, stretchState.selectedCategory)
-        assertEquals(17, stretchState.stretches.size)
+        assertEquals(73, stretchState.stretches.size)
 
         // Search query
         viewModel.onSearchQueryChange("doorway")
@@ -93,4 +153,3 @@ class ExploreExercisesTest {
         assertEquals("Doorway Pectoral Stretch", searchedState.stretches[0].name)
     }
 }
-

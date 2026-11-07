@@ -43,6 +43,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.gymflow.domain.model.Exercise
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -258,10 +259,10 @@ fun ExploreExercisesScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(uiState.exercises, key = { it.exerciseId }) { exercise ->
+                        items(uiState.exercises, key = { it.id }) { exercise ->
                             ExploreExerciseCard(
                                 exercise = exercise,
-                                onClick = { onNavigateToExerciseDetails(exercise.exerciseId) }
+                                onClick = { onNavigateToExerciseDetails(exercise.id) }
                             )
                         }
                         item {
@@ -276,10 +277,10 @@ fun ExploreExercisesScreen(
 
 @Composable
 private fun ExploreExerciseCard(
-    exercise: ExerciseCatalog.ExerciseDetailData,
+    exercise: Exercise,
     onClick: () -> Unit
 ) {
-    val stretchesCount = StretchingCatalog.getStretchesForExercise(exercise.exerciseName).size
+    val stretchesCount = StretchingCatalog.getStretchesForExercise(exercise.name + " " + exercise.category).size
 
     GymFlowCard(
         modifier = Modifier
@@ -293,9 +294,9 @@ private fun ExploreExerciseCard(
         ) {
             // Exercise Thumbnail with GIF/PNG preview
             ExerciseThumbnail(
-                imageUrl = ExerciseVisuals.getImageUrl(exercise.exerciseId),
+                imageUrl = exercise.gifUrl ?: exercise.mediaUrl ?: ExerciseVisuals.getImageUrl(exercise.id),
                 category = exercise.category,
-                equipment = exercise.equipmentRequired,
+                equipment = exercise.equipment,
                 preferGif = true,
                 modifier = Modifier.size(56.dp)
             )
@@ -306,7 +307,7 @@ private fun ExploreExerciseCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = exercise.exerciseName,
+                    text = exercise.name,
                     style = GymFlowTheme.typography.BodyMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
@@ -347,7 +348,7 @@ private fun ExploreExerciseCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = exercise.equipmentRequired,
+                            text = exercise.equipment,
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Medium,
                             color = GymFlowTheme.colors.textSecondary,
@@ -386,9 +387,9 @@ private fun ExploreExerciseCard(
 
                 Spacer(modifier = Modifier.height(3.dp))
 
-                val musclesList = listOf(exercise.primaryMuscle) + exercise.secondaryMuscles
+                val subInfo = if (exercise.muscleGroup.isNotBlank()) exercise.muscleGroup else exercise.category
                 Text(
-                    text = musclesList.joinToString(" · "),
+                    text = subInfo,
                     style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
                     color = GymFlowTheme.colors.textSecondary,
                     maxLines = 1,
@@ -473,27 +474,48 @@ private fun ExploreStretchCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            Text(
-                text = stretch.name,
-                style = GymFlowTheme.typography.Heading2.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                ),
-                color = GymFlowTheme.colors.textPrimary,
-                maxLines = 1
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // If stretch has GIF, render animated preview thumbnail!
+                if (!stretch.gifUrl.isNullOrBlank()) {
+                    ExerciseThumbnail(
+                        imageUrl = stretch.gifUrl,
+                        category = stretch.muscleGroup,
+                        equipment = "Bodyweight",
+                        preferGif = true,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
 
-            Spacer(modifier = Modifier.height(2.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stretch.name,
+                        style = GymFlowTheme.typography.Heading2.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        ),
+                        color = GymFlowTheme.colors.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-            Text(
-                text = "Target: ${stretch.targetMuscle} (${stretch.muscleGroup})",
-                style = GymFlowTheme.typography.Caption.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp
-                ),
-                color = GymFlowTheme.colors.textSecondary,
-                maxLines = 1
-            )
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = "Target: ${stretch.targetMuscle} (${stretch.muscleGroup})",
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp
+                        ),
+                        color = GymFlowTheme.colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
