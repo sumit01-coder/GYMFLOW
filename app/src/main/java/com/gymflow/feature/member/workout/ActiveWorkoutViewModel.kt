@@ -52,6 +52,7 @@ data class ActiveWorkoutUiState(
     val restDurationSeconds: Int = 45,
     val completedSets: List<CompletedSetRecord> = emptyList(),
     val isWaitingForNextSet: Boolean = false,
+    val isSetStarted: Boolean = false,
     val isCurrentExerciseCompleted: Boolean = false,
     val isWorkoutComplete: Boolean = false,
 
@@ -119,14 +120,17 @@ class ActiveWorkoutViewModel @Inject constructor(
                 val targetSets = _uiState.value.totalSets
                 val isExerciseCompleted = completedRecords.size >= targetSets && targetSets > 0
                 val nextSetNumber = if (isExerciseCompleted) targetSets else (completedRecords.size + 1)
+                val hasPendingNextSet = completedRecords.isNotEmpty() && !isExerciseCompleted
 
                 _uiState.update { current ->
                     current.copy(
                         sessionId = activeSession.id,
                         elapsedSeconds = activeSession.durationSeconds,
-                        isPaused = false, // Always auto-resume timer when user re-opens the workout
+                        isPaused = false,
                         completedSets = completedRecords,
                         currentSet = nextSetNumber,
+                        isWaitingForNextSet = hasPendingNextSet,
+                        isSetStarted = false,
                         isCurrentExerciseCompleted = isExerciseCompleted,
                         completedExerciseIds = completedIdsToday
                     )
@@ -195,6 +199,7 @@ class ActiveWorkoutViewModel @Inject constructor(
             restDurationSeconds = initialExercise.restDurationSeconds,
             completedSets = emptyList(),
             isWaitingForNextSet = false,
+            isSetStarted = false,
             isCurrentExerciseCompleted = false,
             isWorkoutComplete = false,
             currentExerciseIndex = 0,
@@ -268,7 +273,8 @@ class ActiveWorkoutViewModel @Inject constructor(
                     actualWeightKg = currentEx.targetWeightKg,
                     restDurationSeconds = currentEx.restDurationSeconds.coerceAtLeast(30),
                     completedSets = completedRecords,
-                    isWaitingForNextSet = false,
+                    isWaitingForNextSet = completedRecords.isNotEmpty() && !isExerciseDone,
+                    isSetStarted = false,
                     isCurrentExerciseCompleted = isExerciseDone,
                     isWorkoutComplete = false,
                     currentExerciseIndex = index,
@@ -286,18 +292,32 @@ class ActiveWorkoutViewModel @Inject constructor(
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(1000)
-                if (!_uiState.value.isPaused && !_uiState.value.isWorkoutComplete) {
-                    val updatedSeconds = _uiState.value.elapsedSeconds + 1
+                val state = _uiState.value
+                if (!state.isPaused && !state.isWorkoutComplete && !state.isWaitingForNextSet && state.isSetStarted) {
+                    val updatedSeconds = state.elapsedSeconds + 1
                     _uiState.update { it.copy(elapsedSeconds = updatedSeconds) }
                     // Keep duration synced periodically so unexpected exit preserves time
                     if (updatedSeconds % 3L == 0L) {
-                        val session = workoutSessionDao.getSessionById(_uiState.value.sessionId)
+                        val session = workoutSessionDao.getSessionById(state.sessionId)
                         if (session != null && !session.isCompleted) {
                             workoutSessionDao.upsertSession(session.copy(durationSeconds = updatedSeconds))
                         }
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Starts the current set (e.g. Set 1), activating the timer.
+     */
+    fun startSet() {
+        _uiState.update {
+            it.copy(
+                isSetStarted = true,
+                isWaitingForNextSet = false,
+                isPaused = false
+            )
         }
     }
 
@@ -399,11 +419,12 @@ class ActiveWorkoutViewModel @Inject constructor(
         val hasMoreSets = nextSetNumber <= currentState.totalSets
 
         if (hasMoreSets) {
-            val nextSetText = "Set $nextSetNumber of ${currentState.totalSets} — ${currentState.exerciseName} (${currentState.targetReps} reps · ${currentState.targetWeightKg.toInt()} kg)"
+            val nextSetText = "Set $nextSetNumber of ${currentState.totalSets} — ${currentState.exerciseName} (${currentState.actualReps} reps · ${currentState.actualWeightKg.toInt()} kg)"
             _uiState.update {
                 it.copy(
                     completedSets = updatedCompleted,
                     isWaitingForNextSet = true,
+                    isSetStarted = false,
                     isCurrentExerciseCompleted = false
                 )
             }
@@ -423,6 +444,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 it.copy(
                     completedSets = updatedCompleted,
                     isWaitingForNextSet = false,
+                    isSetStarted = false,
                     isCurrentExerciseCompleted = true,
                     completedExerciseIds = updatedCompletedExerciseIds,
                     isWorkoutComplete = !hasNextEx
@@ -434,7 +456,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     /**
-     * Advances to the next set within the current exercise.
+     * Advances to the next set within the current exercise, preserving user-configured reps and weight.
      */
     fun startNextSet() {
         val currentState = _uiState.value
@@ -446,12 +468,49 @@ class ActiveWorkoutViewModel @Inject constructor(
                 it.copy(
                     currentSet = nextSetNumber,
                     isWaitingForNextSet = false,
-                    actualReps = it.targetReps,
-                    actualWeightKg = it.targetWeightKg,
+                    isSetStarted = true,
+                    // Preserve actualReps and actualWeightKg across sets!
                     isPaused = false
                 )
             }
         }
+    }
+
+    /**
+     * Updates an already logged set with new reps and weight, persisting immediately to Room DB.
+     */
+    fun updateLoggedSet(setNumber: Int, newReps: Int, newWeightKg: Float) {
+        val currentState = _uiState.value
+        val updatedCompletedSets = currentState.completedSets.map {
+            if (it.setNumber == setNumber) {
+                it.copy(reps = newReps, weightKg = newWeightKg)
+            } else {
+                it
+            }
+        }
+        _uiState.update { it.copy(completedSets = updatedCompletedSets) }
+
+        viewModelScope.launch {
+            val existingLog = workoutSessionDao.getSetLog(currentState.sessionId, currentState.exerciseId, setNumber)
+            if (existingLog != null) {
+                workoutSessionDao.upsertSetLog(
+                    existingLog.copy(
+                        actualReps = newReps,
+                        actualWeightKg = newWeightKg,
+                        isSynced = false
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Quick action to update the most recently completed set using current actual reps and weight.
+     */
+    fun updateJustLoggedSet() {
+        val currentState = _uiState.value
+        val lastLoggedSet = currentState.completedSets.lastOrNull() ?: return
+        updateLoggedSet(lastLoggedSet.setNumber, currentState.actualReps, currentState.actualWeightKg)
     }
 
     /**

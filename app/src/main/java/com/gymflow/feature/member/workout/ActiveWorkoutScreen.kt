@@ -27,19 +27,25 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +59,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.gymflow.core.components.ActiveWorkoutBadge
+import com.gymflow.core.components.BadgeStatus
+import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
 import com.gymflow.core.components.GymFlowCard
@@ -76,6 +84,7 @@ fun ActiveWorkoutScreen(
     ActiveWorkoutContent(
         uiState = uiState,
         onTogglePause = viewModel::togglePause,
+        onStartSet = viewModel::startSet,
         onIncrementReps = viewModel::incrementReps,
         onDecrementReps = viewModel::decrementReps,
         onIncrementWeight = viewModel::incrementWeight,
@@ -84,6 +93,8 @@ fun ActiveWorkoutScreen(
             viewModel.completeSet(onNavigateToRest)
         },
         onStartNextSet = viewModel::startNextSet,
+        onUpdateLoggedSet = viewModel::updateLoggedSet,
+        onUpdateJustLoggedSet = viewModel::updateJustLoggedSet,
         onOpenNextExercise = viewModel::openNextExercise,
         onFinishWorkout = {
             viewModel.finishWorkout(onCloseWorkout)
@@ -97,18 +108,23 @@ fun ActiveWorkoutScreen(
 fun ActiveWorkoutContent(
     uiState: ActiveWorkoutUiState,
     onTogglePause: () -> Unit,
+    onStartSet: () -> Unit,
     onIncrementReps: () -> Unit,
     onDecrementReps: () -> Unit,
     onIncrementWeight: () -> Unit,
     onDecrementWeight: () -> Unit,
     onCompleteSet: () -> Unit,
     onStartNextSet: () -> Unit,
+    onUpdateLoggedSet: (setNumber: Int, newReps: Int, newWeightKg: Float) -> Unit,
+    onUpdateJustLoggedSet: () -> Unit,
     onOpenNextExercise: () -> Unit,
     onFinishWorkout: () -> Unit,
     onCloseWorkout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     androidx.activity.compose.BackHandler(onBack = onCloseWorkout)
+
+    var editingSet by remember { mutableStateOf<CompletedSetRecord?>(null) }
 
     val progressAnim by animateFloatAsState(
         targetValue = uiState.progressPercentage,
@@ -204,6 +220,32 @@ fun ActiveWorkoutContent(
                         )
                     }
 
+                    !uiState.isSetStarted -> {
+                        // Set has not started yet: timer holds steady until user taps Start Set
+                        GymFlowButton(
+                            text = "Start Set ${uiState.currentSet}",
+                            onClick = onStartSet,
+                            style = GymFlowButtonStyle.PRIMARY,
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = GymFlowWhite,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Set ${uiState.currentSet} ready · Tap to start timer and begin reps",
+                            style = GymFlowTheme.typography.Caption,
+                            color = GymFlowTheme.colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
                     else -> {
                         // Active Set Controls
                         Row(
@@ -279,7 +321,17 @@ fun ActiveWorkoutContent(
                     )
                 }
 
-                ActiveWorkoutBadge()
+                val (badgeText, badgeStatus) = when {
+                    uiState.isWorkoutComplete -> "COMPLETED" to BadgeStatus.ACTIVE
+                    uiState.isWaitingForNextSet -> "WAITING FOR SET ${uiState.currentSet + 1}" to BadgeStatus.PENDING
+                    !uiState.isSetStarted -> "READY TO BEGIN" to BadgeStatus.PENDING
+                    uiState.isPaused -> "PAUSED" to BadgeStatus.PENDING
+                    else -> "SET ${uiState.currentSet} IN PROGRESS" to BadgeStatus.ACTIVE
+                }
+                GymFlowBadge(
+                    text = badgeText,
+                    status = badgeStatus
+                )
 
                 Text(
                     text = uiState.workoutTag,
@@ -506,29 +558,73 @@ fun ActiveWorkoutContent(
                         .border(1.dp, Color(0xFF86EFAC), RoundedCornerShape(12.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color(0xFF15803D),
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Set ${uiState.currentSet} Complete & Logged",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF14532D)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color(0xFF15803D),
+                                modifier = Modifier.size(22.dp)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Set ${uiState.currentSet} Complete & Logged",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF14532D)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Rest period finished. Tap 'Start Next Set' below whenever you are ready.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF166534)
+                                )
+                            }
+                        }
+
+                        val lastLogged = uiState.completedSets.lastOrNull()
+                        val actualWeightStr = if (uiState.actualWeightKg % 1f == 0f) "${uiState.actualWeightKg.toInt()} kg" else "${uiState.actualWeightKg} kg"
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.White.copy(alpha = 0.92f))
+                                .border(1.dp, Color(0xFF86EFAC), RoundedCornerShape(8.dp))
+                                .clickable { onUpdateJustLoggedSet() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = Color(0xFF15803D),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Update Set ${lastLogged?.setNumber ?: uiState.currentSet} to ${uiState.actualReps} reps · $actualWeightStr",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF14532D)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Rest period finished. Tap 'Start Next Set' below whenever you are ready.",
+                                text = "Save",
                                 fontSize = 12.sp,
-                                color = Color(0xFF166534)
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF15803D)
                             )
                         }
                     }
@@ -836,17 +932,33 @@ fun ActiveWorkoutContent(
                                     )
                                 }
 
-                                val setWeightStr = if (record.weightKg % 1f == 0f) {
-                                    "${record.weightKg.toInt()} kg"
-                                } else {
-                                    "${record.weightKg} kg"
-                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val setWeightStr = if (record.weightKg % 1f == 0f) {
+                                        "${record.weightKg.toInt()} kg"
+                                    } else {
+                                        "${record.weightKg} kg"
+                                    }
 
-                                Text(
-                                    text = "${record.reps} reps · $setWeightStr",
-                                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = GymFlowTheme.colors.textPrimary
-                                )
+                                    Text(
+                                        text = "${record.reps} reps · $setWeightStr",
+                                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = GymFlowTheme.colors.textPrimary
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    IconButton(
+                                        onClick = { editingSet = record },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit Set ${record.setNumber}",
+                                            tint = GymFlowTheme.colors.textSecondary,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -856,4 +968,143 @@ fun ActiveWorkoutContent(
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
+
+    editingSet?.let { targetRecord ->
+        EditSetDialog(
+            record = targetRecord,
+            onDismiss = { editingSet = null },
+            onSave = { newReps, newWeightKg ->
+                onUpdateLoggedSet(targetRecord.setNumber, newReps, newWeightKg)
+                editingSet = null
+            }
+        )
+    }
+}
+
+@Composable
+fun EditSetDialog(
+    record: CompletedSetRecord,
+    onDismiss: () -> Unit,
+    onSave: (newReps: Int, newWeightKg: Float) -> Unit
+) {
+    var editReps by remember { mutableStateOf(record.reps) }
+    var editWeight by remember { mutableStateOf(record.weightKg) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Edit Set ${record.setNumber}",
+                style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                color = GymFlowTheme.colors.textPrimary
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Reps editor
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Reps",
+                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .clickable { editReps = (editReps - 1).coerceAtLeast(1) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Remove, "Decrease", modifier = Modifier.size(16.dp))
+                        }
+                        Text(
+                            text = "$editReps",
+                            style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                            color = GymFlowTheme.colors.textPrimary,
+                            modifier = Modifier.padding(horizontal = 14.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .clickable { editReps += 1 },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, "Increase", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+
+                // Weight editor
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Weight (kg)",
+                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .clickable { editWeight = (editWeight - 0.5f).coerceAtLeast(0f) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Remove, "Decrease", modifier = Modifier.size(16.dp))
+                        }
+                        val weightStr = if (editWeight % 1f == 0f) "${editWeight.toInt()} kg" else "$editWeight kg"
+                        Text(
+                            text = weightStr,
+                            style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                            color = GymFlowTheme.colors.textPrimary,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .clickable { editWeight += 0.5f },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, "Increase", modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(editReps, editWeight) }) {
+                Text(
+                    text = "Save",
+                    fontWeight = FontWeight.Bold,
+                    color = GymFlowGreen
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "Cancel",
+                    color = GymFlowTheme.colors.textSecondary
+                )
+            }
+        },
+        containerColor = GymFlowTheme.colors.surface
+    )
 }

@@ -54,6 +54,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM set_logs WHERE sessionId = :sessionId ORDER BY completedAtEpochMs ASC")
     suspend fun getSetLogsSync(sessionId: String): List<SetLogEntity>
 
+    @Query("SELECT * FROM set_logs WHERE sessionId = :sessionId AND exerciseId = :exerciseId AND setNumber = :setNumber LIMIT 1")
+    suspend fun getSetLog(sessionId: String, exerciseId: String, setNumber: Int): SetLogEntity?
+
     @Query("""
         SELECT DISTINCT sl.exerciseId FROM set_logs sl
         INNER JOIN workout_sessions ws ON sl.sessionId = ws.id
