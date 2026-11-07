@@ -38,7 +38,8 @@ object StretchingCatalog {
                 "Keep your core braced and shoulders down; avoid over-arching your lower back.",
                 "Hold for 30 seconds, breathe deeply, then switch leading legs."
             ),
-            coachTip = "Adjust your elbow height: higher targets the lower pec; lower targets the upper pec fibers."
+            coachTip = "Adjust your elbow height: higher targets the lower pec; lower targets the upper pec fibers.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/behind-head-chest-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_chest_standing_opener",
@@ -54,7 +55,8 @@ object StretchingCatalog {
                 "Gently straighten your arms and lift your hands away from your hips.",
                 "Open your collarbones toward the ceiling without straining your neck."
             ),
-            coachTip = "If your hands cannot interlace comfortably, hold a small towel or resistance band between hands."
+            coachTip = "If your hands cannot interlace comfortably, hold a small towel or resistance band between hands.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/dynamic-chest-stretch-male.gif"
         ),
 
         // BACK
@@ -72,7 +74,8 @@ object StretchingCatalog {
                 "Keep your core lightly engaged and let your shoulder blades elevate naturally.",
                 "Breathe calmly for 20 to 30 seconds before softly returning feet to the floor."
             ),
-            coachTip = "Outstanding for spinal decompression and relieving lower back tightness after heavy squats or deadlifts."
+            coachTip = "Outstanding for spinal decompression and relieving lower back tightness after heavy squats or deadlifts.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/lats/exercise-ball-lat-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_childs_pose_lats",
@@ -88,7 +91,8 @@ object StretchingCatalog {
                 "Walk both hands 45 degrees to the right to intensify the stretch along your left lat.",
                 "Hold for 20 seconds, return to center, then walk hands 45 degrees to the left."
             ),
-            coachTip = "Keep the opposite hip pinned firmly to your heel to maximize the lateral lat stretch."
+            coachTip = "Keep the opposite hip pinned firmly to your heel to maximize the lateral lat stretch.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/lats/kneeling-lat-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_cat_cow",
@@ -104,7 +108,8 @@ object StretchingCatalog {
                 "Cat Pose: Exhale, tuck your tailbone, round your spine, and draw your navel toward your spine.",
                 "Flow smoothly between Cat and Cow for 8 to 10 rhythmic breath cycles."
             ),
-            coachTip = "Move vertebra by vertebra rather than hinging only at the lower back."
+            coachTip = "Move vertebra by vertebra rather than hinging only at the lower back.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/lats/side-lying-floor-stretch.gif"
         ),
 
         // BICEPS
@@ -122,7 +127,8 @@ object StretchingCatalog {
                 "Slowly rotate your chest and torso away from the wall until a stretch runs through the bicep.",
                 "Hold for 30 seconds, then switch to the other arm."
             ),
-            coachTip = "Do not allow the shoulder of the stretched arm to hike upward toward your ear."
+            coachTip = "Do not allow the shoulder of the stretched arm to hike upward toward your ear.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/forearms/side-wrist-pull-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_biceps_reverse_wrist",
@@ -138,7 +144,8 @@ object StretchingCatalog {
                 "Gently shift your body weight slightly backward to increase tension on the inner forearm and bicep.",
                 "Hold for 20 to 25 seconds."
             ),
-            coachTip = "Essential for preventing golfer's elbow and tendon strain from heavy curls and pull-ups."
+            coachTip = "Essential for preventing golfer's elbow and tendon strain from heavy curls and pull-ups.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/forearms/side-wrist-pull-stretch.gif"
         ),
 
         // TRICEPS
@@ -156,7 +163,8 @@ object StretchingCatalog {
                 "Gently press the elbow downward and back until you feel a deep stretch along the back of the arm.",
                 "Maintain upright posture without flaring your ribs or arching your lower back."
             ),
-            coachTip = "Because the long head of the triceps crosses the shoulder joint, this overhead position is the only way to stretch it completely."
+            coachTip = "Because the long head of the triceps crosses the shoulder joint, this overhead position is the only way to stretch it completely.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/triceps/overhead-triceps-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_cross_body_triceps",
@@ -172,7 +180,8 @@ object StretchingCatalog {
                 "Keep your shoulders pressed down away from your ears.",
                 "Hold for 25 seconds per side."
             ),
-            coachTip = "Keep hips and chest squared forward to keep the stretch isolated on the arm and rear shoulder."
+            coachTip = "Keep hips and chest squared forward to keep the stretch isolated on the arm and rear shoulder.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/delts/rear-deltoid-stretch.gif"
         ),
 
         // SHOULDERS
@@ -190,7 +199,8 @@ object StretchingCatalog {
                 "Hook your left arm around your right forearm and gently pull it closer to your body.",
                 "Turn your head gently toward the right shoulder to deepen the release."
             ),
-            coachTip = "Pull from above the elbow joint to avoid unnecessary stress on the elbow."
+            coachTip = "Pull from above the elbow joint to avoid unnecessary stress on the elbow.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/delts/rear-deltoid-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_shoulder_eagle_arms",
@@ -206,7 +216,8 @@ object StretchingCatalog {
                 "Wrap forearms around each other and press palms or backs of hands together.",
                 "Gently elevate elbows to shoulder height and draw hands away from your face."
             ),
-            coachTip = "Excellent for releasing upper back tightness and improving thoracic mobility before pressing movements."
+            coachTip = "Excellent for releasing upper back tightness and improving thoracic mobility before pressing movements.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/upper-back/upper-back-stretch.gif"
         ),
 
         // LEGS
@@ -224,7 +235,8 @@ object StretchingCatalog {
                 "Gently pull your heel toward your glute while keeping both knees close together.",
                 "Squeeze your right glute slightly to push the hip forward and deepen the quad stretch."
             ),
-            coachTip = "Keep your standing knee slightly soft and avoid letting your bent knee flare out to the side."
+            coachTip = "Keep your standing knee slightly soft and avoid letting your bent knee flare out to the side.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/quads/intermediate-hip-flexor-and-quad-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_hamstring_seated",
@@ -240,7 +252,8 @@ object StretchingCatalog {
                 "Keep your right toes flexed back toward your shin.",
                 "Hold for 30 to 35 seconds, then switch legs."
             ),
-            coachTip = "Hinge from the hips rather than rounding your upper back. Leading with your chest ensures the stretch hits the hamstring belly."
+            coachTip = "Hinge from the hips rather than rounding your upper back. Leading with your chest ensures the stretch hits the hamstring belly.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/hamstrings/exercise-ball-seated-hamstring-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_hip_flexor_kneeling",
@@ -256,7 +269,8 @@ object StretchingCatalog {
                 "Shift your weight slightly forward until you feel a deep stretch in the front of your right hip.",
                 "Optionally raise your right arm straight overhead to increase the stretch."
             ),
-            coachTip = "Tucking the tailbone is the secret to isolating the psoas rather than hyperextending the lumbar spine."
+            coachTip = "Tucking the tailbone is the secret to isolating the psoas rather than hyperextending the lumbar spine.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/glutes/exercise-ball-hip-flexor-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_calf_wall",
@@ -272,7 +286,8 @@ object StretchingCatalog {
                 "Bend your front knee and lean toward the wall with a straight back leg to stretch the gastrocnemius.",
                 "Slightly bend the back knee to shift the stretch deeper into the lower calf (soleus)."
             ),
-            coachTip = "Crucial for ankle dorsiflexion, which directly improves squat depth and prevents knee valgus."
+            coachTip = "Crucial for ankle dorsiflexion, which directly improves squat depth and prevents knee valgus.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/calves/calf-stretch-with-hands-against-wall.gif"
         ),
 
         // ABS & CORE
@@ -290,7 +305,8 @@ object StretchingCatalog {
                 "Roll your shoulders back and down away from your ears.",
                 "Lengthen through the neck and hold for 25 to 30 seconds."
             ),
-            coachTip = "Only lift as high as comfortable for your lower back. Squeeze glutes lightly to protect the lumbar spine."
+            coachTip = "Only lift as high as comfortable for your lower back. Squeeze glutes lightly to protect the lumbar spine.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/spine/spine-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_lying_spinal_twist",
@@ -306,7 +322,8 @@ object StretchingCatalog {
                 "Slowly let both knees fall to the right side while keeping both shoulders pinned to the mat.",
                 "Turn your head to look toward your left hand, hold for 30 seconds, then repeat on opposite side."
             ),
-            coachTip = "Keep the opposite shoulder anchored to the floor to ensure rotational stretch through the thoracic spine."
+            coachTip = "Keep the opposite shoulder anchored to the floor to ensure rotational stretch through the thoracic spine.",
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/glutes/iron-cross-stretch.gif"
         ),
 
         // OPEN-SOURCE STRETCH (ABS)

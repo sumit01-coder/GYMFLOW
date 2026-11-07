@@ -439,9 +439,13 @@ private fun ExploreStretchCard(
         StretchTiming.DAILY_MOBILITY -> Color(0xFFEDE9FE) to Color(0xFF6D28D9)
     }
 
+    val resolvedGif = stretch.gifUrl
+        ?: ExerciseVisuals.getCategoryFormGuide(stretch.muscleGroup)?.formGifUrl
+        ?: "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/calves/calf-stretch-with-hands-against-wall.gif"
+
     GymFlowCard(
         modifier = Modifier.fillMaxWidth(),
-        contentPadding = 14.dp
+        contentPadding = 12.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -449,21 +453,43 @@ private fun ExploreStretchCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Timing badge
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(timingBg)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = stretch.timing.label.uppercase(),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = timingFg,
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                    // Timing badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(timingBg)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = stretch.timing.label.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = timingFg,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+
+                    // Muscle category badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(GymFlowBlack)
+                            .padding(horizontal = 7.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = stretch.muscleGroup.uppercase(),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
 
                 // Hold duration pill
@@ -494,21 +520,65 @@ private fun ExploreStretchCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
+            // Prominent Visual Form Preview & Name / Target / Coach Cue Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // If stretch has GIF, render animated preview thumbnail!
-                if (!stretch.gifUrl.isNullOrBlank()) {
-                    ExerciseThumbnail(
-                        imageUrl = stretch.gifUrl,
-                        category = stretch.muscleGroup,
-                        equipment = "Bodyweight",
-                        preferGif = true,
-                        modifier = Modifier.size(56.dp)
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(resolvedGif)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "${stretch.name} Form Guide",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp),
+                        loading = {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = GymFlowBlack
+                                )
+                            }
+                        },
+                        error = {
+                            Icon(
+                                imageVector = Icons.Default.SelfImprovement,
+                                contentDescription = null,
+                                tint = GymFlowTheme.colors.textSecondary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(3.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "FORM",
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -522,10 +592,10 @@ private fun ExploreStretchCard(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
 
                     Text(
-                        text = "Target: ${stretch.targetMuscle} (${stretch.muscleGroup})",
+                        text = "Target: ${stretch.targetMuscle}",
                         style = GymFlowTheme.typography.Caption.copy(
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 11.sp
@@ -534,29 +604,26 @@ private fun ExploreStretchCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+
+                    if (stretch.coachTip.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stretch.coachTip,
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            color = GymFlowTheme.colors.textSecondary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Instructions summary
-            Column(
-                verticalArrangement = Arrangement.spacedBy(3.dp)
-            ) {
-                stretch.instructions.take(3).forEachIndexed { index, step ->
-                    Text(
-                        text = "${index + 1}. $step",
-                        style = GymFlowTheme.typography.Caption.copy(fontSize = 12.sp),
-                        color = GymFlowTheme.colors.textSecondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Breathing cue badge
+            // Compact Breathing Cue Pill
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -564,14 +631,25 @@ private fun ExploreStretchCard(
                     .background(GymFlowTheme.colors.surfaceVariant)
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = "Breathing: ${stretch.breathingCue}",
-                    style = GymFlowTheme.typography.Caption.copy(
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = GymFlowTheme.colors.textPrimary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.SelfImprovement,
+                        contentDescription = null,
+                        tint = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Breathing: ${stretch.breathingCue}",
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = GymFlowTheme.colors.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
