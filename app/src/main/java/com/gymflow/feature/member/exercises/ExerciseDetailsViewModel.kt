@@ -20,7 +20,8 @@ import javax.inject.Inject
 
 enum class ExerciseTab {
     INSTRUCTIONS,
-    MUSCLE_INFO
+    MUSCLE_INFO,
+    STRETCHES
 }
 
 data class ExerciseDetailsUiState(
@@ -36,7 +37,8 @@ data class ExerciseDetailsUiState(
     val primaryMuscle: String = "",
     val secondaryMuscles: List<String> = emptyList(),
     val equipmentRequired: String = "",
-    val coachTip: String = ""
+    val coachTip: String = "",
+    val relatedStretches: List<StretchingExercise> = emptyList()
 )
 
 @HiltViewModel
@@ -69,7 +71,8 @@ class ExerciseDetailsViewModel @Inject constructor(
                             instructions = if (ex.instructions.isNotEmpty()) ex.instructions else current.instructions,
                             primaryMuscle = "${ex.category} (${ex.muscleGroup})",
                             equipmentRequired = ex.machineName ?: ex.equipment,
-                            coachTip = ex.coachTip.ifBlank { current.coachTip }
+                            coachTip = ex.coachTip.ifBlank { current.coachTip },
+                            relatedStretches = StretchingCatalog.getStretchesForExercise(ex.name + " " + ex.category)
                         )
                     }
                 }
@@ -109,7 +112,8 @@ class ExerciseDetailsViewModel @Inject constructor(
             primaryMuscle = details.primaryMuscle,
             secondaryMuscles = details.secondaryMuscles,
             equipmentRequired = details.equipmentRequired,
-            coachTip = details.coachTip
+            coachTip = details.coachTip,
+            relatedStretches = StretchingCatalog.getStretchesForExercise(details.exerciseName + " " + details.primaryMuscle)
         )
     }
 

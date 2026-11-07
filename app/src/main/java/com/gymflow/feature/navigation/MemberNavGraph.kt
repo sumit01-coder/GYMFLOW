@@ -10,6 +10,7 @@ import com.gymflow.feature.member.achievements.AchievementsScreen
 import com.gymflow.feature.member.activity.MemberActivityScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsViewModel
+import com.gymflow.feature.member.exercises.ExploreExercisesScreen
 import com.gymflow.feature.member.home.MemberHomeScreen
 import com.gymflow.feature.member.home.MemberHomeViewModel
 import com.gymflow.feature.member.hydration.HydrationScreen
@@ -39,6 +40,9 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateToProfile = { navController.navigate(NavRoutes.MEMBER_PROFILE) },
             onNavigateToWeight = { navController.navigate(NavRoutes.MEMBER_WEIGHT) },
             onNavigateToAchievements = { navController.navigate(NavRoutes.MEMBER_ACHIEVEMENTS) },
+            onNavigateToExplore = { category ->
+                navController.navigate(NavRoutes.exploreExercises(category))
+            },
             onNavigateToExerciseDetails = { exerciseId ->
                 navController.navigate(NavRoutes.exerciseDetails(exerciseId))
             },
@@ -80,6 +84,24 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             onNavigateBack = { navController.popBackStack() },
             onStartSet = { exerciseId ->
                 navController.navigate(NavRoutes.activeWorkout(exerciseId))
+            }
+        )
+    }
+
+    // Screen 05b: Explore Exercises & Stretching
+    composable(
+        route = NavRoutes.EXPLORE_EXERCISES,
+        arguments = listOf(
+            navArgument("category") {
+                type = NavType.StringType
+                defaultValue = "ALL"
+            }
+        )
+    ) {
+        ExploreExercisesScreen(
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToExerciseDetails = { exerciseId ->
+                navController.navigate(NavRoutes.exerciseDetails(exerciseId))
             }
         )
     }

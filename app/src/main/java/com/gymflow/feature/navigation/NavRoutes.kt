@@ -26,7 +26,10 @@ object NavRoutes {
     const val MEMBER_HYDRATION = "member/hydration"
     const val MEMBER_ACHIEVEMENTS = "member/achievements"
     const val MEMBER_STOPWATCH = "member/stopwatch"
+    const val EXPLORE_EXERCISES_BASE = "member/explore_exercises"
+    const val EXPLORE_EXERCISES = "member/explore_exercises?category={category}"
 
+    fun exploreExercises(category: String = "ALL"): String = "$EXPLORE_EXERCISES_BASE?category=$category"
     fun exerciseDetails(exerciseId: String): String = "$EXERCISE_DETAILS_BASE/$exerciseId"
     fun activeWorkout(exerciseId: String): String = "$ACTIVE_WORKOUT_BASE/$exerciseId"
     fun restTimer(nextSetText: String, durationSeconds: Int = 45): String {

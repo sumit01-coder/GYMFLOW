@@ -301,14 +301,16 @@ fun MemberProfileScreen(
                                 letterSpacing = 0.5.sp
                             ),
                             color = GymFlowTheme.colors.textSecondary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = if (uiState.profile.age > 0) "${uiState.profile.age}" else "--",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
 
@@ -334,14 +336,16 @@ fun MemberProfileScreen(
                                 letterSpacing = 0.5.sp
                             ),
                             color = GymFlowTheme.colors.textSecondary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = if (uiState.profile.heightCm > 0f) "${uiState.profile.heightCm.toInt()} cm" else "--",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
 
@@ -367,7 +371,8 @@ fun MemberProfileScreen(
                                 letterSpacing = 0.5.sp
                             ),
                             color = GymFlowTheme.colors.textSecondary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
@@ -401,7 +406,8 @@ fun MemberProfileScreen(
                                 letterSpacing = 0.5.sp
                             ),
                             color = GymFlowTheme.colors.textSecondary,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
@@ -409,6 +415,7 @@ fun MemberProfileScreen(
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = GymFlowTheme.colors.textPrimary,
                             maxLines = 1,
+                            softWrap = false,
                             overflow = TextOverflow.Ellipsis
                         )
                     }

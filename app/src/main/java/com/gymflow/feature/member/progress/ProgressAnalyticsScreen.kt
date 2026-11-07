@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -271,7 +272,7 @@ fun ProgressAnalyticsScreen(
                     ) {
                         Column(
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(1f, fill = false)
                                 .padding(end = 12.dp)
                         ) {
                             Text(
@@ -294,7 +295,7 @@ fun ProgressAnalyticsScreen(
 
                         Column(
                             horizontalAlignment = Alignment.End,
-                            modifier = Modifier.widthIn(min = 76.dp)
+                            modifier = Modifier.wrapContentWidth()
                         ) {
                             val oneRmDisplay = if (pr.oneRepMaxKg % 1f == 0f) {
                                 "${pr.oneRepMaxKg.toInt()} kg"
@@ -306,13 +307,15 @@ fun ProgressAnalyticsScreen(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MemberTextPrimary,
-                                maxLines = 1
+                                maxLines = 1,
+                                softWrap = false
                             )
                             Text(
                                 text = "1RM Peak",
                                 fontSize = 11.sp,
                                 color = MemberTextTertiary,
-                                maxLines = 1
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }

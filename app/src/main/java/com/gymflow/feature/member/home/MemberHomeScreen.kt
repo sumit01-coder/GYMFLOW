@@ -3,6 +3,7 @@ package com.gymflow.feature.member.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -80,6 +82,7 @@ fun MemberHomeScreen(
     onStartWorkout: (String) -> Unit,
     onNavigateToWeight: () -> Unit = {},
     onNavigateToAchievements: () -> Unit = {},
+    onNavigateToExplore: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -93,6 +96,7 @@ fun MemberHomeScreen(
         onNavigateToExerciseDetails = onNavigateToExerciseDetails,
         onNavigateToWeight = onNavigateToWeight,
         onNavigateToAchievements = onNavigateToAchievements,
+        onNavigateToExplore = onNavigateToExplore,
         onStartWorkout = {
             if (uiState.todayExercises.isNotEmpty() || uiState.hasActiveSession) {
                 val firstUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
@@ -120,6 +124,7 @@ fun MemberHomeContent(
     onStartWorkout: () -> Unit,
     onNavigateToWeight: () -> Unit = {},
     onNavigateToAchievements: () -> Unit = {},
+    onNavigateToExplore: (String) -> Unit = {},
     onDiscardActiveSession: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -375,7 +380,116 @@ fun MemberHomeContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Explore Exercises Section Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Explore Exercises",
+                        style = GymFlowTheme.typography.Heading2,
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                    Text(
+                        text = "Browse form cues, muscle targets & stretches",
+                        style = GymFlowTheme.typography.Caption,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                }
+
+                Text(
+                    text = "Explore All →",
+                    style = GymFlowTheme.typography.Caption.copy(
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = GymFlowTheme.colors.textPrimary,
+                    modifier = Modifier.clickable { onNavigateToExplore("ALL") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Horizontal Muscle Category Cards
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                val exploreCategories = listOf(
+                    Triple("Chest", "Pecs & Upper Body", "CHEST"),
+                    Triple("Back", "Lats & Traps", "BACK"),
+                    Triple("Biceps", "Arms & Forearms", "BICEPS"),
+                    Triple("Triceps", "Arm Extension", "TRICEPS"),
+                    Triple("Shoulders", "Delts & Rotators", "SHOULDERS"),
+                    Triple("Legs", "Quads, Glutes & Hamstrings", "LEGS"),
+                    Triple("Abs & Core", "Core Strength", "ABS"),
+                    Triple("Stretching", "Warmup & Mobility", "STRETCHING")
+                )
+
+                exploreCategories.forEach { (title, subtitle, categoryKey) ->
+                    Box(
+                        modifier = Modifier
+                            .width(155.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GymFlowTheme.colors.surface)
+                            .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(12.dp))
+                            .clickable { onNavigateToExplore(categoryKey) }
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(if (categoryKey == "STRETCHING") Color(0xFFEDE9FE) else GymFlowTheme.colors.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (categoryKey == "STRETCHING") Icons.Default.SelfImprovement else Icons.Default.FitnessCenter,
+                                        contentDescription = null,
+                                        tint = if (categoryKey == "STRETCHING") Color(0xFF7C3AED) else GymFlowTheme.colors.textPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = GymFlowTheme.colors.textTertiary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = title,
+                                style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                color = GymFlowTheme.colors.textPrimary,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = subtitle,
+                                style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
+                                color = GymFlowTheme.colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Today's Workout Section Header
             Row(
@@ -520,7 +634,9 @@ fun MemberHomeContent(
                                 text = "Discard",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFDC2626)
+                                color = Color(0xFFDC2626),
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
 
@@ -544,7 +660,9 @@ fun MemberHomeContent(
                                 text = "Resume",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                softWrap = false
                             )
                         }
                     }
@@ -595,7 +713,8 @@ fun MemberHomeContent(
 
             val buttonText = when {
                 isAllCompleted -> "Workout Completed ✓"
-                uiState.hasActiveSession -> "Resume Workout: ${nextUncompleted?.exerciseName ?: "Continue"}"
+                uiState.hasActiveSession && uiState.todayExercises.isNotEmpty() -> "Resume Workout: ${nextUncompleted?.exerciseName ?: "Continue"}"
+                uiState.hasActiveSession && uiState.todayExercises.isEmpty() -> "Resume Open Session"
                 uiState.todayExercises.isEmpty() -> "View Workout Schedule"
                 completedCount > 0 -> "Continue Workout: ${nextUncompleted?.exerciseName ?: "Next Exercise"}"
                 else -> "Start Workout"

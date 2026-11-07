@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -285,7 +286,7 @@ fun MemberProgressScreen(
                         ) {
                             Row(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .weight(1f, fill = false)
                                     .padding(end = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -306,7 +307,7 @@ fun MemberProgressScreen(
 
                                 Spacer(modifier = Modifier.width(12.dp))
 
-                                Column(modifier = Modifier.weight(1f)) {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
                                         text = pr.exerciseName,
                                         style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -327,19 +328,21 @@ fun MemberProgressScreen(
 
                             Column(
                                 horizontalAlignment = Alignment.End,
-                                modifier = Modifier.widthIn(min = 76.dp)
+                                modifier = Modifier.wrapContentWidth()
                             ) {
                                 Text(
                                     text = "${pr.oneRepMaxKg.toInt()} kg",
                                     style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                                     color = GymFlowTheme.colors.textPrimary,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                                 Text(
                                     text = "1RM Peak",
                                     style = GymFlowTheme.typography.Caption,
                                     color = GymFlowTheme.colors.textTertiary,
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }

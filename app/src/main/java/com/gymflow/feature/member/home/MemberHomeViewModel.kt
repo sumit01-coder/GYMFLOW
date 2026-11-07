@@ -14,6 +14,7 @@ import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
+import com.gymflow.core.service.WorkoutEngine
 import com.gymflow.domain.model.ExerciseSet
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
@@ -102,6 +103,11 @@ class MemberHomeViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = tokenManager.getUserIdSync() ?: "default_member"
 
+            // 0. Cancel active workout engine and clear SharedPreferences active workout state
+            try {
+                WorkoutEngine.instance.cancelWorkout()
+            } catch (_: Exception) {}
+
             // 1. Capture active session IDs before deletion
             val activeSessions = workoutSessionDao.getAllActiveSessionsSync(userId)
 
@@ -183,7 +189,7 @@ class MemberHomeViewModel @Inject constructor(
                             val completedCount = todayDay.exercises.count { completedSet.contains(it.exerciseId) }
                             prefetchExerciseVisuals(todayDay.exercises)
                             val formattedTitle = if (count == 0) {
-                                "${todayDay.title} (0 exercises · Rest / Free Day)"
+                                "${todayDay.title} · Rest Day"
                             } else {
                                 "${todayDay.title} ($count exercises · $estMinutes min)"
                             }

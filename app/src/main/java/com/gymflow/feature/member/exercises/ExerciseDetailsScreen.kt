@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -443,6 +444,35 @@ fun ExerciseDetailsContent(
                         Spacer(modifier = Modifier.height(2.dp))
                     }
                 }
+
+                // Stretches Tab
+                val stretchCount = uiState.relatedStretches.size
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelectTab(ExerciseTab.STRETCHES) }
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = if (stretchCount > 0) "Stretches ($stretchCount)" else "Stretches",
+                        style = GymFlowTheme.typography.BodyMedium.copy(
+                            fontWeight = if (uiState.selectedTab == ExerciseTab.STRETCHES) FontWeight.Bold else FontWeight.Medium
+                        ),
+                        color = if (uiState.selectedTab == ExerciseTab.STRETCHES) GymFlowTheme.colors.textPrimary else GymFlowTheme.colors.textTertiary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    if (uiState.selectedTab == ExerciseTab.STRETCHES) {
+                        Box(
+                            modifier = Modifier
+                                .height(2.dp)
+                                .fillMaxWidth(0.6f)
+                                .background(GymFlowBlack)
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
             }
 
             HorizontalDivider(color = GymFlowTheme.colors.border)
@@ -559,9 +589,178 @@ fun ExerciseDetailsContent(
                         }
                     }
                 }
+
+                ExerciseTab.STRETCHES -> {
+                    Text(
+                        text = "Targeted Stretches & Mobility",
+                        style = GymFlowTheme.typography.Heading2,
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Perform after sets or during recovery to expand range of motion and accelerate muscle repair.",
+                        style = GymFlowTheme.typography.Caption,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    if (uiState.relatedStretches.isEmpty()) {
+                        GymFlowCard(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = "No specific stretches mapped for this exercise yet. Try general full-body mobility.",
+                                style = GymFlowTheme.typography.BodyMedium,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                        }
+                    } else {
+                        uiState.relatedStretches.forEach { stretch ->
+                            StretchDetailCard(stretch = stretch)
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+@Composable
+private fun StretchDetailCard(stretch: StretchingExercise) {
+    GymFlowCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = 16.dp
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stretch.name,
+                    style = GymFlowTheme.typography.BodyMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    ),
+                    color = GymFlowTheme.colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+
+                val (badgeText, badgeBg, badgeColor) = when (stretch.timing) {
+                    StretchTiming.PRE_WORKOUT_DYNAMIC -> Triple("WARMUP", Color(0xFFFEF3C7), Color(0xFFD97706))
+                    StretchTiming.POST_WORKOUT_STATIC -> Triple("COOLDOWN", Color(0xFFECFDF5), Color(0xFF059669))
+                    StretchTiming.DAILY_MOBILITY -> Triple("MOBILITY", Color(0xFFEFF6FF), Color(0xFF2563EB))
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeBg)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = badgeColor,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Target: ${stretch.targetMuscle}",
+                style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.SemiBold),
+                color = GymFlowTheme.colors.textSecondary
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(GymFlowTheme.colors.surfaceVariant)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(13.dp),
+                    tint = GymFlowTheme.colors.textSecondary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Recommended Hold: ${stretch.recommendedDurationSeconds} seconds",
+                    style = GymFlowTheme.typography.Caption.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp
+                    ),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFFF1F5F9))
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "🌬️ Breathing: ${stretch.breathingCue}",
+                    style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
+                    color = Color(0xFF334155)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            stretch.instructions.forEachIndexed { index, step ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Text(
+                        text = "${index + 1}.",
+                        style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold),
+                        color = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.width(18.dp)
+                    )
+                    Text(
+                        text = step,
+                        style = GymFlowTheme.typography.BodyRegular.copy(fontSize = 13.sp),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
+            }
+
+            if (stretch.coachTip.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFFFFBEB))
+                        .border(1.dp, Color(0xFFFDE68A), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "💡 Coach Cue: ${stretch.coachTip}",
+                        style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
+                        color = Color(0xFF92400E)
+                    )
+                }
+            }
         }
     }
 }
