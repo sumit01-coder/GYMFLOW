@@ -143,3 +143,4 @@ class ActiveWorkoutTimerAndSetUpdateTest {
         assertEquals(562.5f, totalVolume, 0.1f)
     }
 }
+

@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,8 +58,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.core.components.GymFlowCard
 import com.gymflow.core.theme.GymFlowBlack
+import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
 
@@ -241,6 +247,12 @@ fun ExploreExercisesScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        item {
+                            val formGuide = ExerciseVisuals.getCategoryFormGuide("STRETCHING")
+                            if (formGuide != null) {
+                                CategoryFormGuideCard(formGuide = formGuide)
+                            }
+                        }
                         items(uiState.stretches, key = { it.id }) { stretch ->
                             ExploreStretchCard(stretch = stretch)
                         }
@@ -259,6 +271,14 @@ fun ExploreExercisesScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        if (uiState.selectedCategory != MuscleCategory.ALL) {
+                            item {
+                                val formGuide = ExerciseVisuals.getCategoryFormGuide(uiState.selectedCategory.name)
+                                if (formGuide != null) {
+                                    CategoryFormGuideCard(formGuide = formGuide)
+                                }
+                            }
+                        }
                         items(uiState.exercises, key = { it.id }) { exercise ->
                             ExploreExerciseCard(
                                 exercise = exercise,
@@ -589,6 +609,110 @@ private fun EmptyExploreState(message: String) {
                 color = GymFlowTheme.colors.textSecondary,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun CategoryFormGuideCard(
+    formGuide: MuscleCategoryFormInfo
+) {
+    GymFlowCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
+        contentPadding = 12.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(formGuide.formGifUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "${formGuide.title} Form Guide",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(4.dp),
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = GymFlowBlack
+                            )
+                        }
+                    },
+                    error = {
+                        Icon(
+                            imageVector = Icons.Default.FitnessCenter,
+                            contentDescription = null,
+                            tint = GymFlowTheme.colors.textSecondary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(3.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = "FORM",
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowWhite
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(GymFlowGreen)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "${formGuide.title.uppercase()} FORM GUIDE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowGreen,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = formGuide.targetMuscleLabel,
+                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Demonstrating biomechanical form & target muscle recruitment",
+                    style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
+                    color = GymFlowTheme.colors.textSecondary,
+                    maxLines = 2
+                )
+            }
         }
     }
 }

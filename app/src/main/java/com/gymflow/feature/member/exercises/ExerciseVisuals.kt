@@ -36,6 +36,15 @@ import com.gymflow.core.theme.GymFlowBorder
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
 
+data class MuscleCategoryFormInfo(
+    val title: String,
+    val subtitle: String,
+    val categoryKey: String,
+    val formGifUrl: String,
+    val muscleBadge: String,
+    val targetMuscleLabel: String
+)
+
 object ExerciseVisuals {
 
     const val BASE_IMAGE_URL = "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/"
@@ -266,6 +275,80 @@ object ExerciseVisuals {
             "barbell", "dumbbell", "kettlebell" -> Icons.Default.FitnessCenter
             "bodyweight", "resistance band" -> Icons.Default.AccessibilityNew
             else -> Icons.Default.Speed
+        }
+    }
+
+    val CATEGORY_FORM_GUIDES = listOf(
+        MuscleCategoryFormInfo(
+            title = "Chest",
+            subtitle = "Pecs & Upper Body",
+            categoryKey = "CHEST",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/barbell-bench-press.gif",
+            muscleBadge = "PECS",
+            targetMuscleLabel = "Pectoralis Major & Minor"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Back",
+            subtitle = "Lats & Upper Back",
+            categoryKey = "BACK",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/upper-back/barbell-bent-over-row.gif",
+            muscleBadge = "LATS",
+            targetMuscleLabel = "Latissimus Dorsi & Rhomboids"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Biceps",
+            subtitle = "Arms & Forearms",
+            categoryKey = "BICEPS",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/biceps/dumbbell-alternate-biceps-curl.gif",
+            muscleBadge = "BICEPS",
+            targetMuscleLabel = "Biceps Brachii & Brachialis"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Triceps",
+            subtitle = "Arm Extension",
+            categoryKey = "TRICEPS",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/triceps/cable-pushdown.gif",
+            muscleBadge = "TRICEPS",
+            targetMuscleLabel = "Triceps Brachii (3 Heads)"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Shoulders",
+            subtitle = "Delts & Rotators",
+            categoryKey = "SHOULDERS",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/delts/dumbbell-lateral-raise.gif",
+            muscleBadge = "DELTS",
+            targetMuscleLabel = "Anterior, Lateral & Posterior Deltoids"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Legs",
+            subtitle = "Quads & Glutes",
+            categoryKey = "LEGS",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/glutes/dumbbell-squat.gif",
+            muscleBadge = "QUADS",
+            targetMuscleLabel = "Quadriceps, Hamstrings & Glutes"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Abs & Core",
+            subtitle = "Core Strength",
+            categoryKey = "ABS",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/abs/crunch-floor.gif",
+            muscleBadge = "CORE",
+            targetMuscleLabel = "Rectus Abdominis & Obliques"
+        ),
+        MuscleCategoryFormInfo(
+            title = "Stretching",
+            subtitle = "Warmup & Mobility",
+            categoryKey = "STRETCHING",
+            formGifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/calves/calf-stretch-with-hands-against-wall.gif",
+            muscleBadge = "MOBILITY",
+            targetMuscleLabel = "Full Body Flexibility & Warmup"
+        )
+    )
+
+    fun getCategoryFormGuide(categoryKey: String): MuscleCategoryFormInfo? {
+        return CATEGORY_FORM_GUIDES.find {
+            it.categoryKey.equals(categoryKey, ignoreCase = true) ||
+            it.title.equals(categoryKey, ignoreCase = true)
         }
     }
 

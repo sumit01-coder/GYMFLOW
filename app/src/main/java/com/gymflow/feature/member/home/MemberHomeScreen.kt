@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -50,10 +51,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowButton
@@ -413,35 +418,25 @@ fun MemberHomeContent(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Horizontal Muscle Category Cards
+            // Horizontal Muscle Category Cards with animated anatomical form visuals
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val exploreCategories = listOf(
-                    Triple("Chest", "Pecs & Upper Body", "CHEST"),
-                    Triple("Back", "Lats & Traps", "BACK"),
-                    Triple("Biceps", "Arms & Forearms", "BICEPS"),
-                    Triple("Triceps", "Arm Extension", "TRICEPS"),
-                    Triple("Shoulders", "Delts & Rotators", "SHOULDERS"),
-                    Triple("Legs", "Quads, Glutes & Hamstrings", "LEGS"),
-                    Triple("Abs & Core", "Core Strength", "ABS"),
-                    Triple("Stretching", "Warmup & Mobility", "STRETCHING")
-                )
-
-                exploreCategories.forEach { (title, subtitle, categoryKey) ->
+                ExerciseVisuals.CATEGORY_FORM_GUIDES.forEach { category ->
                     Box(
                         modifier = Modifier
-                            .width(155.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .width(165.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(GymFlowTheme.colors.surface)
-                            .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(12.dp))
-                            .clickable { onNavigateToExplore(categoryKey) }
+                            .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(14.dp))
+                            .clickable { onNavigateToExplore(category.categoryKey) }
                             .padding(12.dp)
                     ) {
                         Column {
+                            // Top header row: Muscle badge + Chevron
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -449,16 +444,16 @@ fun MemberHomeContent(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(if (categoryKey == "STRETCHING") Color(0xFFEDE9FE) else GymFlowTheme.colors.surfaceVariant),
-                                    contentAlignment = Alignment.Center
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (category.categoryKey == "STRETCHING") Color(0xFFEDE9FE) else GymFlowTheme.colors.surfaceVariant)
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = if (categoryKey == "STRETCHING") Icons.Default.SelfImprovement else Icons.Default.FitnessCenter,
-                                        contentDescription = null,
-                                        tint = if (categoryKey == "STRETCHING") Color(0xFF7C3AED) else GymFlowTheme.colors.textPrimary,
-                                        modifier = Modifier.size(16.dp)
+                                    Text(
+                                        text = category.muscleBadge,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (category.categoryKey == "STRETCHING") Color(0xFF7C3AED) else GymFlowTheme.colors.textPrimary,
+                                        letterSpacing = 0.5.sp
                                     )
                                 }
                                 Icon(
@@ -468,9 +463,82 @@ fun MemberHomeContent(
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
+
                             Spacer(modifier = Modifier.height(10.dp))
+
+                            // Form Guide Visual Container
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(84.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.55f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                SubcomposeAsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(category.formGifUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "${category.title} Form Guide",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(4.dp),
+                                    loading = {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                strokeWidth = 2.dp,
+                                                color = GymFlowBlack
+                                            )
+                                        }
+                                    },
+                                    error = {
+                                        Icon(
+                                            imageVector = if (category.categoryKey == "STRETCHING") Icons.Default.SelfImprovement else Icons.Default.FitnessCenter,
+                                            contentDescription = null,
+                                            tint = GymFlowTheme.colors.textSecondary,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                )
+
+                                // Form Guide Pill tag overlay
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(5.dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color.Black.copy(alpha = 0.65f))
+                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .clip(CircleShape)
+                                                .background(GymFlowGreen)
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Text(
+                                            text = "FORM",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = GymFlowWhite,
+                                            letterSpacing = 0.5.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Text(
-                                text = title,
+                                text = category.title,
                                 style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
                                 color = GymFlowTheme.colors.textPrimary,
                                 maxLines = 1,
@@ -478,7 +546,7 @@ fun MemberHomeContent(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = subtitle,
+                                text = category.subtitle,
                                 style = GymFlowTheme.typography.Caption.copy(fontSize = 11.sp),
                                 color = GymFlowTheme.colors.textSecondary,
                                 maxLines = 1,
