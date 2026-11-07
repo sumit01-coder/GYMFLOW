@@ -4,7 +4,11 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.gymflow.core.database.BodyMeasurementEntity
+import com.gymflow.core.database.DailyStepsDao
+import com.gymflow.core.database.DailyStepsEntity
 import com.gymflow.core.database.HydrationLogEntity
+import com.gymflow.core.database.OutdoorWorkoutDao
+import com.gymflow.core.database.OutdoorWorkoutEntity
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.SetLogEntity
 import com.gymflow.core.database.UserDao
@@ -32,7 +36,9 @@ class FirestoreSyncManager @Inject constructor(
     private val userDao: UserDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val weightDao: WeightDao,
-    private val planDao: PlanDao
+    private val planDao: PlanDao,
+    private val dailyStepsDao: DailyStepsDao,
+    private val outdoorWorkoutDao: OutdoorWorkoutDao
 ) {
 
     companion object {
@@ -44,6 +50,8 @@ class FirestoreSyncManager @Inject constructor(
         const val COLLECTION_MEASUREMENTS = "body_measurements"
         const val COLLECTION_WEIGHT_LOGS = "weight_logs"
         const val COLLECTION_HYDRATION_LOGS = "hydration_logs"
+        const val COLLECTION_DAILY_STEPS = "daily_steps"
+        const val COLLECTION_OUTDOOR_WORKOUTS = "outdoor_workouts"
     }
 
     // 1. Sync User Profile
@@ -393,6 +401,53 @@ class FirestoreSyncManager @Inject constructor(
             .await()
     }
 
+    // 7. Sync Daily Steps
+    suspend fun saveDailySteps(steps: DailyStepsEntity) {
+        val stepsMap = mapOf(
+            "id" to steps.id,
+            "memberId" to steps.memberId,
+            "date" to steps.date,
+            "stepCount" to steps.stepCount,
+            "targetGoal" to steps.targetGoal,
+            "distanceMeters" to steps.distanceMeters.toDouble(),
+            "caloriesKcal" to steps.caloriesKcal,
+            "activeMinutes" to steps.activeMinutes,
+            "lastSensorStepCount" to steps.lastSensorStepCount,
+            "lastUpdatedEpochMs" to steps.lastUpdatedEpochMs,
+            "syncedAt" to FieldValue.serverTimestamp()
+        )
+
+        firestore.collection(COLLECTION_DAILY_STEPS)
+            .document(steps.id)
+            .set(stepsMap, SetOptions.merge())
+            .await()
+    }
+
+    // 8. Sync Outdoor Workout Session
+    suspend fun saveOutdoorWorkout(workout: OutdoorWorkoutEntity) {
+        val workoutMap = mapOf(
+            "id" to workout.id,
+            "memberId" to workout.memberId,
+            "workoutType" to workout.workoutType,
+            "startTimeEpochMs" to workout.startTimeEpochMs,
+            "endTimeEpochMs" to workout.endTimeEpochMs,
+            "durationSeconds" to workout.durationSeconds,
+            "totalSteps" to workout.totalSteps,
+            "totalDistanceMeters" to workout.totalDistanceMeters.toDouble(),
+            "avgPaceSecondsPerKm" to workout.avgPaceSecondsPerKm.toDouble(),
+            "maxSpeedMps" to workout.maxSpeedMps.toDouble(),
+            "caloriesBurned" to workout.caloriesBurned,
+            "polylineEncoded" to workout.polylineEncoded,
+            "isCompleted" to workout.isCompleted,
+            "syncedAt" to FieldValue.serverTimestamp()
+        )
+
+        firestore.collection(COLLECTION_OUTDOOR_WORKOUTS)
+            .document(workout.id)
+            .set(workoutMap, SetOptions.merge())
+            .await()
+    }
+
     // 7. Comprehensive Master Sync: Upload All Local User Data to Firestore
     suspend fun syncAllLocalUserData(userId: String): Boolean {
         return try {
@@ -441,6 +496,20 @@ class FirestoreSyncManager @Inject constructor(
             val activePlan = planDao.getActivePlanWithDaysSync(actualUserId)
             if (activePlan != null) {
                 saveWorkoutPlan(activePlan.toDomain())
+            }
+
+            // 7. Sync Daily Steps
+            val unsyncedSteps = dailyStepsDao.getUnsyncedSteps()
+            for (steps in unsyncedSteps) {
+                saveDailySteps(steps)
+                dailyStepsDao.markStepsSynced(steps.id, true)
+            }
+
+            // 8. Sync Outdoor Workouts
+            val unsyncedWorkouts = outdoorWorkoutDao.getUnsyncedWorkouts()
+            for (workout in unsyncedWorkouts) {
+                saveOutdoorWorkout(workout)
+                outdoorWorkoutDao.markWorkoutSynced(workout.id, true)
             }
 
             true
@@ -666,6 +735,59 @@ class FirestoreSyncManager @Inject constructor(
                         )
                         planDao.replaceCompletePlan(parsedPlan)
                     }
+                }
+            } catch (_: Exception) {}
+
+            // 7. Daily Steps
+            try {
+                val stepsSnapshot = firestore.collection(COLLECTION_DAILY_STEPS)
+                    .whereEqualTo("memberId", userId)
+                    .get()
+                    .await()
+
+                for (doc in stepsSnapshot.documents) {
+                    val stepsEntity = DailyStepsEntity(
+                        id = doc.getString("id") ?: doc.id,
+                        memberId = doc.getString("memberId") ?: userId,
+                        date = doc.getString("date") ?: "",
+                        stepCount = (doc.getLong("stepCount") ?: 0L).toInt(),
+                        targetGoal = (doc.getLong("targetGoal") ?: 10000L).toInt(),
+                        distanceMeters = (doc.getDouble("distanceMeters") ?: 0.0).toFloat(),
+                        caloriesKcal = (doc.getLong("caloriesKcal") ?: 0L).toInt(),
+                        activeMinutes = (doc.getLong("activeMinutes") ?: 0L).toInt(),
+                        lastSensorStepCount = (doc.getLong("lastSensorStepCount") ?: 0L).toInt(),
+                        lastUpdatedEpochMs = doc.getLong("lastUpdatedEpochMs") ?: System.currentTimeMillis(),
+                        isSynced = true
+                    )
+                    dailyStepsDao.upsertDailySteps(stepsEntity)
+                }
+            } catch (_: Exception) {}
+
+            // 8. Outdoor Workouts
+            try {
+                val outdoorSnapshot = firestore.collection(COLLECTION_OUTDOOR_WORKOUTS)
+                    .whereEqualTo("memberId", userId)
+                    .get()
+                    .await()
+
+                for (doc in outdoorSnapshot.documents) {
+                    val outdoorEntity = OutdoorWorkoutEntity(
+                        id = doc.getString("id") ?: doc.id,
+                        memberId = doc.getString("memberId") ?: userId,
+                        workoutType = doc.getString("workoutType") ?: "RUN",
+                        startTimeEpochMs = doc.getLong("startTimeEpochMs") ?: System.currentTimeMillis(),
+                        endTimeEpochMs = doc.getLong("endTimeEpochMs"),
+                        durationSeconds = doc.getLong("durationSeconds") ?: 0L,
+                        totalSteps = (doc.getLong("totalSteps") ?: 0L).toInt(),
+                        totalDistanceMeters = (doc.getDouble("totalDistanceMeters") ?: 0.0).toFloat(),
+                        avgPaceSecondsPerKm = (doc.getDouble("avgPaceSecondsPerKm") ?: 0.0).toFloat(),
+                        maxSpeedMps = (doc.getDouble("maxSpeedMps") ?: 0.0).toFloat(),
+                        caloriesBurned = (doc.getLong("caloriesBurned") ?: 0L).toInt(),
+                        polylineEncoded = doc.getString("polylineEncoded") ?: "",
+                        isCompleted = doc.getBoolean("isCompleted") ?: true,
+                        isSynced = true
+                    )
+                    outdoorWorkoutDao.upsertOutdoorWorkout(outdoorEntity)
                 }
             } catch (_: Exception) {}
 

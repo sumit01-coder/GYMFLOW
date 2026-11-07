@@ -10,7 +10,11 @@ import com.google.firebase.firestore.DocumentChange
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.gymflow.core.database.BodyMeasurementEntity
+import com.gymflow.core.database.DailyStepsDao
+import com.gymflow.core.database.DailyStepsEntity
 import com.gymflow.core.database.HydrationLogEntity
+import com.gymflow.core.database.OutdoorWorkoutDao
+import com.gymflow.core.database.OutdoorWorkoutEntity
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.SetLogEntity
 import com.gymflow.core.database.UserDao
@@ -57,7 +61,9 @@ class FirestoreConnectionManager @Inject constructor(
     private val userDao: UserDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val weightDao: WeightDao,
-    private val planDao: PlanDao
+    private val planDao: PlanDao,
+    private val dailyStepsDao: DailyStepsDao,
+    private val outdoorWorkoutDao: OutdoorWorkoutDao
 ) {
     private val tag = "FirestoreConnectionMgr"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -495,6 +501,93 @@ class FirestoreConnectionManager @Inject constructor(
                 }
             }
         activeRegistrations.add(measurementReg)
+
+        // 8. Real-time Daily Steps Listener
+        val stepsReg = firestore.collection(FirestoreSyncManager.COLLECTION_DAILY_STEPS)
+            .whereEqualTo("memberId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(tag, "Daily steps listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    updateStatusFromMetadata(snapshot.metadata.isFromCache, snapshot.metadata.hasPendingWrites())
+                    scope.launch {
+                        for (change in snapshot.documentChanges) {
+                            val doc = change.document
+                            val stepId = doc.getString("id") ?: doc.id
+
+                            when (change.type) {
+                                DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    val stepsEntity = DailyStepsEntity(
+                                        id = stepId,
+                                        memberId = doc.getString("memberId") ?: userId,
+                                        date = doc.getString("date") ?: "",
+                                        stepCount = (doc.getLong("stepCount") ?: 0L).toInt(),
+                                        targetGoal = (doc.getLong("targetGoal") ?: 10000L).toInt(),
+                                        distanceMeters = (doc.getDouble("distanceMeters") ?: 0.0).toFloat(),
+                                        caloriesKcal = (doc.getLong("caloriesKcal") ?: 0L).toInt(),
+                                        activeMinutes = (doc.getLong("activeMinutes") ?: 0L).toInt(),
+                                        lastSensorStepCount = (doc.getLong("lastSensorStepCount") ?: 0L).toInt(),
+                                        lastUpdatedEpochMs = doc.getLong("lastUpdatedEpochMs") ?: System.currentTimeMillis(),
+                                        isSynced = true
+                                    )
+                                    dailyStepsDao.upsertDailySteps(stepsEntity)
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    dailyStepsDao.deleteDailySteps(stepId)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(stepsReg)
+
+        // 9. Real-time Outdoor Workouts Listener
+        val outdoorReg = firestore.collection(FirestoreSyncManager.COLLECTION_OUTDOOR_WORKOUTS)
+            .whereEqualTo("memberId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(tag, "Outdoor workouts listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    updateStatusFromMetadata(snapshot.metadata.isFromCache, snapshot.metadata.hasPendingWrites())
+                    scope.launch {
+                        for (change in snapshot.documentChanges) {
+                            val doc = change.document
+                            val workoutId = doc.getString("id") ?: doc.id
+
+                            when (change.type) {
+                                DocumentChange.Type.ADDED, DocumentChange.Type.MODIFIED -> {
+                                    val outdoorEntity = OutdoorWorkoutEntity(
+                                        id = workoutId,
+                                        memberId = doc.getString("memberId") ?: userId,
+                                        workoutType = doc.getString("workoutType") ?: "RUN",
+                                        startTimeEpochMs = doc.getLong("startTimeEpochMs") ?: System.currentTimeMillis(),
+                                        endTimeEpochMs = doc.getLong("endTimeEpochMs"),
+                                        durationSeconds = doc.getLong("durationSeconds") ?: 0L,
+                                        totalSteps = (doc.getLong("totalSteps") ?: 0L).toInt(),
+                                        totalDistanceMeters = (doc.getDouble("totalDistanceMeters") ?: 0.0).toFloat(),
+                                        avgPaceSecondsPerKm = (doc.getDouble("avgPaceSecondsPerKm") ?: 0.0).toFloat(),
+                                        maxSpeedMps = (doc.getDouble("maxSpeedMps") ?: 0.0).toFloat(),
+                                        caloriesBurned = (doc.getLong("caloriesBurned") ?: 0L).toInt(),
+                                        polylineEncoded = doc.getString("polylineEncoded") ?: "",
+                                        isCompleted = doc.getBoolean("isCompleted") ?: true,
+                                        isSynced = true
+                                    )
+                                    outdoorWorkoutDao.upsertOutdoorWorkout(outdoorEntity)
+                                }
+                                DocumentChange.Type.REMOVED -> {
+                                    outdoorWorkoutDao.deleteOutdoorWorkout(workoutId)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(outdoorReg)
     }
 
     @Synchronized

@@ -2,8 +2,10 @@ package com.gymflow.core.di
 
 import android.content.Context
 import androidx.room.Room
+import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.ExerciseDao
 import com.gymflow.core.database.GymFlowDatabase
+import com.gymflow.core.database.OutdoorWorkoutDao
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.SyncQueueDao
 import com.gymflow.core.database.UserDao
@@ -37,7 +39,8 @@ object DatabaseModule {
                 GymFlowDatabase.MIGRATION_4_5,
                 GymFlowDatabase.MIGRATION_5_6,
                 GymFlowDatabase.MIGRATION_6_7,
-                GymFlowDatabase.MIGRATION_7_8
+                GymFlowDatabase.MIGRATION_7_8,
+                GymFlowDatabase.MIGRATION_8_9
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -61,4 +64,10 @@ object DatabaseModule {
 
     @Provides
     fun provideExerciseDao(database: GymFlowDatabase): ExerciseDao = database.exerciseDao()
+
+    @Provides
+    fun provideDailyStepsDao(database: GymFlowDatabase): DailyStepsDao = database.dailyStepsDao()
+
+    @Provides
+    fun provideOutdoorWorkoutDao(database: GymFlowDatabase): OutdoorWorkoutDao = database.outdoorWorkoutDao()
 }

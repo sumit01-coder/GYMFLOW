@@ -1,5 +1,10 @@
 package com.gymflow.feature.member.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,18 +31,24 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.gymflow.core.components.GymFlowBadge
@@ -114,6 +126,10 @@ fun MemberHomeScreen(
         onDiscardActiveSession = {
             viewModel.discardActiveSession()
         },
+        onStartOutdoor = { type -> viewModel.startOutdoorTracking(type) },
+        onPauseOutdoor = { viewModel.pauseOutdoorTracking() },
+        onResumeOutdoor = { viewModel.resumeOutdoorTracking() },
+        onFinishOutdoor = { viewModel.finishOutdoorTracking() },
         modifier = modifier
     )
 }
@@ -131,6 +147,10 @@ fun MemberHomeContent(
     onNavigateToAchievements: () -> Unit = {},
     onNavigateToExplore: (String) -> Unit = {},
     onDiscardActiveSession: () -> Unit = {},
+    onStartOutdoor: (String) -> Unit = {},
+    onPauseOutdoor: () -> Unit = {},
+    onResumeOutdoor: () -> Unit = {},
+    onFinishOutdoor: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -384,6 +404,27 @@ fun MemberHomeContent(
                         .clickable { onNavigateToActivity() }
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Daily Steps & Outdoor Cardio Card
+            DailyStepsAndOutdoorCard(
+                steps = uiState.todaySteps,
+                stepGoal = uiState.stepGoal,
+                progressFraction = uiState.stepProgressFraction,
+                distanceKm = uiState.stepDistanceKm,
+                calories = uiState.stepCalories,
+                isOutdoorTracking = uiState.isOutdoorTracking,
+                isOutdoorPaused = uiState.isOutdoorPaused,
+                outdoorDurationSeconds = uiState.outdoorDurationSeconds,
+                outdoorDistanceMeters = uiState.outdoorDistanceMeters,
+                outdoorPace = uiState.outdoorPace,
+                outdoorWorkoutType = uiState.outdoorWorkoutType,
+                onStartOutdoor = onStartOutdoor,
+                onPauseOutdoor = onPauseOutdoor,
+                onResumeOutdoor = onResumeOutdoor,
+                onFinishOutdoor = onFinishOutdoor
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -921,6 +962,489 @@ private fun TodayExerciseItem(
                     modifier = Modifier.size(20.dp),
                     tint = GymFlowTheme.colors.textTertiary
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyStepsAndOutdoorCard(
+    steps: Int,
+    stepGoal: Int,
+    progressFraction: Float,
+    distanceKm: Float,
+    calories: Float,
+    isOutdoorTracking: Boolean,
+    isOutdoorPaused: Boolean,
+    outdoorDurationSeconds: Long,
+    outdoorDistanceMeters: Float,
+    outdoorPace: String,
+    outdoorWorkoutType: String,
+    onStartOutdoor: (String) -> Unit,
+    onPauseOutdoor: () -> Unit,
+    onResumeOutdoor: () -> Unit,
+    onFinishOutdoor: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    var pendingWorkoutType by remember { mutableStateOf("RUN") }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        hasLocationPermission = fineGranted
+        if (fineGranted) {
+            onStartOutdoor(pendingWorkoutType)
+        }
+    }
+
+    fun launchOutdoorSession(type: String) {
+        pendingWorkoutType = type
+        val permissionsToRequest = mutableListOf<String>()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.ACTIVITY_RECOGNITION)
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+
+        if (permissionsToRequest.isEmpty()) {
+            onStartOutdoor(type)
+        } else {
+            permissionLauncher.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+
+    val cardShape = RoundedCornerShape(18.dp)
+
+    if (isOutdoorTracking) {
+        // ACTIVE OUTDOOR GPS HUD CARD
+        val mins = outdoorDurationSeconds / 60
+        val secs = outdoorDurationSeconds % 60
+        val formattedTime = "%02d:%02d".format(mins, secs)
+        val formattedDist = "%.2f".format(outdoorDistanceMeters / 1000f)
+
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(cardShape)
+                .background(GymFlowBlack)
+                .border(1.5.dp, GymFlowGreen, cardShape)
+                .padding(20.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowGreen.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsRun,
+                                contentDescription = null,
+                                tint = GymFlowGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "OUTDOOR GPS CARDIO",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = GymFlowGreen,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = if (isOutdoorPaused) "Paused" else "Tracking Route & Cadence",
+                                fontSize = 12.sp,
+                                color = GymFlowWhite.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isOutdoorPaused) Color(0xFFD97706) else GymFlowGreen)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (isOutdoorPaused) "PAUSED" else "LIVE GPS",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowBlack
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Large Duration Display
+                Text(
+                    text = formattedTime,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    color = GymFlowWhite,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // HUD Metrics Grid
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF1E2024))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "DISTANCE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = "$formattedDist km",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = "PACE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = "$outdoorPace /km",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = "ACTIVITY",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = outdoorWorkoutType,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowGreen
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Action Controls: Pause/Resume + Finish
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF2A2D32))
+                            .clickable {
+                                if (isOutdoorPaused) onResumeOutdoor() else onPauseOutdoor()
+                            }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (isOutdoorPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                                contentDescription = null,
+                                tint = GymFlowWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isOutdoorPaused) "Resume" else "Pause",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFDC2626))
+                            .clickable { onFinishOutdoor() }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Stop,
+                                contentDescription = null,
+                                tint = GymFlowWhite,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Finish Session",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // AMBIENT DAILY STEPS CARD
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .clip(cardShape)
+                .background(GymFlowTheme.colors.surface)
+                .border(1.dp, GymFlowBorder, cardShape)
+                .padding(20.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowTheme.colors.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsWalk,
+                                contentDescription = null,
+                                tint = GymFlowTheme.colors.textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Daily Steps & Movement",
+                                style = GymFlowTheme.typography.BodyMedium.copy(
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                            Text(
+                                text = "Hardware step sensor · Auto synced",
+                                style = GymFlowTheme.typography.Caption,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                        }
+                    }
+
+                    // Progress % badge
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(GymFlowGreen.copy(alpha = 0.15f))
+                            .border(0.5.dp, GymFlowGreen.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "${(progressFraction * 100).toInt()}%",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowGreen
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Steps Count Display
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "%,d".format(steps),
+                        style = GymFlowTheme.typography.Heading1.copy(
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black
+                        ),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "/ %,d steps".format(stepGoal),
+                        style = GymFlowTheme.typography.BodyMedium,
+                        color = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Progress Bar
+                LinearProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = GymFlowGreen,
+                    trackColor = GymFlowTheme.colors.surfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Stats: Distance & Calories
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Straighten,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "%.2f km".format(distanceKm),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "%.0f kcal".format(calories),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Quick Action: Start Outdoor Cardio (Run / Walk)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GymFlowBlack)
+                            .clickable { launchOutdoorSession("RUN") }
+                            .padding(vertical = 11.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsRun,
+                                contentDescription = null,
+                                tint = GymFlowWhite,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Start Outdoor Run",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .border(1.dp, GymFlowBorder, RoundedCornerShape(12.dp))
+                            .clickable { launchOutdoorSession("WALK") }
+                            .padding(vertical = 11.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsWalk,
+                                contentDescription = null,
+                                tint = GymFlowTheme.colors.textPrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Outdoor Walk",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                        }
+                    }
+                }
             }
         }
     }

@@ -18,9 +18,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HydrationLogEntity::class,
         BodyMeasurementEntity::class,
         SyncQueueEntity::class,
-        ExerciseEntity::class
+        ExerciseEntity::class,
+        DailyStepsEntity::class,
+        OutdoorWorkoutEntity::class,
+        OutdoorGpsPointEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -31,6 +34,8 @@ abstract class GymFlowDatabase : RoomDatabase() {
     abstract fun weightDao(): WeightDao
     abstract fun syncQueueDao(): SyncQueueDao
     abstract fun exerciseDao(): ExerciseDao
+    abstract fun dailyStepsDao(): DailyStepsDao
+    abstract fun outdoorWorkoutDao(): OutdoorWorkoutDao
 
     companion object {
         const val DATABASE_NAME = "gymflow.db"
@@ -147,6 +152,62 @@ abstract class GymFlowDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("DROP TABLE weight_logs")
                 db.execSQL("ALTER TABLE weight_logs_v8 RENAME TO weight_logs")
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_steps (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        memberId TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        stepCount INTEGER NOT NULL,
+                        targetGoal INTEGER NOT NULL DEFAULT 10000,
+                        distanceMeters REAL NOT NULL DEFAULT 0.0,
+                        caloriesKcal INTEGER NOT NULL DEFAULT 0,
+                        activeMinutes INTEGER NOT NULL DEFAULT 0,
+                        lastSensorStepCount INTEGER NOT NULL DEFAULT 0,
+                        lastUpdatedEpochMs INTEGER NOT NULL,
+                        isSynced INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_steps_memberId_date ON daily_steps (memberId, date)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS outdoor_workouts (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        memberId TEXT NOT NULL,
+                        workoutType TEXT NOT NULL DEFAULT 'RUN',
+                        startTimeEpochMs INTEGER NOT NULL,
+                        endTimeEpochMs INTEGER,
+                        durationSeconds INTEGER NOT NULL DEFAULT 0,
+                        totalSteps INTEGER NOT NULL DEFAULT 0,
+                        totalDistanceMeters REAL NOT NULL DEFAULT 0.0,
+                        avgPaceSecondsPerKm REAL NOT NULL DEFAULT 0.0,
+                        maxSpeedMps REAL NOT NULL DEFAULT 0.0,
+                        caloriesBurned INTEGER NOT NULL DEFAULT 0,
+                        polylineEncoded TEXT NOT NULL DEFAULT '',
+                        isCompleted INTEGER NOT NULL DEFAULT 0,
+                        isSynced INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_outdoor_workouts_memberId ON outdoor_workouts (memberId)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS outdoor_gps_points (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        workoutId TEXT NOT NULL,
+                        timestampEpochMs INTEGER NOT NULL,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        altitude REAL NOT NULL DEFAULT 0.0,
+                        accuracy REAL NOT NULL DEFAULT 0.0,
+                        speed REAL NOT NULL DEFAULT 0.0,
+                        cumulativeSteps INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_outdoor_gps_points_workoutId ON outdoor_gps_points (workoutId)")
             }
         }
     }

@@ -29,6 +29,7 @@ espresso = "3.6.1"
 googleServices = "4.4.2"
 firebaseBom = "33.5.1"
 playAppUpdate = "2.1.0"
+playServicesLocation = "21.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -76,8 +77,9 @@ androidx-security-crypto = { group = "androidx.security", name = "security-crypt
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coil" }
 
-# Google Play Core In-App Updates
+# Google Play Core In-App Updates & Location Services
 play-app-update = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "playAppUpdate" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 # Kotlinx Serialization & Coroutines
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }

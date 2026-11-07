@@ -1,11 +1,13 @@
 package com.gymflow.feature.member.home
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
@@ -14,7 +16,10 @@ import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
+import com.gymflow.core.service.OutdoorTrackingService
 import com.gymflow.core.service.WorkoutEngine
+import com.gymflow.core.step.OutdoorWorkoutEngine
+import com.gymflow.core.step.StepSensorManager
 import com.gymflow.domain.model.ExerciseSet
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
@@ -65,8 +70,21 @@ data class MemberHomeUiState(
     val userInitials: String = "GF",
     val isEmailVerified: Boolean = true,
     val graceDaysRemaining: Int = 7,
-    val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED
-)
+    val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED,
+    val todaySteps: Int = 0,
+    val stepGoal: Int = 10000,
+    val stepDistanceKm: Float = 0f,
+    val stepCalories: Float = 0f,
+    val isOutdoorTracking: Boolean = false,
+    val isOutdoorPaused: Boolean = false,
+    val outdoorDurationSeconds: Long = 0L,
+    val outdoorDistanceMeters: Float = 0f,
+    val outdoorPace: String = "--:--",
+    val outdoorWorkoutType: String = "RUN"
+) {
+    val stepProgressFraction: Float
+        get() = (todaySteps.toFloat() / stepGoal.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+}
 
 @HiltViewModel
 class MemberHomeViewModel @Inject constructor(
@@ -77,7 +95,10 @@ class MemberHomeViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val firestoreSyncManager: FirestoreSyncManager,
-    private val firestoreConnectionManager: FirestoreConnectionManager
+    private val firestoreConnectionManager: FirestoreConnectionManager,
+    private val stepSensorManager: StepSensorManager,
+    private val dailyStepsDao: DailyStepsDao,
+    private val outdoorWorkoutEngine: OutdoorWorkoutEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberHomeUiState())
@@ -89,6 +110,8 @@ class MemberHomeViewModel @Inject constructor(
         observeLatestWeight()
         observeTodayWorkout()
         observeConnectionStatus()
+        initStepCounting()
+        observeOutdoorTracking()
     }
 
     private fun observeConnectionStatus() {
@@ -332,5 +355,75 @@ class MemberHomeViewModel @Inject constructor(
                 }
             } catch (_: Exception) {}
         }
+    }
+
+    private fun initStepCounting() {
+        stepSensorManager.startTracking()
+        val todayStr = LocalDate.now().toString()
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            dailyStepsDao.getDailyStepsFlow(userId, todayStr).collect { entity ->
+                if (entity != null) {
+                    _uiState.update {
+                        it.copy(
+                            todaySteps = entity.stepCount,
+                            stepGoal = entity.targetGoal,
+                            stepDistanceKm = entity.distanceMeters / 1000f,
+                            stepCalories = entity.caloriesKcal.toFloat()
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeOutdoorTracking() {
+        viewModelScope.launch {
+            outdoorWorkoutEngine.state.collect { outdoorState ->
+                _uiState.update {
+                    it.copy(
+                        isOutdoorTracking = outdoorState.isTracking,
+                        isOutdoorPaused = outdoorState.isPaused,
+                        outdoorDurationSeconds = outdoorState.durationSeconds,
+                        outdoorDistanceMeters = outdoorState.distanceMeters,
+                        outdoorPace = outdoorState.formattedPace,
+                        outdoorWorkoutType = outdoorState.workoutType
+                    )
+                }
+            }
+        }
+    }
+
+    fun startOutdoorTracking(workoutType: String = "RUN") {
+        val serviceIntent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_START
+            putExtra(OutdoorTrackingService.EXTRA_WORKOUT_TYPE, workoutType)
+        }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+    }
+
+    fun pauseOutdoorTracking() {
+        val serviceIntent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_PAUSE
+        }
+        context.startService(serviceIntent)
+    }
+
+    fun resumeOutdoorTracking() {
+        val serviceIntent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_RESUME
+        }
+        context.startService(serviceIntent)
+    }
+
+    fun finishOutdoorTracking() {
+        val serviceIntent = Intent(context, OutdoorTrackingService::class.java).apply {
+            action = OutdoorTrackingService.ACTION_FINISH
+        }
+        context.startService(serviceIntent)
     }
 }
