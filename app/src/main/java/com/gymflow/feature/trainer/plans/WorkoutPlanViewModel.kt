@@ -3,6 +3,7 @@ package com.gymflow.feature.trainer.plans
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.PlanDao
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
@@ -134,7 +135,8 @@ data class WorkoutPlanBuilderUiState(
 @HiltViewModel
 class WorkoutPlanViewModel @Inject constructor(
     private val planDao: PlanDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val firestoreSyncManager: FirestoreSyncManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutPlanBuilderUiState())
     val uiState: StateFlow<WorkoutPlanBuilderUiState> = _uiState.asStateFlow()
@@ -215,6 +217,11 @@ class WorkoutPlanViewModel @Inject constructor(
                 planDao.replaceCompletePlan(plan)
             } catch (_: Exception) {
                 // Safe Room fallback
+            }
+            try {
+                firestoreSyncManager.saveWorkoutPlan(plan)
+            } catch (_: Exception) {
+                // Safe Firestore fallback
             }
             _uiState.update { it.copy(isSaved = true, showSuccessBanner = true) }
             onComplete?.invoke()

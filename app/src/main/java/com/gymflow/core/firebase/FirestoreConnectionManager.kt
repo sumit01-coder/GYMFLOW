@@ -248,6 +248,65 @@ class FirestoreConnectionManager @Inject constructor(
             }
         activeRegistrations.add(planReg)
 
+        // 3b. Real-time Trainer Plans Listener (when user acts as coach)
+        val trainerPlanReg = firestore.collection(FirestoreSyncManager.COLLECTION_PLANS)
+            .whereEqualTo("trainerId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(tag, "Trainer plans listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    updateStatusFromMetadata(snapshot.metadata.isFromCache, snapshot.metadata.hasPendingWrites())
+                    scope.launch {
+                        for (doc in snapshot.documents) {
+                            if (doc.exists()) {
+                                try {
+                                    val daysList = (doc.get("days") as? List<*>)?.mapNotNull { dayObj ->
+                                        val dayMap = dayObj as? Map<*, *> ?: return@mapNotNull null
+                                        val exList = (dayMap["exercises"] as? List<*>)?.mapNotNull { exObj ->
+                                            val exMap = exObj as? Map<*, *> ?: return@mapNotNull null
+                                            WorkoutExercise(
+                                                exerciseId = exMap["exerciseId"] as? String ?: "",
+                                                exerciseName = exMap["exerciseName"] as? String ?: "",
+                                                category = exMap["category"] as? String ?: "",
+                                                targetSets = (exMap["targetSets"] as? Number)?.toInt() ?: 3,
+                                                targetReps = (exMap["targetReps"] as? Number)?.toInt() ?: 12,
+                                                targetWeightKg = (exMap["targetWeightKg"] as? Number)?.toFloat() ?: 20f,
+                                                restDurationSeconds = (exMap["restDurationSeconds"] as? Number)?.toInt() ?: 45,
+                                                notes = exMap["notes"] as? String ?: ""
+                                            )
+                                        } ?: emptyList()
+
+                                        WorkoutDay(
+                                            dayOfWeek = dayMap["dayOfWeek"] as? String ?: "Monday",
+                                            title = dayMap["title"] as? String ?: "Workout",
+                                            isCompleted = dayMap["isCompleted"] as? Boolean ?: false,
+                                            isRestDay = dayMap["isRestDay"] as? Boolean ?: false,
+                                            exercises = exList
+                                        )
+                                    } ?: emptyList()
+
+                                    val parsedPlan = WorkoutPlan(
+                                        id = doc.getString("id") ?: doc.id,
+                                        trainerId = doc.getString("trainerId") ?: userId,
+                                        memberId = doc.getString("memberId") ?: "",
+                                        name = doc.getString("name") ?: "Custom Workout Plan",
+                                        version = doc.getLong("version")?.toInt() ?: 1,
+                                        isActive = doc.getBoolean("isActive") ?: true,
+                                        days = daysList
+                                    )
+                                    planDao.replaceCompletePlan(parsedPlan)
+                                } catch (e: Exception) {
+                                    Log.w(tag, "Failed to parse trainer plan snapshot", e)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(trainerPlanReg)
+
         // 4. Real-time Workout Sessions & Set Logs Listener
         val sessionsReg = firestore.collection(FirestoreSyncManager.COLLECTION_SESSIONS)
             .whereEqualTo("memberId", userId)

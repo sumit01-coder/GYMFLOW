@@ -493,13 +493,21 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             val existingLog = workoutSessionDao.getSetLog(currentState.sessionId, currentState.exerciseId, setNumber)
             if (existingLog != null) {
-                workoutSessionDao.upsertSetLog(
-                    existingLog.copy(
-                        actualReps = newReps,
-                        actualWeightKg = newWeightKg,
-                        isSynced = false
-                    )
+                val updatedLog = existingLog.copy(
+                    actualReps = newReps,
+                    actualWeightKg = newWeightKg,
+                    isSynced = false
                 )
+                workoutSessionDao.upsertSetLog(updatedLog)
+
+                // If session is already persisted, update Cloud Firestore in real-time
+                val session = workoutSessionDao.getSessionById(currentState.sessionId)
+                if (session != null) {
+                    val allSets = workoutSessionDao.getSetLogsSync(currentState.sessionId)
+                    try {
+                        firestoreSyncManager.saveWorkoutSessionWithSets(session, allSets)
+                    } catch (_: Exception) {}
+                }
             }
         }
     }
