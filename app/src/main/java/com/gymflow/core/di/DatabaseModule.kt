@@ -40,7 +40,8 @@ object DatabaseModule {
                 GymFlowDatabase.MIGRATION_5_6,
                 GymFlowDatabase.MIGRATION_6_7,
                 GymFlowDatabase.MIGRATION_7_8,
-                GymFlowDatabase.MIGRATION_8_9
+                GymFlowDatabase.MIGRATION_8_9,
+                GymFlowDatabase.MIGRATION_9_10
             )
             .fallbackToDestructiveMigration()
             .build()

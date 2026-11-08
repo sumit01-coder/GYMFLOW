@@ -82,3 +82,4 @@ class StepAndGpsTrackingTest {
         assertEquals("5:04", state.formattedPace)
     }
 }
+

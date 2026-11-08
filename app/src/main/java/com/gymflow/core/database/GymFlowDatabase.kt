@@ -23,7 +23,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OutdoorWorkoutEntity::class,
         OutdoorGpsPointEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -157,57 +157,127 @@ abstract class GymFlowDatabase : RoomDatabase() {
 
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS daily_steps (
-                        id TEXT NOT NULL PRIMARY KEY,
-                        memberId TEXT NOT NULL,
-                        date TEXT NOT NULL,
-                        stepCount INTEGER NOT NULL,
-                        targetGoal INTEGER NOT NULL DEFAULT 10000,
-                        distanceMeters REAL NOT NULL DEFAULT 0.0,
-                        caloriesKcal INTEGER NOT NULL DEFAULT 0,
-                        activeMinutes INTEGER NOT NULL DEFAULT 0,
-                        lastSensorStepCount INTEGER NOT NULL DEFAULT 0,
-                        lastUpdatedEpochMs INTEGER NOT NULL,
-                        isSynced INTEGER NOT NULL DEFAULT 0
-                    )
-                """.trimIndent())
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_steps_memberId_date ON daily_steps (memberId, date)")
+                db.execSQL("DROP TABLE IF EXISTS `daily_steps`")
+                db.execSQL("DROP TABLE IF EXISTS `outdoor_workouts`")
+                db.execSQL("DROP TABLE IF EXISTS `outdoor_gps_points`")
+                db.execSQL("DROP INDEX IF EXISTS `index_daily_steps_memberId_date`")
+                db.execSQL("DROP INDEX IF EXISTS `index_outdoor_workouts_memberId`")
+                db.execSQL("DROP INDEX IF EXISTS `index_outdoor_gps_points_workoutId`")
 
                 db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS outdoor_workouts (
-                        id TEXT NOT NULL PRIMARY KEY,
-                        memberId TEXT NOT NULL,
-                        workoutType TEXT NOT NULL DEFAULT 'RUN',
-                        startTimeEpochMs INTEGER NOT NULL,
-                        endTimeEpochMs INTEGER,
-                        durationSeconds INTEGER NOT NULL DEFAULT 0,
-                        totalSteps INTEGER NOT NULL DEFAULT 0,
-                        totalDistanceMeters REAL NOT NULL DEFAULT 0.0,
-                        avgPaceSecondsPerKm REAL NOT NULL DEFAULT 0.0,
-                        maxSpeedMps REAL NOT NULL DEFAULT 0.0,
-                        caloriesBurned INTEGER NOT NULL DEFAULT 0,
-                        polylineEncoded TEXT NOT NULL DEFAULT '',
-                        isCompleted INTEGER NOT NULL DEFAULT 0,
-                        isSynced INTEGER NOT NULL DEFAULT 0
+                    CREATE TABLE IF NOT EXISTS `daily_steps` (
+                        `id` TEXT NOT NULL,
+                        `memberId` TEXT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `stepCount` INTEGER NOT NULL,
+                        `targetGoal` INTEGER NOT NULL,
+                        `distanceMeters` REAL NOT NULL,
+                        `caloriesKcal` INTEGER NOT NULL,
+                        `activeMinutes` INTEGER NOT NULL,
+                        `lastSensorStepCount` INTEGER NOT NULL,
+                        `lastUpdatedEpochMs` INTEGER NOT NULL,
+                        `isSynced` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
                     )
                 """.trimIndent())
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_outdoor_workouts_memberId ON outdoor_workouts (memberId)")
 
                 db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS outdoor_gps_points (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        workoutId TEXT NOT NULL,
-                        timestampEpochMs INTEGER NOT NULL,
-                        latitude REAL NOT NULL,
-                        longitude REAL NOT NULL,
-                        altitude REAL NOT NULL DEFAULT 0.0,
-                        accuracy REAL NOT NULL DEFAULT 0.0,
-                        speed REAL NOT NULL DEFAULT 0.0,
-                        cumulativeSteps INTEGER NOT NULL DEFAULT 0
+                    CREATE TABLE IF NOT EXISTS `outdoor_workouts` (
+                        `id` TEXT NOT NULL,
+                        `memberId` TEXT NOT NULL,
+                        `workoutType` TEXT NOT NULL,
+                        `startTimeEpochMs` INTEGER NOT NULL,
+                        `endTimeEpochMs` INTEGER,
+                        `durationSeconds` INTEGER NOT NULL,
+                        `totalSteps` INTEGER NOT NULL,
+                        `totalDistanceMeters` REAL NOT NULL,
+                        `avgPaceSecondsPerKm` REAL NOT NULL,
+                        `maxSpeedMps` REAL NOT NULL,
+                        `caloriesBurned` INTEGER NOT NULL,
+                        `polylineEncoded` TEXT NOT NULL,
+                        `isCompleted` INTEGER NOT NULL,
+                        `isSynced` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
                     )
                 """.trimIndent())
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_outdoor_gps_points_workoutId ON outdoor_gps_points (workoutId)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `outdoor_gps_points` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `workoutId` TEXT NOT NULL,
+                        `timestampEpochMs` INTEGER NOT NULL,
+                        `latitude` REAL NOT NULL,
+                        `longitude` REAL NOT NULL,
+                        `altitude` REAL NOT NULL,
+                        `accuracy` REAL NOT NULL,
+                        `speed` REAL NOT NULL,
+                        `cumulativeSteps` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outdoor_gps_points_workoutId` ON `outdoor_gps_points` (`workoutId`)")
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS `daily_steps`")
+                db.execSQL("DROP TABLE IF EXISTS `outdoor_workouts`")
+                db.execSQL("DROP TABLE IF EXISTS `outdoor_gps_points`")
+                db.execSQL("DROP INDEX IF EXISTS `index_daily_steps_memberId_date`")
+                db.execSQL("DROP INDEX IF EXISTS `index_outdoor_workouts_memberId`")
+                db.execSQL("DROP INDEX IF EXISTS `index_outdoor_gps_points_workoutId`")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `daily_steps` (
+                        `id` TEXT NOT NULL,
+                        `memberId` TEXT NOT NULL,
+                        `date` TEXT NOT NULL,
+                        `stepCount` INTEGER NOT NULL,
+                        `targetGoal` INTEGER NOT NULL,
+                        `distanceMeters` REAL NOT NULL,
+                        `caloriesKcal` INTEGER NOT NULL,
+                        `activeMinutes` INTEGER NOT NULL,
+                        `lastSensorStepCount` INTEGER NOT NULL,
+                        `lastUpdatedEpochMs` INTEGER NOT NULL,
+                        `isSynced` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `outdoor_workouts` (
+                        `id` TEXT NOT NULL,
+                        `memberId` TEXT NOT NULL,
+                        `workoutType` TEXT NOT NULL,
+                        `startTimeEpochMs` INTEGER NOT NULL,
+                        `endTimeEpochMs` INTEGER,
+                        `durationSeconds` INTEGER NOT NULL,
+                        `totalSteps` INTEGER NOT NULL,
+                        `totalDistanceMeters` REAL NOT NULL,
+                        `avgPaceSecondsPerKm` REAL NOT NULL,
+                        `maxSpeedMps` REAL NOT NULL,
+                        `caloriesBurned` INTEGER NOT NULL,
+                        `polylineEncoded` TEXT NOT NULL,
+                        `isCompleted` INTEGER NOT NULL,
+                        `isSynced` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `outdoor_gps_points` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `workoutId` TEXT NOT NULL,
+                        `timestampEpochMs` INTEGER NOT NULL,
+                        `latitude` REAL NOT NULL,
+                        `longitude` REAL NOT NULL,
+                        `altitude` REAL NOT NULL,
+                        `accuracy` REAL NOT NULL,
+                        `speed` REAL NOT NULL,
+                        `cumulativeSteps` INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_outdoor_gps_points_workoutId` ON `outdoor_gps_points` (`workoutId`)")
             }
         }
     }
