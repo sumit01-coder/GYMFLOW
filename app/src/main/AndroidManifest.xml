@@ -57,6 +57,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Isolated Crash Recovery & Emergency In-App Updater Activity -->
+        <activity
+            android:name=".core.recovery.CrashRecoveryActivity"
+            android:process=":recovery"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar"
+            android:screenOrientation="portrait" />
+
         <service
             android:name=".core.service.WorkoutTimerService"
             android:foregroundServiceType="specialUse"

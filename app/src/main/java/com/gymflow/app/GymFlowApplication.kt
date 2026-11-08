@@ -32,6 +32,16 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
         // 0. Initialize enterprise bug & crash telemetry with Firebase Firestore
         GymFlowBugReporter.initialize(this)
 
+        // If running in isolated recovery process, bypass all main-process workers & preheating
+        val currentProcessName = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getProcessName()
+        } else {
+            ""
+        }
+        if (currentProcessName.endsWith(":recovery")) {
+            return
+        }
+
         // 1. Enqueue background WorkManager task to pre-download and cache exercise catalog GIFs
         ExerciseGifPreloadWorker.enqueue(this)
 

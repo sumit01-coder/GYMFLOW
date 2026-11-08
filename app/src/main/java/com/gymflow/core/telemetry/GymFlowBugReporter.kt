@@ -11,6 +11,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gymflow.BuildConfig
+import com.gymflow.core.recovery.CrashRecoveryActivity
 import com.gymflow.core.updater.PackageSignatureVerifier
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,20 +155,40 @@ object GymFlowBugReporter {
         )
     }
 
+    private fun isRecoveryProcess(context: Context?): Boolean {
+        if (context == null) return false
+        val currentProcess = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            android.app.Application.getProcessName()
+        } else {
+            try {
+                File("/proc/self/cmdline").readText().trim { it <= ' ' }
+            } catch (_: Exception) {
+                ""
+            }
+        }
+        return currentProcess.endsWith(":recovery")
+    }
+
     private fun installGlobalCrashHandler() {
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            val context = appContext
+            val isAlreadyRecovery = isRecoveryProcess(context)
+
             try {
                 Log.e(TAG, "CRITICAL: Uncaught exception in thread ${thread.name}", throwable)
                 // Synchronously attempt to write crash report
-                val context = appContext
                 val payload = buildDiagnosticPayload(
                     context = context,
                     category = BugCategory.UNCAUGHT_CRASH,
                     severity = BugSeverity.FATAL,
                     title = "Fatal Crash in thread '${thread.name}': ${throwable.message}",
                     error = throwable,
-                    metadata = mapOf("threadName" to thread.name, "threadId" to thread.id)
+                    metadata = mapOf(
+                        "threadName" to thread.name,
+                        "threadId" to thread.id,
+                        "isRecoveryProcess" to isAlreadyRecovery
+                    )
                 )
 
                 // Dispatch to Firestore (and wait briefly up to 1.5 seconds)
@@ -181,7 +202,25 @@ object GymFlowBugReporter {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed handling uncaught exception telemetry", e)
             } finally {
-                defaultHandler?.uncaughtException(thread, throwable)
+                if (context != null && !isAlreadyRecovery) {
+                    try {
+                        val stackTraceStr = Log.getStackTraceString(throwable)
+                        val recoveryIntent = CrashRecoveryActivity.createIntent(
+                            context = context,
+                            title = "Fatal Crash: ${throwable.javaClass.simpleName}",
+                            message = throwable.message ?: "An unhandled error interrupted the application.",
+                            stackTrace = stackTraceStr
+                        )
+                        context.startActivity(recoveryIntent)
+                        android.os.Process.killProcess(android.os.Process.myPid())
+                        System.exit(10)
+                    } catch (launchEx: Exception) {
+                        Log.e(TAG, "Failed launching CrashRecoveryActivity, falling back to OS handler", launchEx)
+                        defaultHandler?.uncaughtException(thread, throwable)
+                    }
+                } else {
+                    defaultHandler?.uncaughtException(thread, throwable)
+                }
             }
         }
     }
