@@ -14,14 +14,14 @@ android {
 
     val rawVersionName = project.findProperty("appVersionName") as? String
         ?: System.getenv("APP_VERSION_NAME")
-        ?: "1.0.37"
+        ?: "1.0.38"
 
     val cleanVersionName = rawVersionName.removePrefix("v").removePrefix("V").trim()
 
     val versionParts = cleanVersionName.split('-', '_', '+')[0].split('.').mapNotNull { it.toIntOrNull() }
     val major = versionParts.getOrElse(0) { 1 }
     val minor = versionParts.getOrElse(1) { 0 }
-    val patch = versionParts.getOrElse(2) { 37 }
+    val patch = versionParts.getOrElse(2) { 38 }
     val calculatedVersionCode = major * 10000 + minor * 100 + patch
 
     val appVersionCode = (project.findProperty("appVersionCode") as? String)?.toIntOrNull()
@@ -83,6 +83,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+hilt {
+    enableAggregatingTask = true
 }
 
 dependencies {
