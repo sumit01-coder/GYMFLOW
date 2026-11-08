@@ -1,5 +1,6 @@
 package com.gymflow.feature.member.exercises
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,15 +27,20 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,10 +67,12 @@ import com.gymflow.domain.model.Exercise
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -487,9 +495,10 @@ private fun ExploreStretchCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        contentPadding = 12.dp
+        contentPadding = 14.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // Header Row: Timing badge, Muscle category badge, and Duration pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -499,7 +508,6 @@ private fun ExploreStretchCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Timing badge
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
@@ -516,7 +524,6 @@ private fun ExploreStretchCard(
                         )
                     }
 
-                    // Muscle category badge
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
@@ -534,191 +541,165 @@ private fun ExploreStretchCard(
                     }
                 }
 
-                // Hold duration pill & preview expand indicator
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(GymFlowTheme.colors.surfaceVariant)
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(GymFlowTheme.colors.surfaceVariant)
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = null,
-                            tint = GymFlowTheme.colors.textSecondary,
-                            modifier = Modifier.size(11.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${stretch.recommendedDurationSeconds}s hold",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GymFlowTheme.colors.textPrimary,
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    }
-
                     Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Preview Form",
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
                         tint = GymFlowTheme.colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${stretch.recommendedDurationSeconds}s hold",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowTheme.colors.textPrimary,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Prominent Visual Form Preview & Name / Target / Coach Cue Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.55f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(resolvedGif)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "${stretch.name} Form Guide",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp),
-                        loading = {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = GymFlowBlack
-                                )
-                            }
-                        },
-                        error = {
-                            Icon(
-                                imageVector = Icons.Default.SelfImprovement,
-                                contentDescription = null,
-                                tint = GymFlowTheme.colors.textSecondary,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    )
+            // Stretch Title & Primary Muscle Target (Clean, Visual-First - NO Manual Text Walls)
+            Text(
+                text = stretch.name,
+                style = GymFlowTheme.typography.Heading2.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                ),
+                color = GymFlowTheme.colors.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
 
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(3.dp)
-                            .clip(RoundedCornerShape(3.dp))
-                            .background(Color.Black.copy(alpha = 0.7f))
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = "PREVIEW",
-                            fontSize = 7.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GymFlowGreen
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.height(3.dp))
 
-                Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Target: ${stretch.targetMuscle}",
+                style = GymFlowTheme.typography.Caption.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                ),
+                color = GymFlowGreen,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stretch.name,
-                        style = GymFlowTheme.typography.Heading2.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        ),
-                        color = GymFlowTheme.colors.textPrimary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            Spacer(modifier = Modifier.height(10.dp))
 
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = "Target: ${stretch.targetMuscle}",
-                        style = GymFlowTheme.typography.Caption.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 11.sp
-                        ),
-                        color = GymFlowTheme.colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (stretch.coachTip.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stretch.coachTip,
-                            style = GymFlowTheme.typography.Caption.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = GymFlowTheme.colors.textSecondary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Compact Breathing Cue Pill & Tap to Preview Prompt
+            // PROMINENT HERO FORM PREVIEW (Spacious visual stage to practice and inspect movement)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(GymFlowTheme.colors.surfaceVariant)
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .height(165.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.55f))
+                    .border(1.dp, GymFlowBorder, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(resolvedGif)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "${stretch.name} Form Guide",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp),
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = GymFlowBlack
+                            )
+                        }
+                    },
+                    error = {
                         Icon(
                             imageVector = Icons.Default.SelfImprovement,
                             contentDescription = null,
                             tint = GymFlowTheme.colors.textSecondary,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Breathing: ${stretch.breathingCue}",
-                            style = GymFlowTheme.typography.Caption.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = GymFlowTheme.colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.size(36.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Tap to view",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = GymFlowGreen
-                    )
+                )
+
+                // Top-Right Live 3D Loop Badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.Black.copy(alpha = 0.75f))
+                        .padding(horizontal = 6.dp, vertical = 2.5.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowGreen)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "3D FORM LOOP",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowWhite
+                        )
+                    }
+                }
+
+                // Bottom Gradient Banner: Tap to Practice & Preview Form
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                            )
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.PlayCircle,
+                                contentDescription = null,
+                                tint = GymFlowGreen,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Tap to practice form • ${stretch.recommendedDurationSeconds}s",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite
+                            )
+                        }
+
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Practice Form",
+                            tint = GymFlowWhite.copy(alpha = 0.85f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -886,15 +867,22 @@ private fun StretchPreviewBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val view = LocalView.current
     var isTimerRunning by remember { mutableStateOf(false) }
     var secondsRemaining by remember(stretch.id) { mutableStateOf(stretch.recommendedDurationSeconds) }
+    var currentSide by remember(stretch.id) { mutableStateOf("Right") }
+    var isCompleted by remember(stretch.id) { mutableStateOf(false) }
 
     LaunchedEffect(isTimerRunning, secondsRemaining) {
         if (isTimerRunning && secondsRemaining > 0) {
             delay(1000L)
             secondsRemaining--
-        } else if (secondsRemaining == 0) {
+        } else if (secondsRemaining == 0 && isTimerRunning) {
             isTimerRunning = false
+            isCompleted = true
+            try {
+                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            } catch (_: Exception) {}
         }
     }
 
@@ -930,7 +918,7 @@ private fun StretchPreviewBottomSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 6.dp)
         ) {
-            // Header Row: Badges & Close Button
+            // Header Row: Timing badge, Muscle badge & Close button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -981,9 +969,9 @@ private fun StretchPreviewBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Stretch Title
+            // Stretch Title & Primary Target
             Text(
                 text = stretch.name,
                 style = GymFlowTheme.typography.Heading2.copy(
@@ -993,7 +981,7 @@ private fun StretchPreviewBottomSheet(
                 color = GymFlowTheme.colors.textPrimary
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
                 text = "Target: ${stretch.targetMuscle}",
@@ -1004,13 +992,13 @@ private fun StretchPreviewBottomSheet(
                 color = GymFlowGreen
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Full-Size Animated 3D Form Demonstration
+            // FULL-SIZE ANIMATED 3D FORM VIEWER (Visual Hero Studio)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(260.dp)
+                    .height(270.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
                     .border(1.dp, GymFlowBorder, RoundedCornerShape(16.dp)),
@@ -1029,7 +1017,7 @@ private fun StretchPreviewBottomSheet(
                     loading = {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(30.dp),
                                 strokeWidth = 2.5.dp,
                                 color = GymFlowBlack
                             )
@@ -1040,12 +1028,12 @@ private fun StretchPreviewBottomSheet(
                             imageVector = Icons.Default.SelfImprovement,
                             contentDescription = null,
                             tint = GymFlowTheme.colors.textSecondary,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(52.dp)
                         )
                     }
                 )
 
-                // High-visibility badge
+                // High-visibility status badge overlay
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -1072,15 +1060,15 @@ private fun StretchPreviewBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Interactive Hold Timer Card
+            // INTERACTIVE PRACTICE HOLD TIMER CARD
             val totalSeconds = stretch.recommendedDurationSeconds.coerceAtLeast(1)
             val progress = (totalSeconds - secondsRemaining).toFloat() / totalSeconds.toFloat()
 
             GymFlowCard(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = 14.dp
+                contentPadding = 16.dp
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -1090,7 +1078,7 @@ private fun StretchPreviewBottomSheet(
                     ) {
                         Column {
                             Text(
-                                text = "HOLD DURATION",
+                                text = "PRACTICE HOLD TIMER",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = GymFlowTheme.colors.textSecondary,
@@ -1098,45 +1086,72 @@ private fun StretchPreviewBottomSheet(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (secondsRemaining == 0) "Complete! 🎯" else "${secondsRemaining}s remaining",
+                                text = when {
+                                    isCompleted -> "Complete! 🎯"
+                                    isTimerRunning -> "${secondsRemaining}s hold"
+                                    else -> "${secondsRemaining}s ready"
+                                },
                                 style = GymFlowTheme.typography.Heading2.copy(
-                                    fontSize = 18.sp,
+                                    fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = if (secondsRemaining == 0) GymFlowGreen else GymFlowTheme.colors.textPrimary
+                                color = if (isCompleted) GymFlowGreen else GymFlowTheme.colors.textPrimary
                             )
                         }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Reset button
-                            if (secondsRemaining != stretch.recommendedDurationSeconds) {
-                                IconButton(
-                                    onClick = {
-                                        isTimerRunning = false
-                                        secondsRemaining = stretch.recommendedDurationSeconds
-                                    },
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .background(GymFlowTheme.colors.surfaceVariant)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Reset Timer",
-                                        tint = GymFlowTheme.colors.textPrimary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // +10s Button
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(GymFlowTheme.colors.surfaceVariant)
+                                    .clickable {
+                                        secondsRemaining += 10
+                                        isCompleted = false
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "+10s",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowTheme.colors.textPrimary
+                                )
                             }
 
-                            // Play/Pause button
+                            // Reset button
+                            IconButton(
+                                onClick = {
+                                    isTimerRunning = false
+                                    isCompleted = false
+                                    secondsRemaining = stretch.recommendedDurationSeconds
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowTheme.colors.surfaceVariant)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Reset Timer",
+                                    tint = GymFlowTheme.colors.textPrimary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+
+                            // Start / Pause Primary Button
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(if (isTimerRunning) GymFlowTheme.colors.surfaceVariant else GymFlowBlack)
                                     .clickable {
-                                        if (secondsRemaining == 0) {
+                                        if (isCompleted || secondsRemaining == 0) {
                                             secondsRemaining = stretch.recommendedDurationSeconds
+                                            isCompleted = false
                                             isTimerRunning = true
                                         } else {
                                             isTimerRunning = !isTimerRunning
@@ -1149,7 +1164,7 @@ private fun StretchPreviewBottomSheet(
                                     Icon(
                                         imageVector = when {
                                             isTimerRunning -> Icons.Default.Pause
-                                            secondsRemaining == 0 -> Icons.Default.Refresh
+                                            isCompleted || secondsRemaining == 0 -> Icons.Default.Refresh
                                             else -> Icons.Default.PlayArrow
                                         },
                                         contentDescription = null,
@@ -1160,9 +1175,9 @@ private fun StretchPreviewBottomSheet(
                                     Text(
                                         text = when {
                                             isTimerRunning -> "Pause"
-                                            secondsRemaining == 0 -> "Restart"
+                                            isCompleted || secondsRemaining == 0 -> "Restart"
                                             secondsRemaining < stretch.recommendedDurationSeconds -> "Resume"
-                                            else -> "Start ${stretch.recommendedDurationSeconds}s"
+                                            else -> "Start"
                                         },
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -1181,116 +1196,195 @@ private fun StretchPreviewBottomSheet(
                             .fillMaxWidth()
                             .height(6.dp)
                             .clip(RoundedCornerShape(3.dp)),
-                        color = if (secondsRemaining == 0) GymFlowGreen else GymFlowBlack,
+                        color = if (isCompleted) GymFlowGreen else GymFlowBlack,
                         trackColor = GymFlowTheme.colors.surfaceVariant
                     )
+
+                    // Switch Side quick button (For bilateral stretches)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
+                            .clickable {
+                                currentSide = if (currentSide == "Right") "Left" else "Right"
+                                secondsRemaining = stretch.recommendedDurationSeconds
+                                isTimerRunning = false
+                                isCompleted = false
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.SwapHoriz,
+                                contentDescription = null,
+                                tint = GymFlowGreen,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Current: $currentSide Side",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                        }
+                        Text(
+                            text = "Switch Side 🔄",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowGreen
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Breathing Cue Box
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(GymFlowTheme.colors.surfaceVariant)
-                    .padding(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Icon(
-                        imageVector = Icons.Default.SelfImprovement,
-                        contentDescription = null,
-                        tint = GymFlowTheme.colors.textSecondary,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .padding(top = 2.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(
-                            text = "BREATHING CADENCE",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GymFlowTheme.colors.textSecondary,
-                            letterSpacing = 0.5.sp
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = stretch.breathingCue,
-                            style = GymFlowTheme.typography.Caption.copy(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = GymFlowTheme.colors.textPrimary
-                        )
-                    }
-                }
-            }
+            // QUICK FORM FOCUS (Bite-sized visual pills - NO wall-of-text manual!)
+            Text(
+                text = "FORM FOCUS POINTS",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = GymFlowTheme.colors.textSecondary,
+                letterSpacing = 0.5.sp
+            )
 
-            // Coach Tip Box
-            if (stretch.coachTip.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Box(
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Key Alignment
+                val firstCue = stretch.instructions.firstOrNull() ?: "Maintain upright posture and neutral spine."
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
                         .background(GymFlowTheme.colors.surfaceVariant)
-                        .padding(12.dp)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "COACH TIP",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GymFlowTheme.colors.textSecondary,
-                            letterSpacing = 0.5.sp
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(GymFlowGreen.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = GymFlowGreen,
+                            modifier = Modifier.size(14.dp)
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = firstCue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = GymFlowTheme.colors.textPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                // Coach Alignment Cue
+                if (stretch.coachTip.isNotBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEDE9FE)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SelfImprovement,
+                                contentDescription = null,
+                                tint = Color(0xFF6D28D9),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = stretch.coachTip,
-                            style = GymFlowTheme.typography.Caption.copy(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            color = GymFlowTheme.colors.textPrimary
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = GymFlowTheme.colors.textPrimary,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
+
+                // Breathing Focus
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(GymFlowTheme.colors.surfaceVariant)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFCCFBF1)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = Color(0xFF0F766E),
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Breathing: ${stretch.breathingCue}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = GymFlowTheme.colors.textPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
-            // Step-by-Step Instructions
-            if (stretch.instructions.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = "STEP-BY-STEP FORM CUES",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = GymFlowTheme.colors.textSecondary,
-                    letterSpacing = 0.5.sp
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    stretch.instructions.forEachIndexed { index, step ->
-                        Row(
-                            verticalAlignment = Alignment.Top,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "${index + 1}.",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = GymFlowGreen,
-                                modifier = Modifier.width(20.dp)
-                            )
-                            Text(
-                                text = step,
-                                fontSize = 12.sp,
-                                color = GymFlowTheme.colors.textPrimary,
-                                style = GymFlowTheme.typography.Caption
-                            )
-                        }
-                    }
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Done Practicing CTA Button
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GymFlowBlack)
+                    .clickable(onClick = onDismiss)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = GymFlowGreen,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Done Practicing",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowWhite
+                    )
                 }
             }
 

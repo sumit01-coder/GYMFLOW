@@ -51,3 +51,4 @@ class CrashRecoveryTest {
         assertFalse(VersionComparator.isNewerVersion("1.0.36", "1.0.36"))
     }
 }
+

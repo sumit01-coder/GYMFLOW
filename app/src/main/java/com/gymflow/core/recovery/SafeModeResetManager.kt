@@ -58,3 +58,4 @@ object SafeModeResetManager {
         return fileOrDir.delete()
     }
 }
+

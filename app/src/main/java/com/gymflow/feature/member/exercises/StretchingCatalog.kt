@@ -39,7 +39,7 @@ object StretchingCatalog {
                 "Hold for 30 seconds, breathe deeply, then switch leading legs."
             ),
             coachTip = "Adjust your elbow height: higher targets the lower pec; lower targets the upper pec fibers.",
-            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/behind-head-chest-stretch.gif"
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/pectorals/chest-and-front-of-shoulder-stretch.gif"
         ),
         StretchingExercise(
             id = "stretch_chest_standing_opener",
@@ -145,7 +145,7 @@ object StretchingCatalog {
                 "Hold for 20 to 25 seconds."
             ),
             coachTip = "Essential for preventing golfer's elbow and tendon strain from heavy curls and pull-ups.",
-            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/forearms/side-wrist-pull-stretch.gif"
+            gifUrl = "https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/forearms/modified-push-up-to-lower-arms.gif"
         ),
 
         // TRICEPS
