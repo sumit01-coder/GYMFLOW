@@ -130,6 +130,8 @@ fun MemberHomeScreen(
         onPauseOutdoor = { viewModel.pauseOutdoorTracking() },
         onResumeOutdoor = { viewModel.resumeOutdoorTracking() },
         onFinishOutdoor = { viewModel.finishOutdoorTracking() },
+        onUpdateStepGoal = { newGoal -> viewModel.updateStepGoal(newGoal) },
+        onDeleteOutdoorWorkout = { id -> viewModel.deleteOutdoorWorkout(id) },
         modifier = modifier
     )
 }
@@ -151,8 +153,12 @@ fun MemberHomeContent(
     onPauseOutdoor: () -> Unit = {},
     onResumeOutdoor: () -> Unit = {},
     onFinishOutdoor: () -> Unit = {},
+    onUpdateStepGoal: (Int) -> Unit = {},
+    onDeleteOutdoorWorkout: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var showWalkingHistorySheet by remember { mutableStateOf(false) }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -420,6 +426,8 @@ fun MemberHomeContent(
                 outdoorDistanceMeters = uiState.outdoorDistanceMeters,
                 outdoorPace = uiState.outdoorPace,
                 outdoorWorkoutType = uiState.outdoorWorkoutType,
+                weeklyDayTrends = uiState.weeklyDayTrends,
+                onOpenHistory = { showWalkingHistorySheet = true },
                 onStartOutdoor = onStartOutdoor,
                 onPauseOutdoor = onPauseOutdoor,
                 onResumeOutdoor = onResumeOutdoor,
@@ -849,6 +857,15 @@ fun MemberHomeContent(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
+
+    if (showWalkingHistorySheet) {
+        WalkingHistoryBottomSheet(
+            uiState = uiState,
+            onDismiss = { showWalkingHistorySheet = false },
+            onUpdateStepGoal = onUpdateStepGoal,
+            onDeleteOutdoorWorkout = onDeleteOutdoorWorkout
+        )
+    }
 }
 
 @Composable
@@ -980,6 +997,8 @@ fun DailyStepsAndOutdoorCard(
     outdoorDistanceMeters: Float,
     outdoorPace: String,
     outdoorWorkoutType: String,
+    weeklyDayTrends: List<StepDayTrend> = emptyList(),
+    onOpenHistory: () -> Unit = {},
     onStartOutdoor: (String) -> Unit,
     onPauseOutdoor: () -> Unit,
     onResumeOutdoor: () -> Unit,
@@ -1238,97 +1257,168 @@ fun DailyStepsAndOutdoorCard(
         }
     } else {
         // AMBIENT DAILY STEPS CARD
+        val isGoalMet = steps >= stepGoal && steps > 0
+        val estWalkingMinutes = (steps / 100).coerceAtLeast(1)
+
         Box(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(cardShape)
                 .background(GymFlowTheme.colors.surface)
-                .border(1.dp, GymFlowBorder, cardShape)
-                .padding(20.dp)
+                .border(1.dp, if (isGoalMet) GymFlowGreen.copy(alpha = 0.4f) else GymFlowBorder, cardShape)
+                .padding(18.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
+                // Header Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onOpenHistory() }
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(GymFlowTheme.colors.surfaceVariant),
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(GymFlowGreen.copy(alpha = 0.12f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.DirectionsWalk,
                                 contentDescription = null,
-                                tint = GymFlowTheme.colors.textPrimary,
-                                modifier = Modifier.size(20.dp)
+                                tint = GymFlowGreen,
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "Daily Steps & Movement",
+                                    style = GymFlowTheme.typography.BodyMedium.copy(
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = GymFlowTheme.colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                // Live sync indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(GymFlowGreen)
+                                )
+                            }
                             Text(
-                                text = "Daily Steps & Movement",
-                                style = GymFlowTheme.typography.BodyMedium.copy(
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = GymFlowTheme.colors.textPrimary
-                            )
-                            Text(
-                                text = "Hardware step sensor · Auto synced",
+                                text = "Hardware sensor · Auto synced",
                                 style = GymFlowTheme.typography.Caption,
                                 color = GymFlowTheme.colors.textSecondary
                             )
                         }
                     }
 
-                    // Progress % badge
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(GymFlowGreen.copy(alpha = 0.15f))
-                            .border(0.5.dp, GymFlowGreen.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    // Header Right: History pill button + % badge
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text(
-                            text = "${(progressFraction * 100).toInt()}%",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = GymFlowGreen
-                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .border(0.5.dp, GymFlowBorder, RoundedCornerShape(8.dp))
+                                .clickable { onOpenHistory() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "History",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = GymFlowTheme.colors.textPrimary
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = GymFlowTheme.colors.textSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isGoalMet) GymFlowGreen else GymFlowGreen.copy(alpha = 0.15f))
+                                .border(
+                                    0.5.dp,
+                                    if (isGoalMet) GymFlowGreen else GymFlowGreen.copy(alpha = 0.4f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "${(progressFraction * 100).toInt()}%",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = if (isGoalMet) GymFlowBlack else GymFlowGreen
+                            )
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Steps Count Display
+                // Steps Count Display + Goal Badge
                 Row(
-                    verticalAlignment = Alignment.Bottom,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
                 ) {
-                    Text(
-                        text = "%,d".format(steps),
-                        style = GymFlowTheme.typography.Heading1.copy(
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Black
-                        ),
-                        color = GymFlowTheme.colors.textPrimary
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "/ %,d steps".format(stepGoal),
-                        style = GymFlowTheme.typography.BodyMedium,
-                        color = GymFlowTheme.colors.textSecondary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = "%,d".format(steps),
+                            style = GymFlowTheme.typography.Heading1.copy(
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.Black
+                            ),
+                            color = GymFlowTheme.colors.textPrimary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "/ %,d steps".format(stepGoal),
+                            style = GymFlowTheme.typography.BodyMedium,
+                            color = GymFlowTheme.colors.textSecondary,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+
+                    if (isGoalMet) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(GymFlowGreen.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "🎯 Goal Hit!",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowGreen
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Progress Bar
+                // Linear Progress Indicator
                 LinearProgressIndicator(
                     progress = { progressFraction },
                     modifier = Modifier
@@ -1339,50 +1429,115 @@ fun DailyStepsAndOutdoorCard(
                     trackColor = GymFlowTheme.colors.surfaceVariant
                 )
 
+                // 7-Day Activity Sparkline
+                if (weeklyDayTrends.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
+                            .clickable { onOpenHistory() }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "7-DAY ACTIVITY TREND",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowTheme.colors.textSecondary,
+                                letterSpacing = 0.5.sp
+                            )
+                            Text(
+                                text = "Tap for full log ↗",
+                                fontSize = 10.sp,
+                                color = GymFlowGreen,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            weeklyDayTrends.forEach { dayTrend ->
+                                val barHeightDp = (dayTrend.progressFraction * 36f).coerceIn(4f, 36f).dp
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .height(38.dp)
+                                            .width(12.dp),
+                                        contentAlignment = Alignment.BottomCenter
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(GymFlowTheme.colors.surfaceVariant)
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(barHeightDp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(
+                                                    when {
+                                                        dayTrend.isToday -> GymFlowGreen
+                                                        dayTrend.isGoalReached -> GymFlowGreen.copy(alpha = 0.85f)
+                                                        dayTrend.steps > 0 -> GymFlowGreen.copy(alpha = 0.35f)
+                                                        else -> Color.Transparent
+                                                    }
+                                                )
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = dayTrend.dayLabel,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (dayTrend.isToday) FontWeight.Black else FontWeight.Normal,
+                                        color = if (dayTrend.isToday) GymFlowGreen else GymFlowTheme.colors.textSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Stats: Distance & Calories
+                // Stats: 3-Tile Grid (Distance, Calories, Est. Walk Time)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    MetricTile(
+                        icon = Icons.Default.Straighten,
+                        label = "DISTANCE",
+                        value = "%.2f km".format(distanceKm),
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Straighten,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = GymFlowTheme.colors.textSecondary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "%.2f km".format(distanceKm),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = GymFlowTheme.colors.textPrimary
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    )
+                    MetricTile(
+                        icon = Icons.Default.LocalFireDepartment,
+                        label = "ACTIVE BURN",
+                        value = "%.0f kcal".format(calories),
                         modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = GymFlowTheme.colors.textSecondary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "%.0f kcal".format(calories),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = GymFlowTheme.colors.textPrimary
-                        )
-                    }
+                    )
+                    MetricTile(
+                        icon = Icons.Default.Timer,
+                        label = "EST. WALK",
+                        value = "$estWalkingMinutes min",
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -1446,6 +1601,48 @@ fun DailyStepsAndOutdoorCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MetricTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
+            .border(0.5.dp, GymFlowBorder, RoundedCornerShape(10.dp))
+            .padding(horizontal = 8.dp, vertical = 8.dp)
+    ) {
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = GymFlowTheme.colors.textSecondary,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = label,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GymFlowTheme.colors.textSecondary,
+                    letterSpacing = 0.3.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = GymFlowTheme.colors.textPrimary
+            )
         }
     }
 }

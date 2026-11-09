@@ -8,6 +8,9 @@ import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.gymflow.core.database.DailyStepsDao
+import com.gymflow.core.database.DailyStepsEntity
+import com.gymflow.core.database.OutdoorWorkoutDao
+import com.gymflow.core.database.OutdoorWorkoutEntity
 import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.UserEntity
@@ -52,6 +55,18 @@ fun getWallClockGreeting(firstName: String): String {
     }
 }
 
+data class StepDayTrend(
+    val dayLabel: String,
+    val dateStr: String,
+    val steps: Int,
+    val targetGoal: Int,
+    val isToday: Boolean,
+    val isGoalReached: Boolean
+) {
+    val progressFraction: Float
+        get() = (steps.toFloat() / targetGoal.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
+}
+
 data class MemberHomeUiState(
     val memberName: String = "Member",
     val greeting: String = getWallClockGreeting("Member"),
@@ -80,7 +95,14 @@ data class MemberHomeUiState(
     val outdoorDurationSeconds: Long = 0L,
     val outdoorDistanceMeters: Float = 0f,
     val outdoorPace: String = "--:--",
-    val outdoorWorkoutType: String = "RUN"
+    val outdoorWorkoutType: String = "RUN",
+    val recentStepsHistory: List<DailyStepsEntity> = emptyList(),
+    val weeklyDayTrends: List<StepDayTrend> = emptyList(),
+    val recentOutdoorWorkouts: List<OutdoorWorkoutEntity> = emptyList(),
+    val weeklyAverageSteps: Int = 0,
+    val weeklyTotalDistanceKm: Float = 0f,
+    val daysGoalReachedCount: Int = 0,
+    val currentStreakDays: Int = 0
 ) {
     val stepProgressFraction: Float
         get() = (todaySteps.toFloat() / stepGoal.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
@@ -98,6 +120,7 @@ class MemberHomeViewModel @Inject constructor(
     private val firestoreConnectionManager: FirestoreConnectionManager,
     private val stepSensorManager: StepSensorManager,
     private val dailyStepsDao: DailyStepsDao,
+    private val outdoorWorkoutDao: OutdoorWorkoutDao,
     private val outdoorWorkoutEngine: OutdoorWorkoutEngine
 ) : ViewModel() {
 
@@ -111,6 +134,7 @@ class MemberHomeViewModel @Inject constructor(
         observeTodayWorkout()
         observeConnectionStatus()
         initStepCounting()
+        observeStepsHistory()
         observeOutdoorTracking()
     }
 
@@ -391,6 +415,93 @@ class MemberHomeViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun observeStepsHistory() {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            dailyStepsDao.getRecentDailySteps(userId, limit = 14).collect { recentEntities ->
+                val today = LocalDate.now()
+                val last7Days = (6 downTo 0).map { offset -> today.minusDays(offset.toLong()) }
+                val entitiesByDate = recentEntities.associateBy { it.date }
+
+                val trends = last7Days.map { date ->
+                    val dateStr = date.toString()
+                    val entity = entitiesByDate[dateStr]
+                    val daySteps = entity?.stepCount ?: 0
+                    val dayGoal = entity?.targetGoal ?: 10000
+                    val dayLetter = date.dayOfWeek.name.take(1)
+                    val isToday = date == today
+                    StepDayTrend(
+                        dayLabel = dayLetter,
+                        dateStr = dateStr,
+                        steps = daySteps,
+                        targetGoal = dayGoal,
+                        isToday = isToday,
+                        isGoalReached = daySteps >= dayGoal && daySteps > 0
+                    )
+                }
+
+                val totalSteps7 = trends.sumOf { it.steps }
+                val avgSteps = totalSteps7 / 7
+                val totalDistanceKm = recentEntities
+                    .filter { it.date >= today.minusDays(6).toString() }
+                    .sumOf { it.distanceMeters.toDouble() / 1000.0 }
+                    .toFloat()
+                val goalsReached = trends.count { it.isGoalReached }
+
+                var streak = 0
+                for (offset in 0..13) {
+                    val d = today.minusDays(offset.toLong()).toString()
+                    val e = entitiesByDate[d]
+                    if (e != null && e.stepCount >= e.targetGoal && e.stepCount > 0) {
+                        streak++
+                    } else if (d != today.toString()) {
+                        break
+                    }
+                }
+
+                _uiState.update {
+                    it.copy(
+                        recentStepsHistory = recentEntities,
+                        weeklyDayTrends = trends,
+                        weeklyAverageSteps = avgSteps,
+                        weeklyTotalDistanceKm = totalDistanceKm,
+                        daysGoalReachedCount = goalsReached,
+                        currentStreakDays = streak
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            outdoorWorkoutDao.getOutdoorWorkouts(userId).collect { workouts ->
+                _uiState.update {
+                    it.copy(recentOutdoorWorkouts = workouts.filter { w -> w.isCompleted })
+                }
+            }
+        }
+    }
+
+    fun updateStepGoal(newGoal: Int) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val todayStr = LocalDate.now().toString()
+            dailyStepsDao.updateTargetGoal(userId, todayStr, newGoal)
+            _uiState.update { it.copy(stepGoal = newGoal) }
+            val entity = dailyStepsDao.getDailyStepsSync(userId, todayStr)
+            if (entity != null) {
+                firestoreSyncManager.saveDailySteps(entity.copy(targetGoal = newGoal))
+            }
+        }
+    }
+
+    fun deleteOutdoorWorkout(workoutId: String) {
+        viewModelScope.launch {
+            outdoorWorkoutDao.deleteOutdoorWorkout(workoutId)
+            outdoorWorkoutDao.deleteGpsPointsForWorkout(workoutId)
         }
     }
 
