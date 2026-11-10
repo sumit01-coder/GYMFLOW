@@ -100,8 +100,11 @@ fun GymFlowTheme(
         }
     }
 
+    val adaptiveSpec = rememberAdaptiveLayoutSpec()
+
     CompositionLocalProvider(
-        LocalGymFlowColors provides gymFlowColors
+        LocalGymFlowColors provides gymFlowColors,
+        LocalAdaptiveSpec provides adaptiveSpec
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
@@ -117,6 +120,11 @@ object GymFlowTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalGymFlowColors.current
+
+    val adaptive: AdaptiveLayoutSpec
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalAdaptiveSpec.current
 
     val typography = GymFlowTypographyTokens
     val shapes = GymFlowShapesTokens

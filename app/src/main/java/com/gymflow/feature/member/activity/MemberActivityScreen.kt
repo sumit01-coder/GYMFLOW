@@ -81,6 +81,8 @@ fun MemberActivityScreen(
     val state by viewModel.uiState.collectAsState()
     var sessionToDelete by remember { mutableStateOf<ActivityWorkoutItem?>(null) }
 
+    val adaptive = GymFlowTheme.adaptive
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -104,7 +106,10 @@ fun MemberActivityScreen(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(
+                    horizontal = adaptive.horizontalScreenPadding,
+                    vertical = adaptive.verticalScreenPadding
+                )
         ) {
             // Header
             Row(
@@ -115,7 +120,7 @@ fun MemberActivityScreen(
                 Column {
                     Text(
                         text = "Activity & Habits",
-                        style = GymFlowTheme.typography.Heading1.copy(fontSize = 24.sp),
+                        style = GymFlowTheme.typography.Heading1.copy(fontSize = adaptive.heroHeadingSize),
                         color = GymFlowTheme.colors.textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))

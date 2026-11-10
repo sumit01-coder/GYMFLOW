@@ -72,6 +72,8 @@ fun MemberProgressScreen(
     val state by viewModel.uiState.collectAsState()
     val numberFormat = NumberFormat.getNumberInstance(Locale.US)
 
+    val adaptive = GymFlowTheme.adaptive
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -95,11 +97,14 @@ fun MemberProgressScreen(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(
+                    horizontal = adaptive.horizontalScreenPadding,
+                    vertical = adaptive.verticalScreenPadding
+                )
         ) {
             Text(
                 text = "Progress & Analytics",
-                style = GymFlowTheme.typography.Heading1.copy(fontSize = 26.sp),
+                style = GymFlowTheme.typography.Heading1.copy(fontSize = adaptive.heroHeadingSize),
                 color = GymFlowTheme.colors.textPrimary
             )
 
@@ -124,46 +129,79 @@ fun MemberProgressScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(adaptive.verticalScreenPadding + 8.dp))
 
-            // Aggregated Stat Grid (2x2)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                MetricCard(
-                    label = "Total Workouts",
-                    value = "${state.totalWorkouts}",
-                    icon = Icons.Default.FitnessCenter,
-                    modifier = Modifier.weight(1f)
-                )
-                MetricCard(
-                    label = "Total Sets",
-                    value = "${state.totalSets}",
-                    icon = Icons.Default.Repeat,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            // Aggregated Stat Grid: 4 columns on tablets, 2x2 on phones
+            if (adaptive.statCardGridColumns >= 4) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(adaptive.gridSpacing)
+                ) {
+                    MetricCard(
+                        label = "Total Workouts",
+                        value = "${state.totalWorkouts}",
+                        icon = Icons.Default.FitnessCenter,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCard(
+                        label = "Total Sets",
+                        value = "${state.totalSets}",
+                        icon = Icons.Default.Repeat,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCard(
+                        label = "Total Reps",
+                        value = numberFormat.format(state.totalReps),
+                        icon = Icons.Default.Repeat,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCard(
+                        label = "Calories Burned",
+                        value = numberFormat.format(state.caloriesBurned),
+                        unit = "kcal",
+                        icon = Icons.Default.LocalFireDepartment,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(adaptive.gridSpacing)
+                ) {
+                    MetricCard(
+                        label = "Total Workouts",
+                        value = "${state.totalWorkouts}",
+                        icon = Icons.Default.FitnessCenter,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCard(
+                        label = "Total Sets",
+                        value = "${state.totalSets}",
+                        icon = Icons.Default.Repeat,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(adaptive.gridSpacing))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                MetricCard(
-                    label = "Total Reps",
-                    value = numberFormat.format(state.totalReps),
-                    icon = Icons.Default.Repeat,
-                    modifier = Modifier.weight(1f)
-                )
-                MetricCard(
-                    label = "Calories Burned",
-                    value = numberFormat.format(state.caloriesBurned),
-                    unit = "kcal",
-                    icon = Icons.Default.LocalFireDepartment,
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(adaptive.gridSpacing)
+                ) {
+                    MetricCard(
+                        label = "Total Reps",
+                        value = numberFormat.format(state.totalReps),
+                        icon = Icons.Default.Repeat,
+                        modifier = Modifier.weight(1f)
+                    )
+                    MetricCard(
+                        label = "Calories Burned",
+                        value = numberFormat.format(state.caloriesBurned),
+                        unit = "kcal",
+                        icon = Icons.Default.LocalFireDepartment,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             if (state.totalWorkouts == 0) {

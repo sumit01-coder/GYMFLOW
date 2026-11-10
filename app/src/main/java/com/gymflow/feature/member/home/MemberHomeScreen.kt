@@ -159,6 +159,8 @@ fun MemberHomeContent(
 ) {
     var showWalkingHistorySheet by remember { mutableStateOf(false) }
 
+    val adaptive = GymFlowTheme.adaptive
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -182,7 +184,10 @@ fun MemberHomeContent(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(
+                    horizontal = adaptive.horizontalScreenPadding,
+                    vertical = adaptive.verticalScreenPadding
+                )
         ) {
             // Top Bar
             Row(
@@ -292,18 +297,20 @@ fun MemberHomeContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(adaptive.verticalScreenPadding * 2))
 
             // Greeting Section
             Text(
                 text = uiState.greeting,
-                style = GymFlowTheme.typography.Heading1.copy(fontSize = 26.sp),
+                style = GymFlowTheme.typography.Heading1.copy(fontSize = adaptive.heroHeadingSize),
                 color = GymFlowTheme.colors.textPrimary
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = uiState.motivationalSubtext,
-                style = GymFlowTheme.typography.Subtitle,
+                style = GymFlowTheme.typography.Subtitle.copy(
+                    fontSize = if (adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE) 13.sp else 14.sp
+                ),
                 color = GymFlowTheme.colors.textSecondary
             )
 
@@ -359,59 +366,102 @@ fun MemberHomeContent(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(adaptive.verticalScreenPadding * 2))
 
-            // 4 Stat Cards in 2x2 Grid
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                MetricCard(
-                    label = "Current Weight",
-                    value = uiState.currentWeightKg,
-                    unit = "kg",
-                    icon = Icons.Default.MonitorWeight,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToWeight() }
-                )
-                MetricCard(
-                    label = "Calories Today",
-                    value = uiState.caloriesToday,
-                    unit = "kcal",
-                    icon = Icons.Default.LocalFireDepartment,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToProgress() }
-                )
+            // Stat Cards - Adaptive Grid (Single 4-column row on tablets/foldables, 2x2 on phones)
+            if (adaptive.statCardGridColumns >= 4) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(adaptive.gridSpacing)
+                ) {
+                    MetricCard(
+                        label = "Current Weight",
+                        value = uiState.currentWeightKg,
+                        unit = "kg",
+                        icon = Icons.Default.MonitorWeight,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToWeight() }
+                    )
+                    MetricCard(
+                        label = "Calories Today",
+                        value = uiState.caloriesToday,
+                        unit = "kcal",
+                        icon = Icons.Default.LocalFireDepartment,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToProgress() }
+                    )
+                    MetricCard(
+                        label = "Exercises",
+                        value = uiState.exercisesProgress,
+                        icon = Icons.Default.FitnessCenter,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToSchedule() }
+                    )
+                    MetricCard(
+                        label = "Workout Duration",
+                        value = uiState.workoutDurationMinutes,
+                        unit = "min",
+                        icon = Icons.Default.Timer,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToActivity() }
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(adaptive.gridSpacing)
+                ) {
+                    MetricCard(
+                        label = "Current Weight",
+                        value = uiState.currentWeightKg,
+                        unit = "kg",
+                        icon = Icons.Default.MonitorWeight,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToWeight() }
+                    )
+                    MetricCard(
+                        label = "Calories Today",
+                        value = uiState.caloriesToday,
+                        unit = "kcal",
+                        icon = Icons.Default.LocalFireDepartment,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToProgress() }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(adaptive.gridSpacing))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(adaptive.gridSpacing)
+                ) {
+                    MetricCard(
+                        label = "Exercises",
+                        value = uiState.exercisesProgress,
+                        icon = Icons.Default.FitnessCenter,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToSchedule() }
+                    )
+                    MetricCard(
+                        label = "Workout Duration",
+                        value = uiState.workoutDurationMinutes,
+                        unit = "min",
+                        icon = Icons.Default.Timer,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onNavigateToActivity() }
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                MetricCard(
-                    label = "Exercises",
-                    value = uiState.exercisesProgress,
-                    icon = Icons.Default.FitnessCenter,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToSchedule() }
-                )
-                MetricCard(
-                    label = "Workout Duration",
-                    value = uiState.workoutDurationMinutes,
-                    unit = "min",
-                    icon = Icons.Default.Timer,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToActivity() }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(adaptive.gridSpacing + 4.dp))
 
             // Daily Steps & Outdoor Cardio Card
             DailyStepsAndOutdoorCard(
@@ -1612,12 +1662,17 @@ private fun MetricTile(
     value: String,
     modifier: Modifier = Modifier
 ) {
+    val adaptive = GymFlowTheme.adaptive
+    val tilePadding = adaptive.stepsTilePadding
+    val labelSize = if (adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE) 8.sp else 9.sp
+    val valueSize = if (adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE) 11.sp else 13.sp
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
             .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
             .border(0.5.dp, GymFlowBorder, RoundedCornerShape(10.dp))
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = tilePadding, vertical = tilePadding)
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1625,23 +1680,25 @@ private fun MetricTile(
                     imageVector = icon,
                     contentDescription = null,
                     tint = GymFlowTheme.colors.textSecondary,
-                    modifier = Modifier.size(13.dp)
+                    modifier = Modifier.size(if (adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE) 11.dp else 13.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(3.dp))
                 Text(
                     text = label,
-                    fontSize = 9.sp,
+                    fontSize = labelSize,
                     fontWeight = FontWeight.Bold,
                     color = GymFlowTheme.colors.textSecondary,
-                    letterSpacing = 0.3.sp
+                    letterSpacing = 0.3.sp,
+                    maxLines = 1
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = value,
-                fontSize = 13.sp,
+                fontSize = valueSize,
                 fontWeight = FontWeight.Bold,
-                color = GymFlowTheme.colors.textPrimary
+                color = GymFlowTheme.colors.textPrimary,
+                maxLines = 1
             )
         }
     }

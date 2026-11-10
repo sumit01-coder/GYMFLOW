@@ -173,6 +173,8 @@ fun WorkoutScheduleContent(
     onSelectWorkout: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val adaptive = GymFlowTheme.adaptive
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -196,7 +198,10 @@ fun WorkoutScheduleContent(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(
+                    horizontal = adaptive.horizontalScreenPadding,
+                    vertical = adaptive.verticalScreenPadding
+                )
         ) {
             // Header Bar
             Row(

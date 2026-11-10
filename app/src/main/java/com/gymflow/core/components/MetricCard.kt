@@ -36,9 +36,29 @@ fun MetricCard(
     iconBackground: Color = GymFlowTheme.colors.surfaceVariant,
     onClick: (() -> Unit)? = null
 ) {
+    val adaptive = GymFlowTheme.adaptive
+    val valueFontSize = when (adaptive.posture) {
+        com.gymflow.core.theme.DevicePosture.SMALL_PHONE -> 19.sp
+        com.gymflow.core.theme.DevicePosture.NORMAL_PHONE -> 22.sp
+        com.gymflow.core.theme.DevicePosture.LARGE_PHONE -> 24.sp
+        com.gymflow.core.theme.DevicePosture.FOLDABLE_OR_TABLET -> 26.sp
+    }
+    val labelFontSize = when (adaptive.posture) {
+        com.gymflow.core.theme.DevicePosture.SMALL_PHONE -> 10.sp
+        else -> 12.sp
+    }
+    val iconSize = when (adaptive.posture) {
+        com.gymflow.core.theme.DevicePosture.SMALL_PHONE -> 30.dp
+        else -> 36.dp
+    }
+    val internalPadding = when (adaptive.posture) {
+        com.gymflow.core.theme.DevicePosture.SMALL_PHONE -> 10.dp
+        else -> 14.dp
+    }
+
     GymFlowCard(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = 14.dp,
+        contentPadding = internalPadding,
         onClick = onClick
     ) {
         Column(
@@ -52,20 +72,20 @@ fun MetricCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(iconSize)
                         .background(iconBackground, shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size((iconSize.value * 0.5f).dp),
                         tint = iconTint
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(if (adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE) 8.dp else 12.dp))
 
             Row(
                 verticalAlignment = Alignment.Bottom
@@ -74,7 +94,7 @@ fun MetricCard(
                     text = value,
                     style = GymFlowTheme.typography.Heading2.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp
+                        fontSize = valueFontSize
                     ),
                     color = GymFlowTheme.colors.textPrimary
                 )
@@ -82,7 +102,9 @@ fun MetricCard(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = unit,
-                        style = GymFlowTheme.typography.Caption,
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontSize = if (adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE) 10.sp else 12.sp
+                        ),
                         color = GymFlowTheme.colors.textSecondary,
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
@@ -93,8 +115,11 @@ fun MetricCard(
 
             Text(
                 text = label,
-                style = GymFlowTheme.typography.Caption,
-                color = GymFlowTheme.colors.textSecondary
+                style = GymFlowTheme.typography.Caption.copy(
+                    fontSize = labelFontSize
+                ),
+                color = GymFlowTheme.colors.textSecondary,
+                maxLines = 1
             )
         }
     }

@@ -104,6 +104,8 @@ fun MemberProfileScreen(
         )
     }
 
+    val adaptive = GymFlowTheme.adaptive
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = GymFlowTheme.colors.background,
@@ -127,7 +129,10 @@ fun MemberProfileScreen(
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
+                .padding(
+                    horizontal = adaptive.horizontalScreenPadding,
+                    vertical = adaptive.verticalScreenPadding
+                ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
