@@ -1,5 +1,6 @@
 package com.gymflow.feature.member.hydration
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.common.Resource
@@ -7,7 +8,9 @@ import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.HydrationLog
 import com.gymflow.domain.repository.WeightRepository
+import com.gymflow.feature.widget.GymFlowWidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,7 +37,8 @@ data class HydrationUiState(
 class HydrationViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
     private val tokenManager: TokenManager,
-    private val firestoreSyncManager: FirestoreSyncManager
+    private val firestoreSyncManager: FirestoreSyncManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HydrationUiState())
@@ -94,6 +98,7 @@ class HydrationViewModel @Inject constructor(
                                 postWorkoutDeficitMl = updatedDeficit
                             )
                         }
+                        GymFlowWidgetUpdater.updateHydrationWidget(context)
                     }
                     is Resource.Error -> {
                         _uiState.update { it.copy(isSaving = false, errorMessage = resource.message) }
@@ -131,6 +136,7 @@ class HydrationViewModel @Inject constructor(
         }
         viewModelScope.launch {
             weightRepository.deleteHydrationLog(logId).collect {}
+            GymFlowWidgetUpdater.updateHydrationWidget(context)
         }
     }
 

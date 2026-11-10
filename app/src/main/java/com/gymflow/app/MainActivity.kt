@@ -20,6 +20,8 @@ import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.updater.AppUpdateManager
 import com.gymflow.core.updater.ui.AppUpdateDialog
 import com.gymflow.feature.navigation.AppNavGraph
+import com.gymflow.feature.navigation.AppNavigator
+import com.gymflow.feature.navigation.NavRoutes
 import com.gymflow.feature.widget.GymFlowWidgetUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -77,8 +79,26 @@ class MainActivity : ComponentActivity() {
     private fun handleWidgetIntent(intent: Intent?) {
         val action = intent?.getStringExtra(GymFlowWidgetUpdater.EXTRA_WIDGET_ACTION) ?: return
         when (action) {
-            GymFlowWidgetUpdater.ACTION_START_RUN -> launchOutdoorIfPermitted("RUN")
-            GymFlowWidgetUpdater.ACTION_START_WALK -> launchOutdoorIfPermitted("WALK")
+            GymFlowWidgetUpdater.ACTION_START_RUN -> {
+                launchOutdoorIfPermitted("RUN")
+                AppNavigator.navigateTo(NavRoutes.MEMBER_ACTIVITY)
+            }
+            GymFlowWidgetUpdater.ACTION_START_WALK -> {
+                launchOutdoorIfPermitted("WALK")
+                AppNavigator.navigateTo(NavRoutes.MEMBER_ACTIVITY)
+            }
+            GymFlowWidgetUpdater.ACTION_START_WORKOUT -> {
+                AppNavigator.navigateTo(NavRoutes.WORKOUT_SCHEDULE)
+            }
+            GymFlowWidgetUpdater.ACTION_OPEN_SCHEDULE -> {
+                AppNavigator.navigateTo(NavRoutes.WORKOUT_SCHEDULE)
+            }
+            GymFlowWidgetUpdater.ACTION_OPEN_HYDRATION -> {
+                AppNavigator.navigateTo(NavRoutes.MEMBER_HYDRATION)
+            }
+            GymFlowWidgetUpdater.ACTION_OPEN_STOPWATCH -> {
+                AppNavigator.navigateTo(NavRoutes.MEMBER_STOPWATCH)
+            }
         }
     }
 

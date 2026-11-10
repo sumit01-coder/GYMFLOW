@@ -1,6 +1,7 @@
 package com.gymflow.feature.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -23,6 +24,18 @@ fun AppNavGraph(
     navController: NavHostController = rememberNavController(),
     startDestination: String = NavRoutes.SPLASH
 ) {
+    LaunchedEffect(Unit) {
+        AppNavigator.navEvents.collect { route ->
+            try {
+                navController.navigate(route) {
+                    launchSingleTop = true
+                }
+            } catch (e: Exception) {
+                // Route navigation will take place once session/graph is ready
+            }
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = startDestination,

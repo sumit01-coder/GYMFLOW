@@ -46,6 +46,9 @@ interface WeightDao {
     @Query("SELECT SUM(amountMl) FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member' OR :memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs")
     fun getTodayHydrationTotal(memberId: String, startOfDayMs: Long): Flow<Int?>
 
+    @Query("SELECT SUM(amountMl) FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member' OR :memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs")
+    suspend fun getTodayHydrationTotalSync(memberId: String, startOfDayMs: Long): Int?
+
     @Query("SELECT * FROM hydration_logs WHERE (memberId = :memberId OR memberId = 'default_member' OR :memberId = 'default_member') AND recordedAtEpochMs >= :startOfDayMs ORDER BY recordedAtEpochMs DESC")
     fun getTodayHydrationLogs(memberId: String, startOfDayMs: Long): Flow<List<HydrationLogEntity>>
 

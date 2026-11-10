@@ -3,11 +3,11 @@
     android:id="@+id/widget_workout_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_card_background"
+    android:background="@drawable/widget_card_background_light"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="16dp">
 
-    <!-- Header Row -->
+    <!-- Header Row (Icon + Split Header + Schedule Badge) -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -21,20 +21,22 @@
             android:orientation="horizontal">
 
             <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="@drawable/widget_badge_green"
                 android:contentDescription="@null"
+                android:padding="4dp"
                 android:src="@drawable/ic_widget_dumbbell" />
 
             <TextView
                 android:id="@+id/widget_workout_day_header"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:letterSpacing="0.08"
+                android:layout_marginStart="8dp"
+                android:letterSpacing="0.06"
                 android:text="GYMFLOW · TODAY'S SPLIT"
-                android:textColor="@color/widget_green"
-                android:textSize="10sp"
+                android:textColor="@color/widget_green_badge_text"
+                android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -44,11 +46,11 @@
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:background="@drawable/widget_metric_tile_bg"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="2dp"
+            android:background="@drawable/widget_button_outline_light"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
             android:text="SCHEDULE"
-            android:textColor="@color/widget_text_secondary"
+            android:textColor="@color/widget_text_dark_primary"
             android:textSize="10sp"
             android:textStyle="bold" />
     </RelativeLayout>
@@ -58,11 +60,11 @@
         android:id="@+id/widget_workout_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="8dp"
         android:ellipsize="end"
         android:maxLines="1"
         android:text="Loading Workout..."
-        android:textColor="@color/widget_text_primary"
+        android:textColor="@color/widget_text_dark_primary"
         android:textSize="18sp"
         android:textStyle="bold" />
 
@@ -75,14 +77,14 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:text="Tap to open GymFlow schedule"
-        android:textColor="@color/widget_text_secondary"
-        android:textSize="11sp" />
+        android:textColor="@color/widget_text_dark_secondary"
+        android:textSize="12sp" />
 
-    <!-- Progress Status & Bar -->
+    <!-- Progress Status & Percent -->
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="10dp">
 
         <TextView
             android:id="@+id/widget_workout_status"
@@ -90,8 +92,8 @@
             android:layout_height="wrap_content"
             android:layout_alignParentStart="true"
             android:text="0 of 0 Completed"
-            android:textColor="@color/widget_text_secondary"
-            android:textSize="10sp"
+            android:textColor="@color/widget_text_dark_secondary"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <TextView
@@ -100,32 +102,32 @@
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:text="0%"
-            android:textColor="@color/widget_green"
-            android:textSize="10sp"
+            android:textColor="@color/widget_green_badge_text"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </RelativeLayout>
 
+    <!-- Horizontal Progress Bar -->
     <ProgressBar
         android:id="@+id/widget_workout_progress"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
-        android:layout_height="5dp"
-        android:layout_marginTop="4dp"
+        android:layout_height="6dp"
+        android:layout_marginTop="6dp"
         android:max="100"
         android:progress="0"
         android:progressDrawable="@drawable/widget_progress_bar_drawable" />
 
-    <!-- Action Button (Start / Resume Workout) -->
+    <!-- Action Button (Launch / Continue Routine) -->
     <TextView
         android:id="@+id/widget_btn_start_workout"
         android:layout_width="match_parent"
-        android:layout_height="34dp"
-        android:layout_marginTop="10dp"
-        android:background="@drawable/widget_button_green"
+        android:layout_height="36dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/widget_button_dark_pill"
         android:gravity="center"
         android:text="START TODAY'S WORKOUT"
         android:textColor="@color/widget_text_primary"
-        android:textSize="11sp"
+        android:textSize="12sp"
         android:textStyle="bold" />
 </LinearLayout>
-

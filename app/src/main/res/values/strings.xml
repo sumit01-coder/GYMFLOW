@@ -1,7 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">GYMFLOW</string>
     <string name="widget_steps_title">Daily Steps &amp; Cardio</string>
     <string name="widget_steps_desc">Track live steps, distance, active burn and quick cardio launcher.</string>
     <string name="widget_workout_title">Today\'s Workout &amp; Schedule</string>
     <string name="widget_workout_desc">View today\'s scheduled routine, completed exercises, and launch workouts.</string>
+    <string name="widget_hydration_title">Daily Hydration &amp; Water</string>
+    <string name="widget_hydration_desc">Live water intake tracker with 1-tap +250ml / +500ml quick logging.</string>
+    <string name="widget_quick_action_title">Athletic Quick Launch Dock</string>
+    <string name="widget_quick_action_desc">Instant 1-tap shortcuts for Outdoor Run, Walk, Workout, Water, and Timer.</string>
 </resources>

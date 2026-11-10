@@ -11,6 +11,7 @@ import com.gymflow.R
 import com.gymflow.app.MainActivity
 import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.PlanDao
+import com.gymflow.core.database.WeightDao
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.security.TokenManager
 import dagger.hilt.EntryPoint
@@ -33,6 +34,7 @@ interface WidgetEntryPoint {
     fun dailyStepsDao(): DailyStepsDao
     fun planDao(): PlanDao
     fun workoutSessionDao(): WorkoutSessionDao
+    fun weightDao(): WeightDao
     fun tokenManager(): TokenManager
 }
 
@@ -46,10 +48,17 @@ object GymFlowWidgetUpdater {
     const val ACTION_START_WALK = "ACTION_START_WALK"
     const val ACTION_START_WORKOUT = "ACTION_START_WORKOUT"
     const val ACTION_OPEN_SCHEDULE = "ACTION_OPEN_SCHEDULE"
+    const val ACTION_OPEN_HYDRATION = "ACTION_OPEN_HYDRATION"
+    const val ACTION_OPEN_STOPWATCH = "ACTION_OPEN_STOPWATCH"
+
+    const val ACTION_LOG_WATER_250 = "com.gymflow.action.LOG_WATER_250"
+    const val ACTION_LOG_WATER_500 = "com.gymflow.action.LOG_WATER_500"
 
     fun updateAllWidgets(context: Context) {
         updateStepsWidget(context)
         updateWorkoutWidget(context)
+        updateHydrationWidget(context)
+        updateQuickActionWidget(context)
     }
 
     fun updateStepsWidget(context: Context) {
@@ -87,7 +96,7 @@ object GymFlowWidgetUpdater {
                         setTextViewText(R.id.widget_steps_distance, "%.2f km".format(distanceKm))
                         setTextViewText(R.id.widget_steps_calories, "$calories kcal")
 
-                        // Main widget click -> open GymFlow
+                        // Main widget click -> open GymFlow Home
                         val mainIntent = Intent(context, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
@@ -99,7 +108,7 @@ object GymFlowWidgetUpdater {
                         )
                         setOnClickPendingIntent(R.id.widget_steps_root, mainPendingIntent)
 
-                        // Run Button click
+                        // Run Button click -> Launch outdoor run
                         val runIntent = Intent(context, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             putExtra(EXTRA_WIDGET_ACTION, ACTION_START_RUN)
@@ -112,7 +121,7 @@ object GymFlowWidgetUpdater {
                         )
                         setOnClickPendingIntent(R.id.widget_btn_run, runPendingIntent)
 
-                        // Walk Button click
+                        // Walk Button click -> Launch outdoor walk
                         val walkIntent = Intent(context, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             putExtra(EXTRA_WIDGET_ACTION, ACTION_START_WALK)
@@ -252,5 +261,167 @@ object GymFlowWidgetUpdater {
             }
         }
     }
-}
 
+    fun updateHydrationWidget(context: Context) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, GymFlowHydrationWidgetProvider::class.java)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+
+        if (appWidgetIds.isEmpty()) return
+
+        scope.launch {
+            try {
+                val entryPoint = EntryPointAccessors.fromApplication(
+                    context.applicationContext,
+                    WidgetEntryPoint::class.java
+                )
+                val weightDao = entryPoint.weightDao()
+                val tokenManager = entryPoint.tokenManager()
+
+                val memberId = tokenManager.getUserIdSync() ?: "default_member"
+                val today = LocalDate.now()
+                val startOfDayMs = today.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                val todayTotalMl = weightDao.getTodayHydrationTotalSync(memberId, startOfDayMs) ?: 0
+                val goalMl = 2500
+                val percent = ((todayTotalMl.toFloat() / goalMl.toFloat()) * 100).toInt().coerceIn(0, 100)
+
+                for (appWidgetId in appWidgetIds) {
+                    val views = RemoteViews(context.packageName, R.layout.widget_hydration_layout).apply {
+                        setTextViewText(R.id.widget_hydration_count, "%,d".format(todayTotalMl))
+                        setTextViewText(R.id.widget_hydration_goal, "/ %,d ml".format(goalMl))
+                        setTextViewText(R.id.widget_hydration_percent, "$percent%")
+                        setProgressBar(R.id.widget_hydration_progress, 100, percent, false)
+
+                        val status = when {
+                            percent >= 100 -> "Daily hydration goal achieved! Keep sipping ✓"
+                            percent >= 50 -> "Over halfway to your hydration goal. Stay refreshed!"
+                            else -> "Tap +250ml or +500ml below to log water instantly"
+                        }
+                        setTextViewText(R.id.widget_hydration_status, status)
+
+                        // Main widget click -> open Hydration screen
+                        val mainIntent = Intent(context, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra(EXTRA_WIDGET_ACTION, ACTION_OPEN_HYDRATION)
+                        }
+                        val mainPendingIntent = PendingIntent.getActivity(
+                            context,
+                            appWidgetId * 10 + 7,
+                            mainIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        setOnClickPendingIntent(R.id.widget_hydration_root, mainPendingIntent)
+
+                        // +250ml quick-log broadcast
+                        val add250Intent = Intent(context, GymFlowHydrationWidgetProvider::class.java).apply {
+                            action = ACTION_LOG_WATER_250
+                        }
+                        val add250PendingIntent = PendingIntent.getBroadcast(
+                            context,
+                            appWidgetId * 10 + 8,
+                            add250Intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        setOnClickPendingIntent(R.id.widget_btn_water_250, add250PendingIntent)
+
+                        // +500ml quick-log broadcast
+                        val add500Intent = Intent(context, GymFlowHydrationWidgetProvider::class.java).apply {
+                            action = ACTION_LOG_WATER_500
+                        }
+                        val add500PendingIntent = PendingIntent.getBroadcast(
+                            context,
+                            appWidgetId * 10 + 9,
+                            add500Intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        setOnClickPendingIntent(R.id.widget_btn_water_500, add500PendingIntent)
+                    }
+
+                    appWidgetManager.updateAppWidget(appWidgetId, views)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update hydration widget", e)
+            }
+        }
+    }
+
+    fun updateQuickActionWidget(context: Context) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val componentName = ComponentName(context, GymFlowQuickActionWidgetProvider::class.java)
+        val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
+
+        if (appWidgetIds.isEmpty()) return
+
+        for (appWidgetId in appWidgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.widget_quick_action_layout).apply {
+                // 1. Run
+                val runIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_WIDGET_ACTION, ACTION_START_RUN)
+                }
+                val runPendingIntent = PendingIntent.getActivity(
+                    context,
+                    appWidgetId * 20 + 1,
+                    runIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.widget_dock_run, runPendingIntent)
+
+                // 2. Walk
+                val walkIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_WIDGET_ACTION, ACTION_START_WALK)
+                }
+                val walkPendingIntent = PendingIntent.getActivity(
+                    context,
+                    appWidgetId * 20 + 2,
+                    walkIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.widget_dock_walk, walkPendingIntent)
+
+                // 3. Workout
+                val workoutIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_WIDGET_ACTION, ACTION_START_WORKOUT)
+                }
+                val workoutPendingIntent = PendingIntent.getActivity(
+                    context,
+                    appWidgetId * 20 + 3,
+                    workoutIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.widget_dock_workout, workoutPendingIntent)
+
+                // 4. Hydration
+                val waterIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_WIDGET_ACTION, ACTION_OPEN_HYDRATION)
+                }
+                val waterPendingIntent = PendingIntent.getActivity(
+                    context,
+                    appWidgetId * 20 + 4,
+                    waterIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.widget_dock_water, waterPendingIntent)
+
+                // 5. Timer / Stopwatch
+                val timerIntent = Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    putExtra(EXTRA_WIDGET_ACTION, ACTION_OPEN_STOPWATCH)
+                }
+                val timerPendingIntent = PendingIntent.getActivity(
+                    context,
+                    appWidgetId * 20 + 5,
+                    timerIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                setOnClickPendingIntent(R.id.widget_dock_timer, timerPendingIntent)
+            }
+
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+    }
+}

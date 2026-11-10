@@ -659,6 +659,13 @@ class FakeWeightDao : WeightDao {
             if (total == 0 && list.none { (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs }) null else total
         }
 
+    override suspend fun getTodayHydrationTotalSync(memberId: String, startOfDayMs: Long): Int? {
+        val total = hydrationLogs.values
+            .filter { (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs }
+            .sumOf { it.amountMl }
+        return if (total == 0 && hydrationLogs.values.none { (it.memberId == memberId || it.memberId == "default_member") && it.recordedAtEpochMs >= startOfDayMs }) null else total
+    }
+
     override fun getTodayHydrationLogs(
         memberId: String,
         startOfDayMs: Long
