@@ -93,6 +93,32 @@
             </intent-filter>
         </receiver>
 
+        <!-- GymFlow Daily Steps & Cardio Home Screen Widget -->
+        <receiver
+            android:name=".feature.widget.GymFlowStepsWidgetProvider"
+            android:label="@string/widget_steps_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_steps_info" />
+        </receiver>
+
+        <!-- GymFlow Today's Workout & Routine Home Screen Widget -->
+        <receiver
+            android:name=".feature.widget.GymFlowWorkoutWidgetProvider"
+            android:label="@string/widget_workout_title"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_workout_info" />
+        </receiver>
+
         <!-- FileProvider for APK In-App Software Updates -->
         <provider
             android:name="androidx.core.content.FileProvider"

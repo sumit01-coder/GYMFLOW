@@ -136,6 +136,9 @@ class MemberHomeViewModel @Inject constructor(
         initStepCounting()
         observeStepsHistory()
         observeOutdoorTracking()
+        try {
+            com.gymflow.feature.widget.GymFlowWidgetUpdater.updateAllWidgets(context)
+        } catch (_: Exception) {}
     }
 
     private fun observeConnectionStatus() {
@@ -495,6 +498,9 @@ class MemberHomeViewModel @Inject constructor(
             if (entity != null) {
                 firestoreSyncManager.saveDailySteps(entity.copy(targetGoal = newGoal))
             }
+            try {
+                com.gymflow.feature.widget.GymFlowWidgetUpdater.updateStepsWidget(context)
+            } catch (_: Exception) {}
         }
     }
 

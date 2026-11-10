@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">GYMFLOW</string>
+    <string name="widget_steps_title">Daily Steps &amp; Cardio</string>
+    <string name="widget_steps_desc">Track live steps, distance, active burn and quick cardio launcher.</string>
+    <string name="widget_workout_title">Today\'s Workout &amp; Schedule</string>
+    <string name="widget_workout_desc">View today\'s scheduled routine, completed exercises, and launch workouts.</string>
 </resources>

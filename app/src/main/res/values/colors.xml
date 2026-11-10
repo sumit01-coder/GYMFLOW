@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_bg">#121417</color>
+    <color name="widget_card">#1A1D24</color>
+    <color name="widget_surface_variant">#222630</color>
+    <color name="widget_border">#2E333D</color>
+    <color name="widget_green">#16A36A</color>
+    <color name="widget_green_light">#22C55E</color>
+    <color name="widget_green_subtle">#1F22C55E</color>
+    <color name="widget_text_primary">#FFFFFF</color>
+    <color name="widget_text_secondary">#9CA3AF</color>
+    <color name="widget_text_muted">#6B7280</color>
+    <color name="widget_progress_bg">#252932</color>
+    <color name="widget_amber">#E9A23B</color>
+</resources>
+

@@ -163,6 +163,9 @@ class StepSensorManager @Inject constructor(
             isSynced = false
         )
         dailyStepsDao.upsertDailySteps(entity)
+        try {
+            com.gymflow.feature.widget.GymFlowWidgetUpdater.updateStepsWidget(context)
+        } catch (_: Exception) {}
     }
 
     suspend fun getStepsForToday(): DailyStepsEntity? {
