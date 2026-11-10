@@ -2,6 +2,7 @@ package com.gymflow.feature.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,10 +19,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Key
@@ -40,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -200,16 +204,59 @@ fun LoginScreen(
                 errorMessage = uiState.error
             )
 
-            // Forgot Password Link
+            // Remember Me & Forgot Password Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.End
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable { viewModel.onRememberMeChange(!uiState.rememberMe) }
+                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                if (uiState.rememberMe) GymFlowTheme.colors.textPrimary else Color.Transparent
+                            )
+                            .border(
+                                width = 1.5.dp,
+                                color = if (uiState.rememberMe) GymFlowTheme.colors.textPrimary else GymFlowTheme.colors.border,
+                                shape = RoundedCornerShape(4.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (uiState.rememberMe) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = GymFlowTheme.colors.background,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Remember me",
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                }
+
                 Text(
                     text = "Forgot Password?",
                     style = GymFlowTheme.typography.Caption.copy(
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = GymFlowTheme.colors.textPrimary,
@@ -233,6 +280,71 @@ fun LoginScreen(
                     onClick = onNavigateToEmailVerification,
                     style = GymFlowButtonStyle.OUTLINED
                 )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Quick Demo Credentials Selector
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GymFlowTheme.colors.surfaceVariant.copy(alpha = 0.5f))
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Quick Demo:",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = GymFlowTheme.colors.textSecondary,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(GymFlowTheme.colors.surface)
+                        .border(0.5.dp, GymFlowTheme.colors.border, RoundedCornerShape(8.dp))
+                        .clickable {
+                            viewModel.fillDemoCredentials(
+                                demoEmail = "member@gymflow.com",
+                                demoPass = "Gymflow@123"
+                            )
+                        }
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🏋️ Member",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(GymFlowTheme.colors.surface)
+                        .border(0.5.dp, GymFlowTheme.colors.border, RoundedCornerShape(8.dp))
+                        .clickable {
+                            viewModel.fillDemoCredentials(
+                                demoEmail = "trainer@gymflow.com",
+                                demoPass = "Gymflow@123"
+                            )
+                        }
+                        .padding(vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "⭐ Trainer",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))

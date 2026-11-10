@@ -200,9 +200,26 @@ class TokenManager @Inject constructor(
 
     fun getUserGenderSync(): String = _userGenderFlow.value ?: prefs.getString(KEY_USER_GENDER, "Male") ?: "Male"
 
+    // Remember Me / Saved Email
+    fun saveRememberMe(remember: Boolean, email: String = "") {
+        prefs.edit()
+            .putBoolean(KEY_REMEMBER_ME, remember)
+            .putString(KEY_REMEMBERED_EMAIL, if (remember) email else "")
+            .apply()
+    }
+
+    fun isRememberMeEnabled(): Boolean = prefs.getBoolean(KEY_REMEMBER_ME, true)
+
+    fun getRememberedEmail(): String = prefs.getString(KEY_REMEMBERED_EMAIL, "") ?: ""
+
     // Clear session
     fun clearAll() {
+        val keepRememberMe = isRememberMeEnabled()
+        val savedRememberedEmail = getRememberedEmail()
         prefs.edit().clear().apply()
+        if (keepRememberMe && savedRememberedEmail.isNotBlank()) {
+            saveRememberMe(true, savedRememberedEmail)
+        }
         _tokenFlow.value = null
         _userIdFlow.value = null
         _userEmailFlow.value = null
@@ -223,5 +240,7 @@ class TokenManager @Inject constructor(
         private const val KEY_USER_GENDER = "user_gender"
         private const val KEY_EMAIL_VERIFIED = "email_verified"
         private const val KEY_ACCOUNT_CREATED_AT = "account_created_at"
+        private const val KEY_REMEMBER_ME = "remember_me"
+        private const val KEY_REMEMBERED_EMAIL = "remembered_email"
     }
 }

@@ -25,6 +25,8 @@ data class AuthUiState(
     val password: String = "",
     val role: Role = Role.MEMBER,
     val joinCode: String = "",
+    val rememberMe: Boolean = true,
+    val isPasswordVisible: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     val resetEmailSent: Boolean = false,
@@ -58,7 +60,13 @@ class AuthViewModel @Inject constructor(
     }
 
     init {
-        val savedEmail = tokenManager.getEmail() ?: firebaseAuth.currentUser?.email ?: ""
+        val rememberedEmail = tokenManager.getRememberedEmail()
+        val isRememberMe = tokenManager.isRememberMeEnabled()
+        val savedEmail = if (rememberedEmail.isNotBlank()) {
+            rememberedEmail
+        } else {
+            tokenManager.getEmail() ?: firebaseAuth.currentUser?.email ?: ""
+        }
         val savedName = tokenManager.getName() ?: firebaseAuth.currentUser?.displayName ?: ""
         val savedRole = tokenManager.getRoleSync() ?: Role.MEMBER
         val isVerified = tokenManager.isEmailVerifiedSync() || (firebaseAuth.currentUser?.isEmailVerified == true)
@@ -70,6 +78,7 @@ class AuthViewModel @Inject constructor(
                 email = savedEmail,
                 name = savedName,
                 role = savedRole,
+                rememberMe = isRememberMe,
                 isEmailVerified = isVerified,
                 graceDaysRemaining = daysRemaining,
                 isGracePeriodExpired = isExpired
@@ -98,6 +107,25 @@ class AuthViewModel @Inject constructor(
 
     fun onJoinCodeChange(code: String) {
         _uiState.update { it.copy(joinCode = code.uppercase(), error = null) }
+    }
+
+    fun onRememberMeChange(enabled: Boolean) {
+        _uiState.update { it.copy(rememberMe = enabled) }
+        tokenManager.saveRememberMe(enabled, if (enabled) _uiState.value.email else "")
+    }
+
+    fun togglePasswordVisibility() {
+        _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
+    }
+
+    fun fillDemoCredentials(demoEmail: String, demoPass: String) {
+        _uiState.update {
+            it.copy(
+                email = demoEmail,
+                password = demoPass,
+                error = null
+            )
+        }
     }
 
     fun login(onSuccess: (Role) -> Unit) {
@@ -180,6 +208,9 @@ class AuthViewModel @Inject constructor(
                     isEmailVerified = isVerified,
                     createdAtEpochMs = creationTime
                 )
+
+                // Save or clear remembered email based on user's preference
+                tokenManager.saveRememberMe(_uiState.value.rememberMe, if (_uiState.value.rememberMe) email else "")
 
                 val userToPersist = firestoreUser?.copy(
                     isEmailVerified = isVerified,

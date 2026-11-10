@@ -14,15 +14,25 @@ import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.gymflow.core.recovery.CrashRecoveryActivity
+import com.gymflow.core.step.StepSensorManager
 import com.gymflow.core.telemetry.BugCategory
 import com.gymflow.core.telemetry.BugSeverity
 import com.gymflow.core.telemetry.GymFlowBugReporter
 import com.gymflow.data.sync.ExerciseGifPreloadWorker
 import com.gymflow.feature.member.exercises.ExerciseVisuals
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
 import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface AppStepSensorEntryPoint {
+    fun stepSensorManager(): StepSensorManager
+}
 
 @HiltAndroidApp
 class GymFlowApplication : Application(), ImageLoaderFactory {
@@ -72,7 +82,18 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
         // 1. Enqueue background WorkManager task to pre-download and cache exercise catalog GIFs
         ExerciseGifPreloadWorker.enqueue(this)
 
-        // 2. Eagerly preheat the core workout routine GIFs in background so today's workout has 0ms load time
+        // 2. Start pedometer sensor tracking immediately so steps are collected seamlessly
+        try {
+            val stepSensorEntryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
+                this,
+                AppStepSensorEntryPoint::class.java
+            )
+            stepSensorEntryPoint.stepSensorManager().startTracking()
+        } catch (e: Exception) {
+            Log.w("GymFlowApplication", "Could not start background step sensor tracking at application startup", e)
+        }
+
+        // 3. Eagerly preheat the core workout routine GIFs in background so today's workout has 0ms load time
         CoroutineScope(Dispatchers.IO).launch {
             val loader = Coil.imageLoader(this@GymFlowApplication)
             for ((_, gid) in ExerciseVisuals.EXERCISE_GIF_IDS) {
