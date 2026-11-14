@@ -1,11 +1,17 @@
 package com.gymflow.core.database
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-@Entity(tableName = "food_logs")
+@Entity(
+    tableName = "food_logs",
+    indices = [
+        Index(value = ["memberId", "loggedAtEpochMs"])
+    ]
+)
 data class FoodLogEntity(
     @PrimaryKey val id: String,
     val memberId: String,
