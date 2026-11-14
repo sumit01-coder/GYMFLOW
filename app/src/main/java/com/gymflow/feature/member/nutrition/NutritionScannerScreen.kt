@@ -362,8 +362,8 @@ fun NutritionScannerScreen(
                 }
             }
 
-            // Center Viewfinder Reticle (when in Barcode mode)
-            if (uiState.scanMode == ScanMode.BARCODE && uiState.scannedProduct == null && !uiState.isAnalyzing) {
+            // Center Viewfinder Reticle (when in Barcode mode and camera permission granted)
+            if (hasCameraPermission && uiState.scanMode == ScanMode.BARCODE && uiState.scannedProduct == null && !uiState.isAnalyzing) {
                 Box(
                     modifier = Modifier
                         .size(260.dp, 160.dp)
@@ -383,8 +383,8 @@ fun NutritionScannerScreen(
                 }
             }
 
-            // Center Plate Guide (when in AI Photo mode)
-            if (uiState.scanMode == ScanMode.AI_PHOTO && uiState.aiVisionResult == null && !uiState.isAnalyzing) {
+            // Center Plate Guide (when in AI Photo mode and camera permission granted)
+            if (hasCameraPermission && uiState.scanMode == ScanMode.AI_PHOTO && uiState.aiVisionResult == null && !uiState.isAnalyzing) {
                 Box(
                     modifier = Modifier
                         .size(260.dp)

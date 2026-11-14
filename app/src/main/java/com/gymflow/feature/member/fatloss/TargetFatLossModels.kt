@@ -18,6 +18,7 @@ data class TargetFatLossZone(
     val scienceOverview: String,
     val realisticTimelineWeeks: Int = 8,
     val recommendedCaloricDeficitKcal: Int = 450,
+    val heroGifUrl: String? = null,
     val nutritionKeyAdvice: List<String>,
     val hiitBurnerTitle: String,
     val hiitBurnerDurationMin: Int = 15,

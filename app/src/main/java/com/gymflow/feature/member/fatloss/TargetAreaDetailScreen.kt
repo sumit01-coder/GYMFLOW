@@ -47,10 +47,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowGreenLight
@@ -201,6 +206,81 @@ fun TargetAreaDetailScreen(
                             text = "-${zone.recommendedCaloricDeficitKcal} kcal / day",
                             style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold)
                         )
+                    }
+                }
+            }
+
+            // Hero Target Zone Animated Form GIF Banner
+            if (!zone.heroGifUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(GymFlowTheme.colors.surfaceVariant)
+                        .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(20.dp)),
+                    contentAlignment = Alignment.BottomStart
+                ) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(zone.heroGifUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = zone.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = GymFlowTheme.colors.textSecondary,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    )
+
+                    // Subtle gradient overlay with Target Muscle label
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                                )
+                            )
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Target Zone Kinetic Form",
+                                style = GymFlowTheme.typography.Caption.copy(
+                                    color = GymFlowWhite,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(GymFlowGreen)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "LIVE MOTION",
+                                    style = GymFlowTheme.typography.Caption.copy(
+                                        color = GymFlowBlack,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -479,62 +559,101 @@ private fun ExerciseRowItem(
             .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(16.dp))
             .padding(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(GymFlowGreen.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "$index",
-                    style = GymFlowTheme.typography.Caption.copy(
-                        color = GymFlowGreen,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = exercise.name,
-                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = exercise.repsOrDuration,
-                        style = GymFlowTheme.typography.Caption.copy(
-                            color = GymFlowGreen,
-                            fontWeight = FontWeight.Bold
+                // Exercise Animated GIF / Thumbnail or Index badge
+                if (!exercise.gifUrl.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(exercise.gifUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = exercise.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            loading = {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "$index",
+                                        style = GymFlowTheme.typography.Caption.copy(
+                                            color = GymFlowGreen,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    )
+                                }
+                            }
                         )
-                    )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(GymFlowGreen.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$index",
+                            style = GymFlowTheme.typography.Caption.copy(
+                                color = GymFlowGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
                 }
 
-                Text(
-                    text = exercise.targetMuscle,
-                    style = GymFlowTheme.typography.Caption.copy(color = GymFlowTheme.colors.textSecondary)
-                )
+                Spacer(modifier = Modifier.width(12.dp))
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = exercise.name,
+                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = exercise.repsOrDuration,
+                            style = GymFlowTheme.typography.Caption.copy(
+                                color = GymFlowGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
+                    }
 
-                Text(
-                    text = exercise.instruction,
-                    style = GymFlowTheme.typography.Caption.copy(
-                        color = GymFlowTheme.colors.textSecondary,
-                        lineHeight = 16.sp
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Text(
+                        text = exercise.targetMuscle,
+                        style = GymFlowTheme.typography.Caption.copy(color = GymFlowTheme.colors.textSecondary)
                     )
-                )
+                }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = exercise.instruction,
+                style = GymFlowTheme.typography.Caption.copy(
+                    color = GymFlowTheme.colors.textSecondary,
+                    lineHeight = 16.sp
+                )
+            )
         }
     }
 }

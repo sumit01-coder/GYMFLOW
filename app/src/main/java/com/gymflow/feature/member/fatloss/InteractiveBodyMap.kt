@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -31,9 +32,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowGreenLight
@@ -84,13 +89,15 @@ fun InteractiveBodyMap(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
                     .background(GymFlowTheme.colors.surfaceVariant)
-                    .padding(4.dp)
+                    .padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 BodyViewPill(
                     title = "Front View",
                     isSelected = selectedView == BodyView.FRONT,
                     onClick = { onViewChange(BodyView.FRONT) }
                 )
+                Spacer(modifier = Modifier.width(4.dp))
                 BodyViewPill(
                     title = "Back View",
                     isSelected = selectedView == BodyView.BACK,
@@ -154,7 +161,7 @@ private fun BodyViewPill(
             .clip(RoundedCornerShape(16.dp))
             .background(bg)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -162,7 +169,9 @@ private fun BodyViewPill(
             style = GymFlowTheme.typography.Caption.copy(
                 color = textFg,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-            )
+            ),
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -197,28 +206,63 @@ private fun TargetZoneCardItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
+            // Animated Form Thumbnail or Icon
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) GymFlowGreen.copy(alpha = 0.2f) else GymFlowTheme.colors.surfaceVariant),
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSelected) GymFlowGreen.copy(alpha = 0.2f) else GymFlowTheme.colors.surfaceVariant)
+                    .border(1.dp, if (isSelected) GymFlowGreen.copy(alpha = 0.4f) else GymFlowTheme.colors.border, RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocalFireDepartment,
-                    contentDescription = null,
-                    tint = if (isSelected) GymFlowGreen else GymFlowTheme.colors.textSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
+                if (!zone.heroGifUrl.isNullOrBlank()) {
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(zone.heroGifUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = zone.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        loading = {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = if (isSelected) GymFlowGreen else GymFlowTheme.colors.textSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        },
+                        error = {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = if (isSelected) GymFlowGreen else GymFlowTheme.colors.textSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = if (isSelected) GymFlowGreen else GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = zone.name,
                     style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold)
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = zone.subtitle,
                     style = GymFlowTheme.typography.Caption.copy(color = GymFlowTheme.colors.textSecondary),

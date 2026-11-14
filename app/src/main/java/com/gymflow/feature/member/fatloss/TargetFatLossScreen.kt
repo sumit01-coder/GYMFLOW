@@ -34,11 +34,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowGreen
+import com.gymflow.core.theme.GymFlowGreenLight
 import com.gymflow.core.theme.GymFlowTheme
+import com.gymflow.core.theme.GymFlowWhite
 
 @Composable
 fun TargetFatLossScreen(
@@ -102,27 +111,41 @@ fun TargetFatLossScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(GymFlowGreen.copy(alpha = 0.1f))
+                    .background(GymFlowGreen.copy(alpha = 0.08f))
                     .border(1.dp, GymFlowGreen.copy(alpha = 0.25f), RoundedCornerShape(20.dp))
                     .padding(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.Top) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(GymFlowGreen.copy(alpha = 0.2f)),
+                            .size(60.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .border(1.dp, GymFlowGreen.copy(alpha = 0.3f), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Science,
-                            contentDescription = null,
-                            tint = GymFlowGreen,
-                            modifier = Modifier.size(20.dp)
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data("https://cdn.jsdelivr.net/gh/JahelCuadrado/ExerciseGymGifsDB@v1.1.0/abs/crunch-floor.gif")
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Core Kinetic Fat Loss Motion",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            loading = {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Science,
+                                        contentDescription = null,
+                                        tint = GymFlowGreen,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
                         )
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "EVIDENCE-BASED PHYSIOLOGY",
                             style = GymFlowTheme.typography.Caption.copy(
@@ -136,7 +159,7 @@ fun TargetFatLossScreen(
                             text = "Spot reduction of fat is a myth, but targeted muscle firming + systemic caloric deficit is real. Our protocols combine high-intensity fat oxidation with localized hypertrophy to sculpt and tighten each zone.",
                             style = GymFlowTheme.typography.Caption.copy(
                                 color = GymFlowTheme.colors.textSecondary,
-                                lineHeight = 18.sp
+                                lineHeight = 17.sp
                             )
                         )
                     }
