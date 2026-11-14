@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Straighten
@@ -80,6 +81,7 @@ import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowBorder
 import com.gymflow.core.theme.GymFlowGreen
+import com.gymflow.core.theme.GymFlowGreenLight
 import com.gymflow.core.theme.GymFlowRed
 import com.gymflow.core.theme.GymFlowShapesTokens
 import com.gymflow.core.theme.GymFlowTheme
@@ -100,6 +102,8 @@ fun MemberHomeScreen(
     onNavigateToWeight: () -> Unit = {},
     onNavigateToAchievements: () -> Unit = {},
     onNavigateToExplore: (String) -> Unit = {},
+    onNavigateToNutritionScanner: () -> Unit = {},
+    onNavigateToTargetFatLoss: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -114,6 +118,8 @@ fun MemberHomeScreen(
         onNavigateToWeight = onNavigateToWeight,
         onNavigateToAchievements = onNavigateToAchievements,
         onNavigateToExplore = onNavigateToExplore,
+        onNavigateToNutritionScanner = onNavigateToNutritionScanner,
+        onNavigateToTargetFatLoss = onNavigateToTargetFatLoss,
         onStartWorkout = {
             if (uiState.todayExercises.isNotEmpty() || uiState.hasActiveSession) {
                 val firstUncompleted = uiState.todayExercises.firstOrNull { !uiState.completedExerciseIds.contains(it.exerciseId) }
@@ -148,6 +154,8 @@ fun MemberHomeContent(
     onNavigateToWeight: () -> Unit = {},
     onNavigateToAchievements: () -> Unit = {},
     onNavigateToExplore: (String) -> Unit = {},
+    onNavigateToNutritionScanner: () -> Unit = {},
+    onNavigateToTargetFatLoss: () -> Unit = {},
     onDiscardActiveSession: () -> Unit = {},
     onStartOutdoor: (String) -> Unit = {},
     onPauseOutdoor: () -> Unit = {},
@@ -390,7 +398,7 @@ fun MemberHomeContent(
                         icon = Icons.Default.LocalFireDepartment,
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { onNavigateToProgress() }
+                            .clickable { onNavigateToNutritionScanner() }
                     )
                     MetricCard(
                         label = "Exercises",
@@ -431,7 +439,7 @@ fun MemberHomeContent(
                         icon = Icons.Default.LocalFireDepartment,
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { onNavigateToProgress() }
+                            .clickable { onNavigateToNutritionScanner() }
                     )
                 }
 
@@ -458,6 +466,88 @@ fun MemberHomeContent(
                             .weight(1f)
                             .clickable { onNavigateToActivity() }
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(adaptive.gridSpacing))
+
+            // AI Nutrition & Target Fat Reduction Feature Tiles
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Food Scanner Tile
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(GymFlowTheme.colors.surface)
+                        .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(18.dp))
+                        .clickable { onNavigateToNutritionScanner() }
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowGreen.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = null,
+                                tint = GymFlowGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "AI Food Scanner",
+                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Barcode & Meal Vision",
+                            style = GymFlowTheme.typography.Caption.copy(color = GymFlowTheme.colors.textSecondary, fontSize = 11.sp)
+                        )
+                    }
+                }
+
+                // Target Fat Loss Tile
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(GymFlowTheme.colors.surface)
+                        .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(18.dp))
+                        .clickable { onNavigateToTargetFatLoss() }
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowGreenLight.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = GymFlowGreenLight,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Target Fat Loss",
+                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "7 Anatomical Zones",
+                            style = GymFlowTheme.typography.Caption.copy(color = GymFlowTheme.colors.textSecondary, fontSize = 11.sp)
+                        )
+                    }
                 }
             }
 

@@ -27,6 +27,7 @@ import com.gymflow.domain.model.ExerciseSet
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
+import com.gymflow.domain.repository.FoodRepository
 import com.gymflow.domain.repository.WeightRepository
 import com.gymflow.feature.member.exercises.ExerciseVisuals
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -121,7 +122,8 @@ class MemberHomeViewModel @Inject constructor(
     private val stepSensorManager: StepSensorManager,
     private val dailyStepsDao: DailyStepsDao,
     private val outdoorWorkoutDao: OutdoorWorkoutDao,
-    private val outdoorWorkoutEngine: OutdoorWorkoutEngine
+    private val outdoorWorkoutEngine: OutdoorWorkoutEngine,
+    private val foodRepository: FoodRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberHomeUiState())
@@ -132,6 +134,7 @@ class MemberHomeViewModel @Inject constructor(
         observeCurrentUser()
         observeLatestWeight()
         observeTodayWorkout()
+        observeTodayCalories()
         observeConnectionStatus()
         initStepCounting()
         observeStepsHistory()
@@ -139,6 +142,16 @@ class MemberHomeViewModel @Inject constructor(
         try {
             com.gymflow.feature.widget.GymFlowWidgetUpdater.updateAllWidgets(context)
         } catch (_: Exception) {}
+    }
+
+    private fun observeTodayCalories() {
+        val memberId = tokenManager.getUserIdSync() ?: "default_member"
+        val startOfDayMs = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        viewModelScope.launch {
+            foodRepository.getTodayCalories(memberId, startOfDayMs).collect { calories ->
+                _uiState.update { it.copy(caloriesToday = calories.toString()) }
+            }
+        }
     }
 
     private fun observeConnectionStatus() {

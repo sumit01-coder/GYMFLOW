@@ -21,9 +21,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ExerciseEntity::class,
         DailyStepsEntity::class,
         OutdoorWorkoutEntity::class,
-        OutdoorGpsPointEntity::class
+        OutdoorGpsPointEntity::class,
+        FoodLogEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +37,7 @@ abstract class GymFlowDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun dailyStepsDao(): DailyStepsDao
     abstract fun outdoorWorkoutDao(): OutdoorWorkoutDao
+    abstract fun foodDao(): FoodDao
 
     companion object {
         const val DATABASE_NAME = "gymflow.db"
@@ -278,6 +280,35 @@ abstract class GymFlowDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_outdoor_gps_points_workoutId` ON `outdoor_gps_points` (`workoutId`)")
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `food_logs` (
+                        `id` TEXT NOT NULL,
+                        `memberId` TEXT NOT NULL,
+                        `mealType` TEXT NOT NULL,
+                        `foodName` TEXT NOT NULL,
+                        `brand` TEXT,
+                        `barcode` TEXT,
+                        `servingSizeGrams` REAL NOT NULL,
+                        `caloriesKcal` INTEGER NOT NULL,
+                        `proteinGrams` REAL NOT NULL,
+                        `carbsGrams` REAL NOT NULL,
+                        `fatGrams` REAL NOT NULL,
+                        `fiberGrams` REAL NOT NULL,
+                        `sugarsGrams` REAL NOT NULL,
+                        `sodiumMg` REAL NOT NULL,
+                        `imageUrl` TEXT,
+                        `source` TEXT NOT NULL,
+                        `loggedAtEpochMs` INTEGER NOT NULL,
+                        `isSynced` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_food_logs_memberId_loggedAtEpochMs` ON `food_logs` (`memberId`, `loggedAtEpochMs`)")
             }
         }
     }

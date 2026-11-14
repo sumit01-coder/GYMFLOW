@@ -11,10 +11,13 @@ import com.gymflow.feature.member.activity.MemberActivityScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsScreen
 import com.gymflow.feature.member.exercises.ExerciseDetailsViewModel
 import com.gymflow.feature.member.exercises.ExploreExercisesScreen
+import com.gymflow.feature.member.fatloss.TargetAreaDetailScreen
+import com.gymflow.feature.member.fatloss.TargetFatLossScreen
 import com.gymflow.feature.member.home.MemberHomeScreen
 import com.gymflow.feature.member.home.MemberHomeViewModel
 import com.gymflow.feature.member.hydration.HydrationScreen
 import com.gymflow.feature.member.measurements.BodyMeasurementsScreen
+import com.gymflow.feature.member.nutrition.NutritionScannerScreen
 import com.gymflow.feature.member.profile.MemberProfileScreen
 import com.gymflow.feature.member.profile.MemberSettingsScreen
 import com.gymflow.feature.member.progress.MemberProgressScreen
@@ -48,6 +51,12 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
             },
             onStartWorkout = { exerciseId ->
                 navController.navigate(NavRoutes.activeWorkout(exerciseId))
+            },
+            onNavigateToNutritionScanner = {
+                navController.navigate(NavRoutes.MEMBER_NUTRITION_SCANNER)
+            },
+            onNavigateToTargetFatLoss = {
+                navController.navigate(NavRoutes.MEMBER_TARGET_FAT_LOSS)
             }
         )
     }
@@ -246,6 +255,36 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
     // Athletic Stopwatch
     composable(NavRoutes.MEMBER_STOPWATCH) {
         StopwatchScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    // Target Area Fat Loss
+    composable(NavRoutes.MEMBER_TARGET_FAT_LOSS) {
+        TargetFatLossScreen(
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToZoneDetail = { zoneId ->
+                navController.navigate(NavRoutes.targetZoneDetails(zoneId))
+            }
+        )
+    }
+
+    // Target Zone Details
+    composable(
+        route = NavRoutes.MEMBER_TARGET_ZONE_DETAILS,
+        arguments = listOf(navArgument("zoneId") { type = NavType.StringType })
+    ) { backStackEntry ->
+        val zoneId = backStackEntry.arguments?.getString("zoneId") ?: ""
+        TargetAreaDetailScreen(
+            zoneId = zoneId,
+            onNavigateBack = { navController.popBackStack() },
+            onNavigateToSchedule = { navController.navigate(NavRoutes.WORKOUT_SCHEDULE) }
+        )
+    }
+
+    // AI Food & Nutrition Scanner
+    composable(NavRoutes.MEMBER_NUTRITION_SCANNER) {
+        NutritionScannerScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

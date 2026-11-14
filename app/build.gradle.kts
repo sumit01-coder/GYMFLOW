@@ -14,14 +14,14 @@ android {
 
     val rawVersionName = project.findProperty("appVersionName") as? String
         ?: System.getenv("APP_VERSION_NAME")
-        ?: "1.0.41"
+        ?: "1.0.42"
 
     val cleanVersionName = rawVersionName.removePrefix("v").removePrefix("V").trim()
 
     val versionParts = cleanVersionName.split('-', '_', '+')[0].split('.').mapNotNull { it.toIntOrNull() }
     val major = versionParts.getOrElse(0) { 1 }
     val minor = versionParts.getOrElse(1) { 0 }
-    val patch = versionParts.getOrElse(2) { 41 }
+    val patch = versionParts.getOrElse(2) { 42 }
     val calculatedVersionCode = major * 10000 + minor * 100 + patch
 
     val appVersionCode = (project.findProperty("appVersionCode") as? String)?.toIntOrNull()
@@ -138,6 +138,20 @@ dependencies {
     // Google Play Core In-App Updates & Location Services
     implementation(libs.play.app.update)
     implementation(libs.play.services.location)
+
+    // CameraX
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.androidx.concurrent.futures.ktx)
+    implementation(libs.guava)
+
+    // ML Kit Barcode Scanning
+    implementation(libs.mlkit.barcode.scanning)
+
+    // Google Generative AI (Gemini Vision)
+    implementation(libs.google.generativeai)
 
     // Kotlinx Serialization & Coroutines
     implementation(libs.kotlinx.serialization.json)

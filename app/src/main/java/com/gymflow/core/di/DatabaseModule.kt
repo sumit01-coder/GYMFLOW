@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.ExerciseDao
+import com.gymflow.core.database.FoodDao
 import com.gymflow.core.database.GymFlowDatabase
 import com.gymflow.core.database.OutdoorWorkoutDao
 import com.gymflow.core.database.PlanDao
@@ -41,7 +42,8 @@ object DatabaseModule {
                 GymFlowDatabase.MIGRATION_6_7,
                 GymFlowDatabase.MIGRATION_7_8,
                 GymFlowDatabase.MIGRATION_8_9,
-                GymFlowDatabase.MIGRATION_9_10
+                GymFlowDatabase.MIGRATION_9_10,
+                GymFlowDatabase.MIGRATION_10_11
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -71,4 +73,7 @@ object DatabaseModule {
 
     @Provides
     fun provideOutdoorWorkoutDao(database: GymFlowDatabase): OutdoorWorkoutDao = database.outdoorWorkoutDao()
+
+    @Provides
+    fun provideFoodDao(database: GymFlowDatabase): FoodDao = database.foodDao()
 }

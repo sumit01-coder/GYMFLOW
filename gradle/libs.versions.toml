@@ -30,6 +30,11 @@ googleServices = "4.4.2"
 firebaseBom = "33.5.1"
 playAppUpdate = "2.1.0"
 playServicesLocation = "21.3.0"
+camerax = "1.3.4"
+mlkitBarcode = "17.3.0"
+generativeAi = "0.9.0"
+guava = "31.1-android"
+concurrentFutures = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -80,6 +85,22 @@ coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coil" }
 # Google Play Core In-App Updates & Location Services
 play-app-update = { group = "com.google.android.play", name = "app-update-ktx", version.ref = "playAppUpdate" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+
+# CameraX
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "camerax" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "camerax" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "camerax" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "camerax" }
+
+# ML Kit Barcode Scanning
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
+
+# Generative AI (Gemini)
+google-generativeai = { group = "com.google.ai.client.generativeai", name = "generativeai", version.ref = "generativeAi" }
+
+# Guava & Concurrent Futures (CameraX ListenableFuture support)
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+androidx-concurrent-futures-ktx = { group = "androidx.concurrent", name = "concurrent-futures-ktx", version.ref = "concurrentFutures" }
 
 # Kotlinx Serialization & Coroutines
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
