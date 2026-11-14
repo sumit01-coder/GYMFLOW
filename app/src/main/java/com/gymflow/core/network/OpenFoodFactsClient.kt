@@ -39,7 +39,7 @@ class OpenFoodFactsClient @Inject constructor() {
             val trimmedBarcode = barcode.trim()
             val url = "https://world.openfoodfacts.org/api/v2/product/$trimmedBarcode.json"
             val response: OpenFoodFactsResponse = httpClient.get(url) {
-                header(HttpHeaders.UserAgent, "GymFlow-Android/1.0.41 (support@gymflow.com)")
+                header(HttpHeaders.UserAgent, "GymFlow-Android/1.0.43 (support@gymflow.com)")
             }.body()
 
             if (response.status == 1 && response.product != null) {
