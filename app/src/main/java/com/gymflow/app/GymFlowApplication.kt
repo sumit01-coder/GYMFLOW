@@ -82,7 +82,14 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
         // 1. Enqueue background WorkManager task to pre-download and cache exercise catalog GIFs
         ExerciseGifPreloadWorker.enqueue(this)
 
-        // 2. Start pedometer sensor tracking immediately so steps are collected seamlessly
+        // 2. Schedule daily membership expiry scan & renewal notification alerts
+        try {
+            com.gymflow.core.worker.MembershipExpiryWorker.scheduleDaily(this)
+        } catch (e: Exception) {
+            Log.w("GymFlowApplication", "Could not schedule daily membership expiry worker", e)
+        }
+
+        // 3. Start pedometer sensor tracking immediately so steps are collected seamlessly
         try {
             val stepSensorEntryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
                 this,

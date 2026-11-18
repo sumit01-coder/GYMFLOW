@@ -1,117 +1,82 @@
 package com.gymflow.feature.trainer.members
 
 import androidx.lifecycle.ViewModel
-import com.gymflow.domain.model.ConnectedMember
+import androidx.lifecycle.viewModelScope
+import com.gymflow.domain.model.GymMember
+import com.gymflow.domain.model.MembershipDuration
+import com.gymflow.domain.model.PaymentMethod
+import com.gymflow.domain.model.PaymentStatus
+import com.gymflow.domain.repository.GymMemberRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.UUID
+import javax.inject.Inject
 
 enum class MemberFilterTab {
     ALL,
-    ACTIVE,
-    PENDING
+    EXPIRING_SOON,
+    EXPIRED,
+    PENDING_PAYMENT
 }
-
-data class MemberItemData(
-    val id: String,
-    val name: String,
-    val goal: String,
-    val currentProgram: String,
-    val lastActive: String,
-    val status: String, // Active, Pending
-    val workoutsCompleted: Int,
-    val consistencyRate: Int
-)
 
 data class MemberManagementUiState(
     val searchQuery: String = "",
     val selectedFilter: MemberFilterTab = MemberFilterTab.ALL,
-    val allMembers: List<MemberItemData> = listOf(
-        MemberItemData(
-            id = "sarah-miller-101",
-            name = "Sarah Miller",
-            goal = "Build Muscle / Hypertrophy",
-            currentProgram = "Chest + Triceps",
-            lastActive = "12m ago",
-            status = "Active",
-            workoutsCompleted = 14,
-            consistencyRate = 92
-        ),
-        MemberItemData(
-            id = "mike-ross-102",
-            name = "Mike Ross",
-            goal = "Strength Conditioning",
-            currentProgram = "Leg Day",
-            lastActive = "45m ago",
-            status = "Pending",
-            workoutsCompleted = 8,
-            consistencyRate = 75
-        ),
-        MemberItemData(
-            id = "emma-davis-103",
-            name = "Emma Davis",
-            goal = "Endurance & Tone",
-            currentProgram = "Back + Biceps",
-            lastActive = "2h ago",
-            status = "Active",
-            workoutsCompleted = 19,
-            consistencyRate = 96
-        ),
-        MemberItemData(
-            id = "james-wilson-104",
-            name = "James Wilson",
-            goal = "Powerlifting Peak",
-            currentProgram = "Upper Body Power",
-            lastActive = "Yesterday",
-            status = "Active",
-            workoutsCompleted = 11,
-            consistencyRate = 88
-        ),
-        MemberItemData(
-            id = "olivia-brown-105",
-            name = "Olivia Brown",
-            goal = "Mobility & Core",
-            currentProgram = "Core & HIIT",
-            lastActive = "3d ago",
-            status = "Active",
-            workoutsCompleted = 7,
-            consistencyRate = 70
-        ),
-        MemberItemData(
-            id = "daniel-carter-106",
-            name = "Daniel Carter",
-            goal = "Hypertrophy Starter",
-            currentProgram = "Hypertrophy Starter",
-            lastActive = "Pending Approval",
-            status = "Pending",
-            workoutsCompleted = 0,
-            consistencyRate = 0
-        )
-    )
+    val members: List<GymMember> = emptyList(),
+    val isAddMemberDialogOpen: Boolean = false,
+    val selectedMemberForRenewal: GymMember? = null,
+    val selectedMemberForWhatsApp: GymMember? = null,
+    val isRenewDialogOpen: Boolean = false,
+    val isWhatsAppPreviewOpen: Boolean = false,
+    val customWhatsAppMessage: String = ""
 ) {
-    val filteredMembers: List<MemberItemData>
+    val filteredMembers: List<GymMember>
         get() {
-            return allMembers.filter { member ->
+            return members.filter { member ->
                 val matchesQuery = searchQuery.isBlank() ||
                         member.name.contains(searchQuery, ignoreCase = true) ||
-                        member.currentProgram.contains(searchQuery, ignoreCase = true) ||
-                        member.goal.contains(searchQuery, ignoreCase = true)
+                        member.phoneNumber.contains(searchQuery, ignoreCase = true) ||
+                        member.email.contains(searchQuery, ignoreCase = true) ||
+                        (member.assignedTrainerName?.contains(searchQuery, ignoreCase = true) == true)
 
                 val matchesTab = when (selectedFilter) {
                     MemberFilterTab.ALL -> true
-                    MemberFilterTab.ACTIVE -> member.status.equals("Active", ignoreCase = true)
-                    MemberFilterTab.PENDING -> member.status.equals("Pending", ignoreCase = true)
+                    MemberFilterTab.EXPIRING_SOON -> member.isExpiringSoon
+                    MemberFilterTab.EXPIRED -> member.isExpired
+                    MemberFilterTab.PENDING_PAYMENT -> member.paymentStatus != PaymentStatus.PAID
                 }
 
                 matchesQuery && matchesTab
             }
         }
+
+    val totalMembersCount: Int get() = members.size
+    val expiringCount: Int get() = members.count { it.isExpiringSoon }
+    val expiredCount: Int get() = members.count { it.isExpired }
+    val pendingPaymentCount: Int get() = members.count { it.paymentStatus != PaymentStatus.PAID }
 }
 
-class MemberManagementViewModel : ViewModel() {
+@HiltViewModel
+class MemberManagementViewModel @Inject constructor(
+    private val gymMemberRepository: GymMemberRepository
+) : ViewModel() {
+
     private val _uiState = MutableStateFlow(MemberManagementUiState())
     val uiState: StateFlow<MemberManagementUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            gymMemberRepository.seedInitialMembersIfEmpty()
+            gymMemberRepository.getAllMembers().collect { list ->
+                _uiState.update { it.copy(members = list) }
+            }
+        }
+    }
 
     fun onSearchQueryChanged(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
@@ -119,5 +84,118 @@ class MemberManagementViewModel : ViewModel() {
 
     fun onFilterSelected(tab: MemberFilterTab) {
         _uiState.update { it.copy(selectedFilter = tab) }
+    }
+
+    fun openAddMemberDialog() {
+        _uiState.update { it.copy(isAddMemberDialogOpen = true) }
+    }
+
+    fun closeAddMemberDialog() {
+        _uiState.update { it.copy(isAddMemberDialogOpen = false) }
+    }
+
+    fun openRenewDialog(member: GymMember) {
+        _uiState.update {
+            it.copy(
+                selectedMemberForRenewal = member,
+                isRenewDialogOpen = true
+            )
+        }
+    }
+
+    fun closeRenewDialog() {
+        _uiState.update {
+            it.copy(
+                selectedMemberForRenewal = null,
+                isRenewDialogOpen = false
+            )
+        }
+    }
+
+    fun openWhatsAppPreview(member: GymMember) {
+        _uiState.update {
+            it.copy(
+                selectedMemberForWhatsApp = member,
+                isWhatsAppPreviewOpen = true
+            )
+        }
+    }
+
+    fun closeWhatsAppPreview() {
+        _uiState.update {
+            it.copy(
+                selectedMemberForWhatsApp = null,
+                isWhatsAppPreviewOpen = false
+            )
+        }
+    }
+
+    fun addNewMember(
+        name: String,
+        phone: String,
+        email: String,
+        trainerName: String?,
+        duration: MembershipDuration,
+        feeAmount: Double,
+        amountPaid: Double,
+        paymentMethod: PaymentMethod,
+        notes: String
+    ) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val cal = Calendar.getInstance().apply {
+                timeInMillis = now
+                add(Calendar.MONTH, duration.months)
+            }
+            val endDate = cal.timeInMillis
+
+            val paymentStatus = when {
+                amountPaid >= feeAmount -> PaymentStatus.PAID
+                amountPaid > 0 -> PaymentStatus.PARTIALLY_PAID
+                else -> PaymentStatus.PENDING
+            }
+
+            val newMember = GymMember(
+                id = UUID.randomUUID().toString(),
+                name = name.trim(),
+                phoneNumber = phone.trim(),
+                email = email.trim(),
+                assignedTrainerName = trainerName?.trim()?.ifBlank { "Unassigned" },
+                duration = duration,
+                startDateEpochMs = now,
+                endDateEpochMs = endDate,
+                feeAmount = feeAmount,
+                amountPaid = amountPaid,
+                paymentStatus = paymentStatus,
+                paymentMethod = paymentMethod,
+                notes = notes.trim()
+            )
+
+            gymMemberRepository.addMember(newMember)
+            closeAddMemberDialog()
+        }
+    }
+
+    fun renewMember(
+        memberId: String,
+        additionalDuration: MembershipDuration,
+        feeAmount: Double,
+        paymentMethod: PaymentMethod
+    ) {
+        viewModelScope.launch {
+            gymMemberRepository.renewMembership(
+                memberId = memberId,
+                additionalMonths = additionalDuration.months,
+                fee = feeAmount,
+                paymentMethod = paymentMethod.name
+            )
+            closeRenewDialog()
+        }
+    }
+
+    fun markReminderSent(memberId: String) {
+        viewModelScope.launch {
+            gymMemberRepository.markRenewalReminderSent(memberId)
+        }
     }
 }

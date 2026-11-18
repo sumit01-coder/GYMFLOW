@@ -34,6 +34,7 @@ val TrainerBtnCardBg = Color(0xFF27272A)
 val TrainerBtnCardFg = Color(0xFFFFFFFF)
 
 // Badges & Status
+val TrainerGreenAccent = Color(0xFF4ADE80)
 val TrainerBadgeActiveFg = Color(0xFF4ADE80)
 val TrainerBadgeActiveBg = Color(0x264ADE80) // 15% opacity
 val TrainerBadgePendingFg = Color(0xFFFBBF24)

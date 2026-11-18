@@ -22,9 +22,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         DailyStepsEntity::class,
         OutdoorWorkoutEntity::class,
         OutdoorGpsPointEntity::class,
-        FoodLogEntity::class
+        FoodLogEntity::class,
+        GymMemberEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -38,6 +39,7 @@ abstract class GymFlowDatabase : RoomDatabase() {
     abstract fun dailyStepsDao(): DailyStepsDao
     abstract fun outdoorWorkoutDao(): OutdoorWorkoutDao
     abstract fun foodDao(): FoodDao
+    abstract fun gymMemberDao(): GymMemberDao
 
     companion object {
         const val DATABASE_NAME = "gymflow.db"
@@ -309,6 +311,36 @@ abstract class GymFlowDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_food_logs_memberId_loggedAtEpochMs` ON `food_logs` (`memberId`, `loggedAtEpochMs`)")
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `gym_members` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `phoneNumber` TEXT NOT NULL,
+                        `email` TEXT NOT NULL,
+                        `assignedTrainerId` TEXT,
+                        `assignedTrainerName` TEXT,
+                        `durationMonths` INTEGER NOT NULL,
+                        `startDateEpochMs` INTEGER NOT NULL,
+                        `endDateEpochMs` INTEGER NOT NULL,
+                        `feeAmount` REAL NOT NULL,
+                        `amountPaid` REAL NOT NULL,
+                        `paymentStatus` TEXT NOT NULL,
+                        `paymentMethod` TEXT NOT NULL,
+                        `upiIdOrPaymentLink` TEXT,
+                        `notes` TEXT NOT NULL,
+                        `isActive` INTEGER NOT NULL,
+                        `lastRenewalNotificationEpochMs` INTEGER,
+                        PRIMARY KEY(`id`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_gym_members_endDateEpochMs` ON `gym_members` (`endDateEpochMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_gym_members_paymentStatus` ON `gym_members` (`paymentStatus`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_gym_members_assignedTrainerId` ON `gym_members` (`assignedTrainerId`)")
             }
         }
     }

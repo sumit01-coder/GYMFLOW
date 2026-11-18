@@ -57,4 +57,10 @@ abstract class RepositoryModule {
     abstract fun bindFoodRepository(
         foodRepositoryImpl: FoodRepositoryImpl
     ): FoodRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGymMemberRepository(
+        gymMemberRepositoryImpl: com.gymflow.data.repository.GymMemberRepositoryImpl
+    ): com.gymflow.domain.repository.GymMemberRepository
 }

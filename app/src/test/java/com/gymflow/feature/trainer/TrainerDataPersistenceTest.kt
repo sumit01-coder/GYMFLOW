@@ -18,6 +18,7 @@ import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.domain.model.WorkoutPlan
 import com.gymflow.feature.trainer.joincode.TrainerJoinCodeViewModel
 import com.gymflow.feature.trainer.members.MemberFilterTab
+import com.gymflow.feature.trainer.members.MemberManagementUiState
 import com.gymflow.feature.trainer.members.MemberManagementViewModel
 import com.gymflow.feature.trainer.profile.TrainerMemberProfileViewModel
 import org.junit.Assert.assertEquals
@@ -28,6 +29,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 
 /**
@@ -536,29 +538,56 @@ class TrainerDataPersistenceTest {
     // =========================================================================
 
     @Test
-    fun testMemberRosterFilteringAndSearch() {
-        val viewModel = MemberManagementViewModel()
+    fun testMemberRosterFilteringAndSearch() = runBlocking {
+        val membersList = listOf(
+            com.gymflow.domain.model.GymMember(
+                id = "1",
+                name = "Sarah Miller",
+                phoneNumber = "9876543210",
+                email = "sarah@example.com",
+                duration = com.gymflow.domain.model.MembershipDuration.SIX_MONTHS,
+                paymentStatus = com.gymflow.domain.model.PaymentStatus.PAID
+            ),
+            com.gymflow.domain.model.GymMember(
+                id = "2",
+                name = "Mike Ross",
+                phoneNumber = "9876543211",
+                email = "mike@example.com",
+                duration = com.gymflow.domain.model.MembershipDuration.ONE_MONTH,
+                paymentStatus = com.gymflow.domain.model.PaymentStatus.PENDING
+            ),
+            com.gymflow.domain.model.GymMember(
+                id = "3",
+                name = "Emma Davis",
+                phoneNumber = "9876543212",
+                email = "emma@example.com",
+                duration = com.gymflow.domain.model.MembershipDuration.THREE_MONTHS,
+                endDateEpochMs = System.currentTimeMillis() - 1000,
+                paymentStatus = com.gymflow.domain.model.PaymentStatus.PAID
+            )
+        )
 
-        // 1. Default should contain all sample members
-        assertEquals(MemberFilterTab.ALL, viewModel.uiState.value.selectedFilter)
-        val allCount = viewModel.uiState.value.filteredMembers.size
-        assertTrue(allCount >= 5)
+        val state = MemberManagementUiState(members = membersList)
 
-        // 2. Filter by Active
-        viewModel.onFilterSelected(MemberFilterTab.ACTIVE)
-        val activeMembers = viewModel.uiState.value.filteredMembers
-        assertTrue(activeMembers.all { it.status.equals("Active", ignoreCase = true) })
+        // 1. Default should contain all members
+        assertEquals(MemberFilterTab.ALL, state.selectedFilter)
+        assertEquals(3, state.filteredMembers.size)
 
-        // 3. Filter by Pending
-        viewModel.onFilterSelected(MemberFilterTab.PENDING)
-        val pendingMembers = viewModel.uiState.value.filteredMembers
-        assertTrue(pendingMembers.all { it.status.equals("Pending", ignoreCase = true) })
-        assertTrue(pendingMembers.any { it.name == "Mike Ross" || it.name == "Daniel Carter" })
+        // 2. Filter by Expired
+        val expiredState = state.copy(selectedFilter = MemberFilterTab.EXPIRED)
+        val expiredMembers = expiredState.filteredMembers
+        assertEquals(1, expiredMembers.size)
+        assertEquals("Emma Davis", expiredMembers.first().name)
+
+        // 3. Filter by Pending Payment
+        val pendingState = state.copy(selectedFilter = MemberFilterTab.PENDING_PAYMENT)
+        val pendingMembers = pendingState.filteredMembers
+        assertEquals(1, pendingMembers.size)
+        assertEquals("Mike Ross", pendingMembers.first().name)
 
         // 4. Search query filter
-        viewModel.onFilterSelected(MemberFilterTab.ALL)
-        viewModel.onSearchQueryChanged("Sarah")
-        val searchResult = viewModel.uiState.value.filteredMembers
+        val searchState = state.copy(searchQuery = "Sarah")
+        val searchResult = searchState.filteredMembers
         assertEquals(1, searchResult.size)
         assertEquals("Sarah Miller", searchResult.first().name)
     }
