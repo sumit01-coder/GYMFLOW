@@ -34,6 +34,12 @@ interface AppStepSensorEntryPoint {
     fun stepSensorManager(): StepSensorManager
 }
 
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface AppSyncEntryPoint {
+    fun firestoreConnectionManager(): com.gymflow.core.firebase.FirestoreConnectionManager
+}
+
 @HiltAndroidApp
 class GymFlowApplication : Application(), ImageLoaderFactory {
 
@@ -98,6 +104,17 @@ class GymFlowApplication : Application(), ImageLoaderFactory {
             stepSensorEntryPoint.stepSensorManager().startTracking()
         } catch (e: Exception) {
             Log.w("GymFlowApplication", "Could not start background step sensor tracking at application startup", e)
+        }
+
+        // 4. Eagerly start enterprise real-time Firestore synchronization for cross-device updates
+        try {
+            val syncEntryPoint = dagger.hilt.android.EntryPointAccessors.fromApplication(
+                this,
+                AppSyncEntryPoint::class.java
+            )
+            syncEntryPoint.firestoreConnectionManager()
+        } catch (e: Exception) {
+            Log.w("GymFlowApplication", "Could not initialize FirestoreConnectionManager at application startup", e)
         }
 
         // 3. Eagerly preheat the core workout routine GIFs in background so today's workout has 0ms load time

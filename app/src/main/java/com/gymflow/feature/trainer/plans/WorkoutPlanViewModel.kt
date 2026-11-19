@@ -3,6 +3,7 @@ package com.gymflow.feature.trainer.plans
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.PlanDao
+import com.gymflow.core.database.UserDao
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.WorkoutDay
@@ -12,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -133,21 +135,42 @@ class WorkoutPlanViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val tokenManager: TokenManager,
     private val firestoreSyncManager: FirestoreSyncManager,
-    private val gymMemberRepository: com.gymflow.domain.repository.GymMemberRepository
+    private val gymMemberRepository: com.gymflow.domain.repository.GymMemberRepository,
+    private val userDao: UserDao
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutPlanBuilderUiState())
     val uiState: StateFlow<WorkoutPlanBuilderUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            gymMemberRepository.getAllMembers().collect { members ->
-                val options = members.map { member ->
-                    MemberOption(
+            combine(
+                gymMemberRepository.getAllMembers(),
+                userDao.getConnectedAthletesFlow()
+            ) { members, athletes ->
+                val allMemberMap = linkedMapOf<String, MemberOption>()
+
+                // 1. Members from GymMemberRepository
+                members.forEach { member ->
+                    allMemberMap[member.id] = MemberOption(
                         id = member.id,
                         name = member.name,
-                        currentGoal = "${member.duration.displayName} Membership"
+                        currentGoal = "${member.duration.displayName} · Active"
                     )
                 }
+
+                // 2. Connected Athletes from UserDao
+                athletes.forEach { athlete ->
+                    if (!allMemberMap.containsKey(athlete.id)) {
+                        allMemberMap[athlete.id] = MemberOption(
+                            id = athlete.id,
+                            name = athlete.name.ifBlank { "Athlete" },
+                            currentGoal = athlete.fitnessGoal.ifBlank { "Personal Training" }
+                        )
+                    }
+                }
+
+                allMemberMap.values.toList()
+            }.collect { options ->
                 _uiState.update { state ->
                     val selected = if (state.selectedMemberId.isNotBlank() && options.any { it.id == state.selectedMemberId }) {
                         state.selectedMemberId
@@ -225,7 +248,7 @@ class WorkoutPlanViewModel @Inject constructor(
 
     fun saveAndPublishPlan(onComplete: (() -> Unit)? = null) {
         viewModelScope.launch {
-            val trainerId = tokenManager.getUserIdSync() ?: "coach-marcus"
+            val trainerId = tokenManager.getUserIdSync() ?: "coach"
             val plan = WorkoutPlan(
                 id = _uiState.value.planId,
                 trainerId = trainerId,

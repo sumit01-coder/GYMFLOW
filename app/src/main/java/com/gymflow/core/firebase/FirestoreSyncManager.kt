@@ -30,6 +30,14 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class CloudTrainerCodeInfo(
+    val code: String,
+    val trainerId: String,
+    val trainerName: String,
+    val gymName: String,
+    val expiresAtEpochMs: Long
+)
+
 @Singleton
 class FirestoreSyncManager @Inject constructor(
     private val firestore: FirebaseFirestore,
@@ -815,5 +823,141 @@ class FirestoreSyncManager @Inject constructor(
             .await()
 
         return trainerId
+    }
+
+    // 10. Publish Trainer Invite Code to Cloud Firestore
+    suspend fun publishTrainerInviteCode(
+        code: String,
+        trainerId: String,
+        trainerName: String,
+        gymName: String = "GymFlow Fitness Center"
+    ): Boolean {
+        return try {
+            val cleanCode = code.trim().uppercase()
+            val codeData = mapOf(
+                "code" to cleanCode,
+                "trainerId" to trainerId,
+                "trainerName" to trainerName,
+                "gymName" to gymName,
+                "createdAtEpochMs" to System.currentTimeMillis(),
+                "expiresAtEpochMs" to System.currentTimeMillis() + (24L * 60 * 60 * 1000)
+            )
+            firestore.collection(COLLECTION_TRAINER_CODES)
+                .document(cleanCode)
+                .set(codeData, SetOptions.merge())
+                .await()
+
+            val trainerData = mapOf(
+                "id" to trainerId,
+                "name" to trainerName,
+                "gymName" to gymName,
+                "currentInviteCode" to cleanCode,
+                "lastUpdated" to System.currentTimeMillis()
+            )
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .set(trainerData, SetOptions.merge())
+                .await()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 10b. Query and Resolve Trainer Invite Code from Cloud Firestore
+    suspend fun lookupTrainerInviteCode(code: String): CloudTrainerCodeInfo? {
+        return try {
+            val cleanCode = code.trim().uppercase()
+            val doc = firestore.collection(COLLECTION_TRAINER_CODES)
+                .document(cleanCode)
+                .get()
+                .await()
+            if (doc.exists()) {
+                val trainerId = doc.getString("trainerId") ?: ""
+                val trainerName = doc.getString("trainerName") ?: "Coach"
+                val gymName = doc.getString("gymName") ?: "GymFlow Fitness Center"
+                val expiresAt = doc.getLong("expiresAtEpochMs") ?: (System.currentTimeMillis() + (24L * 60 * 60 * 1000))
+                CloudTrainerCodeInfo(
+                    code = cleanCode,
+                    trainerId = trainerId,
+                    trainerName = trainerName,
+                    gymName = gymName,
+                    expiresAtEpochMs = expiresAt
+                )
+            } else {
+                val query = firestore.collection(COLLECTION_TRAINERS)
+                    .whereEqualTo("currentInviteCode", cleanCode)
+                    .limit(1)
+                    .get()
+                    .await()
+                val trainerDoc = query.documents.firstOrNull()
+                if (trainerDoc != null && trainerDoc.exists()) {
+                    CloudTrainerCodeInfo(
+                        code = cleanCode,
+                        trainerId = trainerDoc.getString("id") ?: trainerDoc.id,
+                        trainerName = trainerDoc.getString("name") ?: "Coach",
+                        gymName = trainerDoc.getString("gymName") ?: "GymFlow Fitness Center",
+                        expiresAtEpochMs = System.currentTimeMillis() + (24L * 60 * 60 * 1000)
+                    )
+                } else {
+                    null
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    // 11. Link Member to Trainer in Cloud Firestore (Two-way Connection)
+    suspend fun registerMemberTrainerConnection(
+        code: String,
+        memberId: String,
+        memberName: String,
+        memberEmail: String,
+        trainerId: String,
+        trainerName: String
+    ): Boolean {
+        return try {
+            val cleanCode = code.trim().uppercase()
+            val now = System.currentTimeMillis()
+
+            // 1) Update member's user profile in Firestore
+            val memberProfileUpdate = mapOf(
+                "connectedTrainerId" to trainerId,
+                "syncStatus" to "Connected",
+                "lastUpdated" to now
+            )
+            firestore.collection(COLLECTION_USERS)
+                .document(memberId)
+                .set(memberProfileUpdate, SetOptions.merge())
+                .await()
+
+            // 2) Append to trainer's connected_members subcollection
+            val connectedMemberData = mapOf(
+                "id" to memberId,
+                "name" to memberName,
+                "email" to memberEmail,
+                "connectedTrainerId" to trainerId,
+                "connectedTrainerName" to trainerName,
+                "joinedAtEpochMs" to now,
+                "invitationCode" to cleanCode
+            )
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .collection("connected_members")
+                .document(memberId)
+                .set(connectedMemberData, SetOptions.merge())
+                .await()
+
+            // 3) Append memberId to trainer's activeMemberIds array
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .update("activeMemberIds", FieldValue.arrayUnion(memberId))
+                .await()
+
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 }

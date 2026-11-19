@@ -51,7 +51,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.util.QrCodeGenerator
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
@@ -70,7 +70,7 @@ fun TrainerJoinCodeScreen(
     onBackClick: () -> Unit,
     onMemberApproved: () -> Unit = {},
     modifier: Modifier = Modifier,
-    viewModel: TrainerJoinCodeViewModel = viewModel()
+    viewModel: TrainerJoinCodeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current

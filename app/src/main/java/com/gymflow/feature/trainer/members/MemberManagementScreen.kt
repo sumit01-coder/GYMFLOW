@@ -649,7 +649,7 @@ private fun AddMemberDialog(
                     value = trainerName,
                     onValueChange = { trainerName = it },
                     label = { Text("Assigned Trainer / Manager") },
-                    placeholder = { Text("e.g. Coach Marcus") },
+                    placeholder = { Text("e.g. Coach Name") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = dialogTextFieldColors()
                 )

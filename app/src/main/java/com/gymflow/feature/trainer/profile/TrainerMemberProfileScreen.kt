@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -44,7 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.feature.trainer.components.TrainerBadge
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
@@ -67,8 +68,14 @@ fun TrainerMemberProfileScreen(
     onViewFullProgress: () -> Unit,
     onEditWorkoutPlan: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TrainerMemberProfileViewModel = viewModel()
+    viewModel: TrainerMemberProfileViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(memberId) {
+        if (memberId.isNotBlank()) {
+            viewModel.loadMemberProfile(memberId)
+        }
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     val member = uiState.profile
 
@@ -417,7 +424,7 @@ fun TrainerMemberProfileScreen(
                     color = TrainerDarkTextPrimary
                 )
                 Text(
-                    text = "Notes are pushed instantly to Sarah's member mobile dashboard",
+                    text = "Notes are pushed instantly to ${member.name.ifBlank { "athlete" }}'s mobile dashboard",
                     fontSize = 12.sp,
                     color = TrainerDarkTextSecondary,
                     modifier = Modifier.padding(top = 2.dp)
@@ -430,7 +437,7 @@ fun TrainerMemberProfileScreen(
                         TrainerTextField(
                             value = uiState.feedbackInput,
                             onValueChange = { viewModel.onFeedbackInputChanged(it) },
-                            placeholder = "Write feedback or routine guidance for Sarah...",
+                            placeholder = "Write feedback or routine guidance for ${member.name.ifBlank { "athlete" }}...",
                             singleLine = false,
                             modifier = Modifier.height(96.dp)
                         )
@@ -502,7 +509,7 @@ fun TrainerMemberProfileScreen(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Feedback successfully pushed to Sarah's device",
+                                    text = "Feedback successfully pushed to ${member.name.ifBlank { "athlete" }}'s device",
                                     fontSize = 12.sp,
                                     color = Color(0xFF4ADE80)
                                 )

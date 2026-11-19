@@ -164,9 +164,9 @@ def check_github_releases():
 
 def create_and_push_tag(version_str, notes):
     tag = f"v{version_str}"
-    print(f"[GIT] Committing version bump to {tag}...")
-    subprocess.run(["git", "add", "app/build.gradle.kts"], cwd=str(REPO_ROOT), check=True)
-    subprocess.run(["git", "commit", "-m", f"chore(release): bump version to {tag}"], cwd=str(REPO_ROOT), check=False)
+    print(f"[GIT] Committing changes and version bump to {tag}...")
+    subprocess.run(["git", "add", "."], cwd=str(REPO_ROOT), check=True)
+    subprocess.run(["git", "commit", "-m", f"fix(sync): real-time firestore member sync & eliminate mock data ({tag})"], cwd=str(REPO_ROOT), check=False)
     
     print(f"[GIT] Tagging {tag}...")
     subprocess.run(["git", "tag", "-a", tag, "-m", notes], cwd=str(REPO_ROOT), check=True)

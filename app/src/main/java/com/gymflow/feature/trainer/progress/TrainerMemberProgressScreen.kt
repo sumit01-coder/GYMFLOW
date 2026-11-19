@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -45,7 +46,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
 import com.gymflow.feature.trainer.components.TrainerCard
@@ -66,9 +67,13 @@ fun TrainerMemberProgressScreen(
     onBackClick: () -> Unit,
     onEditPlanClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TrainerMemberProgressViewModel = viewModel()
+    viewModel: TrainerMemberProgressViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(memberId) {
+        viewModel.loadMemberData(memberId)
+    }
 
     val timeframes = listOf(
         ProgressTimeframe.D7 to "7D",

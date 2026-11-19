@@ -3,6 +3,8 @@ package com.gymflow.feature.trainer.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ConnectedMember
 import com.gymflow.domain.model.GymMember
@@ -18,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
 
 data class TrainerDashboardKpis(
@@ -40,7 +43,9 @@ data class TrainerDashboardUiState(
 class TrainerDashboardViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val userDao: UserDao,
-    private val gymMemberRepository: GymMemberRepository
+    private val gymMemberRepository: GymMemberRepository,
+    private val workoutSessionDao: WorkoutSessionDao,
+    private val firestoreConnectionManager: FirestoreConnectionManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrainerDashboardUiState())
@@ -80,10 +85,18 @@ class TrainerDashboardViewModel @Inject constructor(
 
     private fun observeRealMembers() {
         viewModelScope.launch {
+            val startOfToday = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+
             combine(
                 gymMemberRepository.getAllMembers(),
-                userDao.getConnectedAthletesFlow()
-            ) { members, athletes ->
+                userDao.getConnectedAthletesFlow(),
+                workoutSessionDao.getAllCompletedSessionsFlow()
+            ) { members, athletes, sessions ->
                 val existingIds = members.map { it.id }.toSet()
                 // Sync any athlete from UserDao not yet registered in gym_members
                 athletes.filter { it.id !in existingIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
@@ -130,12 +143,12 @@ class TrainerDashboardViewModel @Inject constructor(
                         )
                     }
 
-                members + athleteAsMembers
-            }.collect { allMembers ->
+                val allMembers = members + athleteAsMembers
                 val total = allMembers.size
                 val active = allMembers.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID }
                 val pending = allMembers.count { it.paymentStatus != PaymentStatus.PAID }
                 val expiring = allMembers.count { it.isExpiringSoon }
+                val completedToday = sessions.count { it.startTimeEpochMs >= startOfToday }
 
                 val connectedMembers = allMembers.map { member ->
                     ConnectedMember(
@@ -152,14 +165,14 @@ class TrainerDashboardViewModel @Inject constructor(
                         kpis = TrainerDashboardKpis(
                             totalMembers = total,
                             activeMembers = active,
-                            completedToday = 0,
+                            completedToday = completedToday,
                             pendingReviews = pending
                         ),
                         recentMembers = connectedMembers,
                         unreadNotificationsCount = expiring
                     )
                 }
-            }
+            }.collect {}
         }
     }
 }

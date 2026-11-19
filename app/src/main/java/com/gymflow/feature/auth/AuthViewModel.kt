@@ -180,7 +180,7 @@ class AuthViewModel @Inject constructor(
                     ?: email.substringBefore("@").replace(".", " ")
                         .split(" ").filter { it.isNotBlank() }
                         .joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
-                        .ifBlank { if (role == Role.TRAINER) "Coach Marcus" else "Member" }
+                        .ifBlank { if (role == Role.TRAINER) "Coach" else "Member" }
 
                 val token = "firebase_jwt_${firebaseUid}"
 

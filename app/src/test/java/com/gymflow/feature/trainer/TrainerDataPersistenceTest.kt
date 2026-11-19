@@ -617,11 +617,9 @@ class TrainerDataPersistenceTest {
         val profileVm = TrainerMemberProfileViewModel()
 
         val initialProfile = profileVm.uiState.value.profile
-        assertEquals("Sarah Miller", initialProfile.name)
-        assertEquals("sarah-miller-101", initialProfile.memberId)
+        assertEquals("", initialProfile.name)
+        assertEquals("", initialProfile.memberId)
         assertEquals("Active", initialProfile.status)
-        assertEquals(92, initialProfile.attendanceRate)
-        assertEquals(7, initialProfile.weeklyDays.size)
 
         // Coach adds a personalized feedback note
         val coachingNote = "Superb execution on 70kg Bench Press today! Let's progress to 72.5kg next cycle."

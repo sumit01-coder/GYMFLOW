@@ -37,7 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.feature.trainer.components.TrainerBottomNavBar
 import com.gymflow.feature.trainer.components.TrainerBottomNavTab
 import com.gymflow.feature.trainer.components.TrainerButton
@@ -61,7 +61,7 @@ fun TrainerAnalyticsScreen(
     onNavigateToPlans: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: TrainerAnalyticsViewModel = viewModel()
+    viewModel: TrainerAnalyticsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -197,44 +197,52 @@ fun TrainerAnalyticsScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 TrainerCard(contentPadding = 16.dp) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        uiState.muscleDistributions.forEach { item ->
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = item.muscleGroup,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = TrainerDarkTextPrimary
-                                    )
-                                    Text(
-                                        text = "${item.percentage}%",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF4ADE80)
-                                    )
-                                }
+                    if (uiState.muscleDistributions.isEmpty()) {
+                        Text(
+                            text = "No workout distribution logged yet. As members complete workouts, volume by muscle group will automatically reflect here.",
+                            fontSize = 13.sp,
+                            color = TrainerDarkTextSecondary
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            uiState.muscleDistributions.forEach { item ->
+                                Column(modifier = Modifier.fillMaxWidth()) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = item.muscleGroup,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = TrainerDarkTextPrimary
+                                        )
+                                        Text(
+                                            text = "${item.percentage}%",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF4ADE80)
+                                        )
+                                    }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
 
-                                // Horizontal progress bar
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(9999.dp))
-                                        .background(Color(0xFF27272A))
-                                ) {
+                                    // Horizontal progress bar
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth(item.percentage / 100f)
+                                            .fillMaxWidth()
                                             .height(8.dp)
                                             .clip(RoundedCornerShape(9999.dp))
-                                            .background(Color(0xFF4ADE80))
-                                    )
+                                            .background(Color(0xFF27272A))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(item.percentage / 100f)
+                                                .height(8.dp)
+                                                .clip(RoundedCornerShape(9999.dp))
+                                                .background(Color(0xFF4ADE80))
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -254,24 +262,32 @@ fun TrainerAnalyticsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 TrainerCard(contentPadding = 14.dp) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        uiState.peakHours.forEach { slot ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = slot.timeSlot,
-                                    fontSize = 13.sp,
-                                    color = TrainerDarkTextSecondary
-                                )
-                                Text(
-                                    text = "${slot.memberCount} active athletes",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (slot.memberCount > 10) Color(0xFFFBBF24) else TrainerDarkTextPrimary
-                                )
+                    if (uiState.peakHours.isEmpty()) {
+                        Text(
+                            text = "No session peak hours recorded yet. Member workout times will be displayed here.",
+                            fontSize = 13.sp,
+                            color = TrainerDarkTextSecondary
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            uiState.peakHours.forEach { slot ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = slot.timeSlot,
+                                        fontSize = 13.sp,
+                                        color = TrainerDarkTextSecondary
+                                    )
+                                    Text(
+                                        text = "${slot.memberCount} active athletes",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (slot.memberCount > 10) Color(0xFFFBBF24) else TrainerDarkTextPrimary
+                                    )
+                                }
                             }
                         }
                     }

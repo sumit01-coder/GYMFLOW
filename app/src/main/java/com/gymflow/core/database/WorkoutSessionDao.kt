@@ -99,4 +99,13 @@ interface WorkoutSessionDao {
 
     @Query("DELETE FROM workout_sessions WHERE (memberId = :memberId OR memberId = 'default_member') AND isCompleted = 0")
     suspend fun discardActiveSessions(memberId: String)
+
+    @Query("SELECT * FROM workout_sessions WHERE isCompleted = 1 ORDER BY startTimeEpochMs DESC")
+    fun getAllCompletedSessionsFlow(): Flow<List<WorkoutSessionEntity>>
+
+    @Query("SELECT * FROM workout_sessions WHERE isCompleted = 1 ORDER BY startTimeEpochMs DESC")
+    suspend fun getAllCompletedSessions(): List<WorkoutSessionEntity>
+
+    @Query("SELECT * FROM workout_sessions WHERE memberId = :memberId AND isCompleted = 1 ORDER BY startTimeEpochMs DESC")
+    fun getCompletedSessionsForMember(memberId: String): Flow<List<WorkoutSessionEntity>>
 }

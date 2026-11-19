@@ -12,6 +12,8 @@ import com.google.firebase.firestore.ListenerRegistration
 import com.gymflow.core.database.BodyMeasurementEntity
 import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.DailyStepsEntity
+import com.gymflow.core.database.GymMemberDao
+import com.gymflow.core.database.GymMemberEntity
 import com.gymflow.core.database.HydrationLogEntity
 import com.gymflow.core.database.OutdoorWorkoutDao
 import com.gymflow.core.database.OutdoorWorkoutEntity
@@ -59,6 +61,7 @@ class FirestoreConnectionManager @Inject constructor(
     private val firestoreSyncManager: FirestoreSyncManager,
     private val tokenManager: TokenManager,
     private val userDao: UserDao,
+    private val gymMemberDao: GymMemberDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val weightDao: WeightDao,
     private val planDao: PlanDao,
@@ -588,6 +591,118 @@ class FirestoreConnectionManager @Inject constructor(
                 }
             }
         activeRegistrations.add(outdoorReg)
+
+        // 10. Real-time Trainer Connected Athletes Listener (Live sync from Firestore)
+        val trainerMembersReg = firestore.collection(FirestoreSyncManager.COLLECTION_TRAINERS)
+            .document(userId)
+            .collection("connected_members")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(tag, "Trainer connected members listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    scope.launch {
+                        for (doc in snapshot.documents) {
+                            if (doc.exists()) {
+                                val athleteId = doc.getString("id") ?: doc.id
+                                val athleteName = doc.getString("name") ?: "Athlete"
+                                val athleteEmail = doc.getString("email") ?: ""
+                                val athletePhone = doc.getString("phoneNumber") ?: "+91 98765 43210"
+
+                                val userEntity = UserEntity(
+                                    id = athleteId,
+                                    name = athleteName,
+                                    email = athleteEmail,
+                                    role = Role.MEMBER,
+                                    heightCm = (doc.getDouble("heightCm") ?: 0.0).toFloat(),
+                                    currentWeightKg = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat(),
+                                    fitnessGoal = doc.getString("fitnessGoal") ?: "General Fitness",
+                                    age = (doc.getLong("age") ?: 0L).toInt(),
+                                    connectedTrainerId = userId,
+                                    syncStatus = "Connected",
+                                    lastUpdated = System.currentTimeMillis()
+                                )
+                                userDao.upsertUser(userEntity)
+
+                                val gymMemberEntity = GymMemberEntity(
+                                    id = athleteId,
+                                    name = athleteName,
+                                    phoneNumber = athletePhone,
+                                    email = athleteEmail,
+                                    assignedTrainerId = userId,
+                                    assignedTrainerName = tokenManager.getName() ?: "Coach",
+                                    durationMonths = 1,
+                                    startDateEpochMs = doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis(),
+                                    endDateEpochMs = (doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
+                                    feeAmount = 1500.0,
+                                    amountPaid = 1500.0,
+                                    paymentStatus = "PAID",
+                                    paymentMethod = "UPI",
+                                    notes = "Joined via QR / Code: ${doc.getString("invitationCode") ?: ""}",
+                                    isActive = true
+                                )
+                                gymMemberDao.insertMember(gymMemberEntity)
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(trainerMembersReg)
+
+        // 11. Real-time Users Linked to this Trainer
+        val usersConnectedToTrainerReg = firestore.collection(FirestoreSyncManager.COLLECTION_USERS)
+            .whereEqualTo("connectedTrainerId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                if (snapshot != null) {
+                    scope.launch {
+                        for (doc in snapshot.documents) {
+                            if (doc.exists()) {
+                                val athleteId = doc.getString("id") ?: doc.id
+                                val athleteName = doc.getString("name") ?: "Athlete"
+                                val athleteEmail = doc.getString("email") ?: ""
+                                val athletePhone = doc.getString("phoneNumber") ?: "+91 98765 43210"
+
+                                val userEntity = UserEntity(
+                                    id = athleteId,
+                                    name = athleteName,
+                                    email = athleteEmail,
+                                    role = Role.MEMBER,
+                                    heightCm = (doc.getDouble("heightCm") ?: 0.0).toFloat(),
+                                    currentWeightKg = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat(),
+                                    fitnessGoal = doc.getString("fitnessGoal") ?: "General Fitness",
+                                    age = (doc.getLong("age") ?: 0L).toInt(),
+                                    connectedTrainerId = userId,
+                                    syncStatus = "Connected",
+                                    lastUpdated = System.currentTimeMillis()
+                                )
+                                userDao.upsertUser(userEntity)
+
+                                val gymMemberEntity = GymMemberEntity(
+                                    id = athleteId,
+                                    name = athleteName,
+                                    phoneNumber = athletePhone,
+                                    email = athleteEmail,
+                                    assignedTrainerId = userId,
+                                    assignedTrainerName = tokenManager.getName() ?: "Coach",
+                                    durationMonths = 1,
+                                    startDateEpochMs = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
+                                    endDateEpochMs = (doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
+                                    feeAmount = 1500.0,
+                                    amountPaid = 1500.0,
+                                    paymentStatus = "PAID",
+                                    paymentMethod = "UPI",
+                                    notes = "Joined via Code / QR",
+                                    isActive = true
+                                )
+                                gymMemberDao.insertMember(gymMemberEntity)
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(usersConnectedToTrainerReg)
     }
 
     @Synchronized

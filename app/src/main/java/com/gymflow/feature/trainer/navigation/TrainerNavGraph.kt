@@ -36,10 +36,10 @@ sealed interface TrainerRoute {
     data object MemberManagement : TrainerRoute
 
     @Serializable
-    data class MemberProfile(val memberId: String = "sarah-miller-101") : TrainerRoute
+    data class MemberProfile(val memberId: String = "") : TrainerRoute
 
     @Serializable
-    data class WorkoutPlanBuilder(val memberId: String = "sarah-miller-101") : TrainerRoute
+    data class WorkoutPlanBuilder(val memberId: String = "") : TrainerRoute
 
     @Serializable
     data class ExerciseAssignment(
@@ -51,7 +51,7 @@ sealed interface TrainerRoute {
     data class ExerciseLibrary(val isSelectionMode: Boolean = false) : TrainerRoute
 
     @Serializable
-    data class MemberProgress(val memberId: String = "sarah-miller-101") : TrainerRoute
+    data class MemberProgress(val memberId: String = "") : TrainerRoute
 
     @Serializable
     data object Analytics : TrainerRoute
@@ -101,7 +101,7 @@ fun NavGraphBuilder.trainerNavGraph(
     composable<TrainerRoute.Dashboard> {
         TrainerDashboardScreen(
             onCreatePlanClick = {
-                navController.navigate(TrainerRoute.WorkoutPlanBuilder("sarah-miller-101"))
+                navController.navigate(TrainerRoute.WorkoutPlanBuilder(""))
             },
             onNavigateToMembers = {
                 navController.navigate(TrainerRoute.MemberManagement)
@@ -110,7 +110,7 @@ fun NavGraphBuilder.trainerNavGraph(
                 navController.navigate(TrainerRoute.MemberProfile(memberId))
             },
             onNavigateToPlanBuilder = {
-                navController.navigate(TrainerRoute.WorkoutPlanBuilder("sarah-miller-101"))
+                navController.navigate(TrainerRoute.WorkoutPlanBuilder(""))
             },
             onNavigateToExerciseLibrary = {
                 navController.navigate(TrainerRoute.ExerciseLibrary())

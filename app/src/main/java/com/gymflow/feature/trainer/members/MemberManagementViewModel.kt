@@ -2,15 +2,18 @@ package com.gymflow.feature.trainer.members
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.UserDao
 import com.gymflow.domain.model.GymMember
 import com.gymflow.domain.model.MembershipDuration
 import com.gymflow.domain.model.PaymentMethod
 import com.gymflow.domain.model.PaymentStatus
+import com.gymflow.domain.model.Role
 import com.gymflow.domain.repository.GymMemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.Calendar
@@ -63,7 +66,8 @@ data class MemberManagementUiState(
 
 @HiltViewModel
 class MemberManagementViewModel @Inject constructor(
-    private val gymMemberRepository: GymMemberRepository
+    private val gymMemberRepository: GymMemberRepository,
+    private val userDao: UserDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberManagementUiState())
@@ -72,7 +76,34 @@ class MemberManagementViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             gymMemberRepository.seedInitialMembersIfEmpty()
-            gymMemberRepository.getAllMembers().collect { list ->
+            combine(
+                gymMemberRepository.getAllMembers(),
+                userDao.getConnectedAthletesFlow()
+            ) { members, athletes ->
+                val memberIds = members.map { it.id }.toSet()
+                val athleteAsMembers = athletes
+                    .filter { it.id !in memberIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
+                    .map { athlete ->
+                        GymMember(
+                            id = athlete.id,
+                            name = athlete.name.ifBlank { "Athlete" },
+                            phoneNumber = "+91 98765 43210",
+                            email = athlete.email,
+                            assignedTrainerId = athlete.connectedTrainerId,
+                            assignedTrainerName = "Coach",
+                            duration = MembershipDuration.ONE_MONTH,
+                            startDateEpochMs = athlete.createdAtEpochMs,
+                            endDateEpochMs = athlete.createdAtEpochMs + (30L * 24 * 60 * 60 * 1000),
+                            feeAmount = 1500.0,
+                            amountPaid = 1500.0,
+                            paymentStatus = PaymentStatus.PAID,
+                            paymentMethod = PaymentMethod.UPI,
+                            notes = "Connected athlete",
+                            isActive = true
+                        )
+                    }
+                members + athleteAsMembers
+            }.collect { list ->
                 _uiState.update { it.copy(members = list) }
             }
         }
