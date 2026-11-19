@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
+import androidx.compose.foundation.layout.statusBarsPadding
 import com.gymflow.core.theme.GymFlowBlack
 import com.gymflow.core.theme.GymFlowGreen
 import com.gymflow.core.theme.GymFlowGreenLight
@@ -93,7 +94,8 @@ fun TargetAreaDetailScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(

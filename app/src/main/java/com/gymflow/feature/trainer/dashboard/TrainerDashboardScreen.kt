@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -96,8 +97,9 @@ fun TrainerDashboardScreen(
                 modifier = modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 // Top Header Row
                 Row(
@@ -293,68 +295,109 @@ fun TrainerDashboardScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Connected Members List
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    uiState.recentMembers.forEach { member ->
-                        TrainerCard(
-                            backgroundColor = TrainerDarkCard,
-                            borderColor = TrainerDarkBorder,
-                            contentPadding = 14.dp,
-                            onClick = { onNavigateToMemberProfile(member.memberId) }
+                if (uiState.recentMembers.isEmpty()) {
+                    TrainerCard(
+                        backgroundColor = TrainerDarkCard,
+                        borderColor = TrainerDarkBorder,
+                        contentPadding = 24.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = Color(0xFF4ADE80),
+                                modifier = Modifier.size(36.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "No Members Registered Yet",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TrainerDarkTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Add gym members to track subscriptions, attendance, and routines in real time.",
+                                fontSize = 12.sp,
+                                color = TrainerDarkTextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(14.dp))
+                            TrainerButton(
+                                text = "+ Add Gym Member",
+                                onClick = onNavigateToMembers,
+                                fullWidth = false,
+                                height = 40.dp
+                            )
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        uiState.recentMembers.forEach { member ->
+                            TrainerCard(
+                                backgroundColor = TrainerDarkCard,
+                                borderColor = TrainerDarkBorder,
+                                contentPadding = 14.dp,
+                                onClick = { onNavigateToMemberProfile(member.memberId) }
                             ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Initial Avatar
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF27272A)),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
                                     ) {
-                                        Text(
-                                            text = member.name.take(2).uppercase(),
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = TrainerDarkTextPrimary
-                                        )
+                                        // Initial Avatar
+                                        Box(
+                                            modifier = Modifier
+                                                .size(44.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF27272A)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = member.name.take(2).uppercase(),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TrainerDarkTextPrimary
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                        Column {
+                                            Text(
+                                                text = member.name,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = TrainerDarkTextPrimary
+                                            )
+                                            Text(
+                                                text = member.currentWorkout,
+                                                fontSize = 12.sp,
+                                                color = TrainerDarkTextSecondary
+                                            )
+                                        }
                                     }
 
-                                    Spacer(modifier = Modifier.width(12.dp))
-
-                                    Column {
-                                        Text(
-                                            text = member.name,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = TrainerDarkTextPrimary
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TrainerBadge(
+                                            text = member.status,
+                                            status = member.status
                                         )
-                                        Text(
-                                            text = member.currentWorkout,
-                                            fontSize = 12.sp,
-                                            color = TrainerDarkTextSecondary
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = "Open",
+                                            tint = TrainerDarkTextTertiary,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                }
-
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    TrainerBadge(
-                                        text = member.status,
-                                        status = member.status
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Open",
-                                        tint = TrainerDarkTextTertiary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
                                 }
                             }
                         }

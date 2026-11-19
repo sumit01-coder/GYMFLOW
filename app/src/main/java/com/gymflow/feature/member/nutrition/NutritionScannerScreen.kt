@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -224,34 +225,51 @@ fun NutritionScannerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(GymFlowTheme.colors.background),
+                        .background(Color(0xFF101012)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(24.dp)
+                        modifier = Modifier.padding(horizontal = 32.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Camera,
-                            contentDescription = null,
-                            tint = GymFlowGreen,
-                            modifier = Modifier.size(54.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(GymFlowGreen.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Camera,
+                                contentDescription = null,
+                                tint = GymFlowGreen,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
                         Text(
                             text = "Camera Permission Required",
-                            style = GymFlowTheme.typography.Heading1.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "GymFlow needs camera access to scan food barcodes and analyze meal photos with AI.",
-                            style = GymFlowTheme.typography.BodyRegular.copy(color = GymFlowTheme.colors.textSecondary),
+                            style = GymFlowTheme.typography.Heading2.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = GymFlowWhite
+                            ),
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "GymFlow needs camera access to scan food barcodes and analyze meal photos with AI.",
+                            style = GymFlowTheme.typography.BodyRegular.copy(
+                                color = Color(0xFFA1A1AA),
+                                lineHeight = 20.sp
+                            ),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-                            colors = ButtonDefaults.buttonColors(containerColor = GymFlowGreen)
+                            colors = ButtonDefaults.buttonColors(containerColor = GymFlowGreen),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(46.dp)
                         ) {
                             Text("Grant Camera Access", color = GymFlowBlack, fontWeight = FontWeight.Bold)
                         }
@@ -271,7 +289,8 @@ fun NutritionScannerScreen(
                             )
                         )
                     )
-                    .padding(horizontal = 16.dp, vertical = 14.dp)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

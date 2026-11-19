@@ -5,7 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ConnectedMember
+import com.gymflow.domain.model.PaymentStatus
 import com.gymflow.domain.model.Role
+import com.gymflow.domain.repository.GymMemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,47 +17,26 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TrainerDashboardKpis(
-    val totalMembers: Int = 32,
-    val activeMembers: Int = 24,
-    val completedToday: Int = 18,
-    val pendingReviews: Int = 6
+    val totalMembers: Int = 0,
+    val activeMembers: Int = 0,
+    val completedToday: Int = 0,
+    val pendingReviews: Int = 0
 )
 
 data class TrainerDashboardUiState(
-    val coachName: String = "Coach Marcus",
+    val coachName: String = "Coach",
     val greeting: String = "Good morning, Coach!",
     val kpis: TrainerDashboardKpis = TrainerDashboardKpis(),
-    val recentMembers: List<ConnectedMember> = listOf(
-        ConnectedMember(
-            memberId = "sarah-miller-101",
-            name = "Sarah Miller",
-            currentWorkout = "Chest + Triceps · Today",
-            lastActive = "12m ago",
-            status = "Active"
-        ),
-        ConnectedMember(
-            memberId = "mike-ross-102",
-            name = "Mike Ross",
-            currentWorkout = "Leg Day · Today",
-            lastActive = "45m ago",
-            status = "Pending"
-        ),
-        ConnectedMember(
-            memberId = "emma-davis-103",
-            name = "Emma Davis",
-            currentWorkout = "Back + Biceps · Today",
-            lastActive = "2h ago",
-            status = "Active"
-        )
-    ),
-    val invitationCode: String = "GYM-82K91",
-    val unreadNotificationsCount: Int = 3
+    val recentMembers: List<ConnectedMember> = emptyList(),
+    val invitationCode: String = "",
+    val unreadNotificationsCount: Int = 0
 )
 
 @HiltViewModel
 class TrainerDashboardViewModel @Inject constructor(
     private val tokenManager: TokenManager,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val gymMemberRepository: GymMemberRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrainerDashboardUiState())
@@ -63,6 +44,7 @@ class TrainerDashboardViewModel @Inject constructor(
 
     init {
         observeCoachData()
+        observeRealMembers()
     }
 
     private fun observeCoachData() {
@@ -87,6 +69,40 @@ class TrainerDashboardViewModel @Inject constructor(
                             greeting = "Good morning, $formattedName!"
                         )
                     }
+                }
+            }
+        }
+    }
+
+    private fun observeRealMembers() {
+        viewModelScope.launch {
+            gymMemberRepository.getAllMembers().collect { members ->
+                val total = members.size
+                val active = members.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID }
+                val pending = members.count { it.paymentStatus != PaymentStatus.PAID }
+                val expiring = members.count { it.isExpiringSoon }
+
+                val connectedMembers = members.map { member ->
+                    ConnectedMember(
+                        memberId = member.id,
+                        name = member.name,
+                        currentWorkout = "${member.duration.displayName} · ${if (member.isExpired) "Expired" else "${member.remainingDays}d left"}",
+                        lastActive = if (member.isExpired) "Expired" else "Active",
+                        status = if (member.isExpired) "Expired" else if (member.paymentStatus != PaymentStatus.PAID) "Pending" else "Active"
+                    )
+                }
+
+                _uiState.update {
+                    it.copy(
+                        kpis = TrainerDashboardKpis(
+                            totalMembers = total,
+                            activeMembers = active,
+                            completedToday = 0,
+                            pendingReviews = pending
+                        ),
+                        recentMembers = connectedMembers,
+                        unreadNotificationsCount = expiring
+                    )
                 }
             }
         }

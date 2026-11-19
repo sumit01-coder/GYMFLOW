@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -218,22 +219,46 @@ fun MemberManagementScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .weight(1f)
+                            .padding(horizontal = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "No matching gym members found",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = TrainerDarkTextSecondary
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = TrainerGreenAccent,
+                                modifier = Modifier.size(48.dp)
                             )
+                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Tap the '+' button below to register a new member.",
-                                fontSize = 12.sp,
-                                color = TrainerDarkTextTertiary,
-                                modifier = Modifier.padding(top = 4.dp)
+                                text = if (uiState.totalMembersCount == 0) "No Gym Members Yet" else "No matching gym members found",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TrainerDarkTextPrimary
                             )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = if (uiState.totalMembersCount == 0)
+                                    "Tap '+ Add Member' below to register your first gym member, record payment, and track subscription expiration."
+                                else
+                                    "Try adjusting your search query or switching the filter tab above.",
+                                fontSize = 13.sp,
+                                color = TrainerDarkTextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            if (uiState.totalMembersCount == 0) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { viewModel.openAddMemberDialog() },
+                                    colors = ButtonDefaults.buttonColors(containerColor = TrainerGreenAccent, contentColor = Color.Black),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Add First Member", fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 } else {
@@ -343,7 +368,7 @@ private fun MemberCardItem(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -366,29 +391,45 @@ private fun MemberCardItem(
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = member.name,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = TrainerDarkTextPrimary
+                            color = TrainerDarkTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = member.phoneNumber,
-                                fontSize = 12.sp,
-                                color = TrainerDarkTextSecondary
-                            )
-                            if (!member.assignedTrainerName.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = member.phoneNumber,
+                            fontSize = 12.sp,
+                            color = TrainerDarkTextSecondary,
+                            maxLines = 1
+                        )
+                        if (!member.assignedTrainerName.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(TrainerGreenAccent)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Text(
-                                    text = " • Coach: ${member.assignedTrainerName}",
-                                    fontSize = 12.sp,
-                                    color = TrainerDarkTextTertiary
+                                    text = "Coach: ${member.assignedTrainerName}",
+                                    fontSize = 11.sp,
+                                    color = TrainerDarkTextTertiary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Membership Plan Badge (e.g. 3 Months, 12 Months)
                 Box(
@@ -401,7 +442,8 @@ private fun MemberCardItem(
                         text = member.duration.displayName,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF38BDF8)
+                        color = Color(0xFF38BDF8),
+                        maxLines = 1
                     )
                 }
             }
@@ -687,20 +729,25 @@ private fun AddMemberDialog(
                 ) {
                     PaymentMethod.entries.forEach { method ->
                         val isSelected = selectedMethod == method
+                        val label = when (method) {
+                            PaymentMethod.CARD -> "Card"
+                            else -> method.displayName
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) Color(0xFF38BDF8) else Color(0xFF27272A))
                                 .clickable { selectedMethod = method }
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = method.displayName,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.Black else Color.White
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.Black else Color.White,
+                                maxLines = 1
                             )
                         }
                     }
@@ -817,20 +864,25 @@ private fun RenewMembershipDialog(
                 ) {
                     PaymentMethod.entries.forEach { method ->
                         val isSelected = selectedMethod == method
+                        val label = when (method) {
+                            PaymentMethod.CARD -> "Card"
+                            else -> method.displayName
+                        }
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(if (isSelected) Color(0xFF38BDF8) else Color(0xFF27272A))
                                 .clickable { selectedMethod = method }
-                                .padding(vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = method.displayName,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.Black else Color.White
+                                text = label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.Black else Color.White,
+                                maxLines = 1
                             )
                         }
                     }

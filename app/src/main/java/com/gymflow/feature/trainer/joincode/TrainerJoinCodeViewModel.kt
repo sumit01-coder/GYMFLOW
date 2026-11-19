@@ -20,24 +20,7 @@ data class TrainerJoinCodeUiState(
     val currentCode: String = "GYM-82K91",
     val expiresHoursRemaining: Int = 24,
     val isCopiedNotification: Boolean = false,
-    val pendingRequests: List<PendingConnectionRequest> = listOf(
-        PendingConnectionRequest(
-            id = "req-1",
-            memberName = "Alex Miller",
-            requestedAgo = "15m ago",
-            fitnessGoal = "Fat Loss & Conditioning",
-            age = 29,
-            currentWeightKg = 74.2f
-        ),
-        PendingConnectionRequest(
-            id = "req-2",
-            memberName = "Daniel Carter",
-            requestedAgo = "2h ago",
-            fitnessGoal = "Hypertrophy Starter",
-            age = 24,
-            currentWeightKg = 68.0f
-        )
-    ),
+    val pendingRequests: List<PendingConnectionRequest> = emptyList(),
     val lastApprovedMemberName: String? = null
 )
 
@@ -61,6 +44,10 @@ class TrainerJoinCodeViewModel : ViewModel() {
 
     fun onCodeCopied() {
         _uiState.update { it.copy(isCopiedNotification = true) }
+    }
+
+    fun setPendingRequests(requests: List<PendingConnectionRequest>) {
+        _uiState.update { it.copy(pendingRequests = requests) }
     }
 
     fun approveRequest(requestId: String) {

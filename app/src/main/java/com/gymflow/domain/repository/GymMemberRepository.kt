@@ -13,6 +13,7 @@ interface GymMemberRepository {
     suspend fun updateMember(member: GymMember)
     suspend fun renewMembership(memberId: String, additionalMonths: Int, fee: Double, paymentMethod: String)
     suspend fun deleteMember(memberId: String)
+    suspend fun deleteAllMembers()
     suspend fun markRenewalReminderSent(memberId: String)
     suspend fun seedInitialMembersIfEmpty()
 }

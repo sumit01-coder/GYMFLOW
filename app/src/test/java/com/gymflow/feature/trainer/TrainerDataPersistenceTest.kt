@@ -510,6 +510,26 @@ class TrainerDataPersistenceTest {
     @Test
     fun testTrainerJoinCodeViewModelWorkflow() {
         val viewModel = TrainerJoinCodeViewModel()
+        viewModel.setPendingRequests(
+            listOf(
+                com.gymflow.feature.trainer.joincode.PendingConnectionRequest(
+                    id = "req-1",
+                    memberName = "Alex Miller",
+                    requestedAgo = "15m ago",
+                    fitnessGoal = "Fat Loss & Conditioning",
+                    age = 29,
+                    currentWeightKg = 74.2f
+                ),
+                com.gymflow.feature.trainer.joincode.PendingConnectionRequest(
+                    id = "req-2",
+                    memberName = "Daniel Carter",
+                    requestedAgo = "2h ago",
+                    fitnessGoal = "Hypertrophy Starter",
+                    age = 24,
+                    currentWeightKg = 68.0f
+                )
+            )
+        )
 
         val initialCode = viewModel.uiState.value.currentCode
         assertTrue(initialCode.startsWith("GYM-"))

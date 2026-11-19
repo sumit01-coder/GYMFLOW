@@ -91,94 +91,16 @@ class GymMemberRepositoryImpl @Inject constructor(
         gymMemberDao.deleteMember(memberId)
     }
 
+    override suspend fun deleteAllMembers() {
+        gymMemberDao.deleteAllMembers()
+    }
+
     override suspend fun markRenewalReminderSent(memberId: String) {
         gymMemberDao.updateRenewalNotificationSent(memberId, System.currentTimeMillis())
     }
 
     override suspend fun seedInitialMembersIfEmpty() {
-        if (gymMemberDao.getMemberCount() > 0) return
-
-        val now = System.currentTimeMillis()
-        val dayMs = 24L * 60 * 60 * 1000
-
-        val seedMembers = listOf(
-            GymMember(
-                id = UUID.randomUUID().toString(),
-                name = "Aarav Sharma",
-                phoneNumber = "+91 9876543210",
-                email = "aarav.sharma@example.com",
-                assignedTrainerName = "Coach Marcus",
-                duration = MembershipDuration.THREE_MONTHS,
-                startDateEpochMs = now - (85L * dayMs),
-                endDateEpochMs = now + (5L * dayMs), // Expiring in 5 days!
-                feeAmount = 4500.0,
-                amountPaid = 4500.0,
-                paymentStatus = PaymentStatus.PAID,
-                paymentMethod = PaymentMethod.UPI,
-                notes = "Focus on cutting and endurance"
-            ),
-            GymMember(
-                id = UUID.randomUUID().toString(),
-                name = "Priya Patel",
-                phoneNumber = "+91 9822334455",
-                email = "priya.patel@example.com",
-                assignedTrainerName = "Coach Marcus",
-                duration = MembershipDuration.ONE_MONTH,
-                startDateEpochMs = now - (31L * dayMs),
-                endDateEpochMs = now - (1L * dayMs), // Expired yesterday!
-                feeAmount = 1800.0,
-                amountPaid = 1800.0,
-                paymentStatus = PaymentStatus.EXPIRED,
-                paymentMethod = PaymentMethod.CASH,
-                notes = "Requested morning batch"
-            ),
-            GymMember(
-                id = UUID.randomUUID().toString(),
-                name = "Rahul Verma",
-                phoneNumber = "+91 9711223344",
-                email = "rahul.v@example.com",
-                assignedTrainerName = "Elena Vance",
-                duration = MembershipDuration.SIX_MONTHS,
-                startDateEpochMs = now - (30L * dayMs),
-                endDateEpochMs = now + (150L * dayMs), // Active
-                feeAmount = 8500.0,
-                amountPaid = 8500.0,
-                paymentStatus = PaymentStatus.PAID,
-                paymentMethod = PaymentMethod.UPI,
-                notes = "Powerlifting prep"
-            ),
-            GymMember(
-                id = UUID.randomUUID().toString(),
-                name = "Neha Gupta",
-                phoneNumber = "+91 9988776655",
-                email = "neha.gupta@example.com",
-                assignedTrainerName = "Coach Marcus",
-                duration = MembershipDuration.TWELVE_MONTHS,
-                startDateEpochMs = now - (360L * dayMs),
-                endDateEpochMs = now + (2L * dayMs), // Expiring in 2 days!
-                feeAmount = 15000.0,
-                amountPaid = 15000.0,
-                paymentStatus = PaymentStatus.PAID,
-                paymentMethod = PaymentMethod.CARD,
-                notes = "Annual membership renewal due"
-            ),
-            GymMember(
-                id = UUID.randomUUID().toString(),
-                name = "Vikram Singh",
-                phoneNumber = "+91 9811224466",
-                email = "vikram.singh@example.com",
-                assignedTrainerName = "Elena Vance",
-                duration = MembershipDuration.TWO_MONTHS,
-                startDateEpochMs = now - (15L * dayMs),
-                endDateEpochMs = now + (45L * dayMs),
-                feeAmount = 3200.0,
-                amountPaid = 1500.0,
-                paymentStatus = PaymentStatus.PARTIALLY_PAID,
-                paymentMethod = PaymentMethod.UPI,
-                notes = "Balance Rs 1700 pending"
-            )
-        )
-
-        gymMemberDao.insertAll(seedMembers.map { GymMemberEntity.fromDomain(it) })
+        // Automatically purge any legacy dummy/seed data that was saved on disk in earlier versions
+        gymMemberDao.purgeLegacyDummyMembers()
     }
 }

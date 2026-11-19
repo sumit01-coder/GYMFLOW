@@ -40,6 +40,12 @@ interface GymMemberDao {
     @Query("DELETE FROM gym_members WHERE id = :memberId")
     suspend fun deleteMember(memberId: String)
 
+    @Query("DELETE FROM gym_members")
+    suspend fun deleteAllMembers()
+
+    @Query("DELETE FROM gym_members WHERE id LIKE 'seed-%' OR name IN ('Aarav Sharma', 'Neha Gupta', 'Priya Patel', 'Rahul Verma', 'Vikram Singh')")
+    suspend fun purgeLegacyDummyMembers()
+
     @Query("UPDATE gym_members SET lastRenewalNotificationEpochMs = :timestamp WHERE id = :memberId")
     suspend fun updateRenewalNotificationSent(memberId: String, timestamp: Long)
 

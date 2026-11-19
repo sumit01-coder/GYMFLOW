@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.gymflow.core.theme.GymFlowBlack
@@ -69,7 +70,11 @@ fun InteractiveBodyMap(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
                 Text(
                     text = "ANATOMICAL FOCUS MAP",
                     style = GymFlowTheme.typography.Caption.copy(
@@ -80,7 +85,9 @@ fun InteractiveBodyMap(
                 )
                 Text(
                     text = "Select Body Target Area",
-                    style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold)
+                    style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -93,13 +100,13 @@ fun InteractiveBodyMap(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 BodyViewPill(
-                    title = "Front View",
+                    title = "Front",
                     isSelected = selectedView == BodyView.FRONT,
                     onClick = { onViewChange(BodyView.FRONT) }
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 BodyViewPill(
-                    title = "Back View",
+                    title = "Back",
                     isSelected = selectedView == BodyView.BACK,
                     onClick = { onViewChange(BodyView.BACK) }
                 )
@@ -260,13 +267,16 @@ private fun TargetZoneCardItem(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = zone.name,
-                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold)
+                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = zone.subtitle,
                     style = GymFlowTheme.typography.Caption.copy(color = GymFlowTheme.colors.textSecondary),
-                    maxLines = 1
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

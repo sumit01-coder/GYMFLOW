@@ -25,12 +25,8 @@ data class MemberOption(
 data class WorkoutPlanBuilderUiState(
     val planId: String = "plan-hypertrophy-1",
     val planName: String = "Hypertrophy Push-Pull-Legs 2026",
-    val selectedMemberId: String = "sarah-miller-101",
-    val memberOptions: List<MemberOption> = listOf(
-        MemberOption("sarah-miller-101", "Sarah Miller", "Build Muscle / Hypertrophy"),
-        MemberOption("mike-ross-102", "Mike Ross", "Strength Conditioning"),
-        MemberOption("emma-davis-103", "Emma Davis", "Endurance & Tone")
-    ),
+    val selectedMemberId: String = "",
+    val memberOptions: List<MemberOption> = emptyList(),
     val selectedDayOfWeek: String = "Monday",
     val days: Map<String, WorkoutDay> = mapOf(
         "Monday" to WorkoutDay(
@@ -136,10 +132,36 @@ data class WorkoutPlanBuilderUiState(
 class WorkoutPlanViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val tokenManager: TokenManager,
-    private val firestoreSyncManager: FirestoreSyncManager
+    private val firestoreSyncManager: FirestoreSyncManager,
+    private val gymMemberRepository: com.gymflow.domain.repository.GymMemberRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutPlanBuilderUiState())
     val uiState: StateFlow<WorkoutPlanBuilderUiState> = _uiState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            gymMemberRepository.getAllMembers().collect { members ->
+                val options = members.map { member ->
+                    MemberOption(
+                        id = member.id,
+                        name = member.name,
+                        currentGoal = "${member.duration.displayName} Membership"
+                    )
+                }
+                _uiState.update { state ->
+                    val selected = if (state.selectedMemberId.isNotBlank() && options.any { it.id == state.selectedMemberId }) {
+                        state.selectedMemberId
+                    } else {
+                        options.firstOrNull()?.id ?: ""
+                    }
+                    state.copy(
+                        memberOptions = options,
+                        selectedMemberId = selected
+                    )
+                }
+            }
+        }
+    }
 
     fun selectMember(memberId: String) {
         _uiState.update { it.copy(selectedMemberId = memberId) }

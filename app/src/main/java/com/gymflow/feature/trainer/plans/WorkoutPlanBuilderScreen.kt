@@ -125,14 +125,18 @@ fun WorkoutPlanBuilderScreen(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 val selectedMember = uiState.memberOptions.firstOrNull { it.id == uiState.selectedMemberId }
-                    ?: uiState.memberOptions.first()
+                    ?: uiState.memberOptions.firstOrNull()
 
                 Box(modifier = Modifier.fillMaxWidth()) {
                     TrainerCard(
                         backgroundColor = TrainerDarkCard,
                         borderColor = TrainerDarkBorder,
                         contentPadding = 14.dp,
-                        onClick = { memberDropdownExpanded = true }
+                        onClick = {
+                            if (uiState.memberOptions.isNotEmpty()) {
+                                memberDropdownExpanded = true
+                            }
+                        }
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -157,23 +161,25 @@ fun WorkoutPlanBuilderScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
-                                        text = selectedMember.name,
+                                        text = selectedMember?.name ?: "No athlete assigned",
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = TrainerDarkTextPrimary
                                     )
                                     Text(
-                                        text = selectedMember.currentGoal,
+                                        text = selectedMember?.currentGoal ?: "Register members in the Members tab to assign routines",
                                         fontSize = 12.sp,
-                                        color = Color(0xFF4ADE80)
+                                        color = if (selectedMember != null) Color(0xFF4ADE80) else TrainerDarkTextTertiary
                                     )
                                 }
                             }
-                            Text(
-                                text = "Switch",
-                                fontSize = 12.sp,
-                                color = TrainerDarkTextSecondary
-                            )
+                            if (uiState.memberOptions.isNotEmpty()) {
+                                Text(
+                                    text = "Switch",
+                                    fontSize = 12.sp,
+                                    color = TrainerDarkTextSecondary
+                                )
+                            }
                         }
                     }
 
