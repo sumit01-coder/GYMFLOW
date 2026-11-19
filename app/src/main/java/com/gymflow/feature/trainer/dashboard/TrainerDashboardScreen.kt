@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -99,7 +100,8 @@ fun TrainerDashboardScreen(
                     .padding(innerPadding)
                     .statusBarsPadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 18.dp, bottom = 20.dp)
             ) {
                 // Top Header Row
                 Row(
@@ -107,7 +109,11 @@ fun TrainerDashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 12.dp)
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
@@ -126,14 +132,19 @@ fun TrainerDashboardScreen(
                         }
                         Text(
                             text = uiState.greeting,
-                            fontSize = 24.sp,
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = TrainerDarkTextPrimary,
-                            modifier = Modifier.padding(top = 2.dp)
+                            modifier = Modifier.padding(top = 2.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
                         // Invitation Code Shortcut Button
                         Box(
                             modifier = Modifier
