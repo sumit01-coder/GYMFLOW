@@ -147,8 +147,9 @@ dependencies {
     implementation(libs.androidx.concurrent.futures.ktx)
     implementation(libs.guava)
 
-    // ML Kit Barcode Scanning
+    // ML Kit Barcode Scanning & ZXing QR Generator
     implementation(libs.mlkit.barcode.scanning)
+    implementation("com.google.zxing:core:3.5.3")
 
     // Google Generative AI (Gemini Vision)
     implementation(libs.google.generativeai)

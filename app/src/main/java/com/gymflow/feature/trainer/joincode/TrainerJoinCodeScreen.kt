@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,18 +38,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gymflow.core.util.QrCodeGenerator
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
 import com.gymflow.feature.trainer.components.TrainerCard
@@ -204,11 +208,18 @@ fun TrainerJoinCodeScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Gym QR Code Visual Mockup
+                // Real Scannable Gym QR Code Card
+                val qrBitmap = remember(uiState.currentCode) {
+                    QrCodeGenerator.generateQrCodeBitmap(
+                        content = "gymflow://join?code=${uiState.currentCode}",
+                        sizePx = 512
+                    )
+                }
+
                 TrainerCard(
                     backgroundColor = TrainerDarkCard,
                     borderColor = TrainerDarkBorder,
-                    contentPadding = 16.dp
+                    contentPadding = 20.dp
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
@@ -216,65 +227,63 @@ fun TrainerJoinCodeScreen(
                     ) {
                         Text(
                             text = "Instant Gym Floor Scanning",
-                            fontSize = 14.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = TrainerDarkTextPrimary
                         )
                         Text(
-                            text = "Athletes can scan from their GYMFLOW mobile app",
+                            text = "Athletes can scan from their GYMFLOW mobile app or camera",
                             fontSize = 12.sp,
                             color = TrainerDarkTextSecondary,
                             modifier = Modifier.padding(top = 2.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // Stylized QR pattern box
+                        // Real scannable high-res QR box
                         Box(
                             modifier = Modifier
-                                .size(140.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .size(176.dp)
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(Color.White)
                                 .padding(12.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val s = size.width / 5
-                                // Stylized corner finders
-                                drawRect(Color.Black, Offset(0f, 0f), Size(s * 1.6f, s * 1.6f))
-                                drawRect(Color.White, Offset(s * 0.3f, s * 0.3f), Size(s, s))
-                                drawRect(Color.Black, Offset(s * 0.5f, s * 0.5f), Size(s * 0.6f, s * 0.6f))
-
-                                drawRect(Color.Black, Offset(size.width - s * 1.6f, 0f), Size(s * 1.6f, s * 1.6f))
-                                drawRect(Color.White, Offset(size.width - s * 1.3f, s * 0.3f), Size(s, s))
-                                drawRect(Color.Black, Offset(size.width - s * 1.1f, s * 0.5f), Size(s * 0.6f, s * 0.6f))
-
-                                drawRect(Color.Black, Offset(0f, size.height - s * 1.6f), Size(s * 1.6f, s * 1.6f))
-                                drawRect(Color.White, Offset(s * 0.3f, size.height - s * 1.3f), Size(s, s))
-                                drawRect(Color.Black, Offset(s * 0.5f, size.height - s * 1.1f), Size(s * 0.6f, s * 0.6f))
-
-                                // Random matrix dots
-                                drawRect(Color.Black, Offset(s * 2.2f, s * 1.2f), Size(s * 0.6f, s * 0.6f))
-                                drawRect(Color.Black, Offset(s * 3.2f, s * 2.4f), Size(s * 0.6f, s * 0.6f))
-                                drawRect(Color.Black, Offset(s * 1.4f, s * 3.2f), Size(s * 0.6f, s * 0.6f))
+                            if (qrBitmap != null) {
+                                Image(
+                                    bitmap = qrBitmap.asImageBitmap(),
+                                    contentDescription = "Gym Join QR Code: ${uiState.currentCode}",
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
 
-                            // Center dumbbell emblem
+                            // Center GymFlow dumbbell emblem
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(Color.Black),
+                                    .background(Color.Black)
+                                    .border(2.dp, Color.White, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FitnessCenter,
                                     contentDescription = null,
-                                    tint = Color.White,
+                                    tint = Color(0xFF4ADE80),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Text(
+                            text = "CODE: ${uiState.currentCode}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF4ADE80),
+                            letterSpacing = 1.sp
+                        )
                     }
                 }
 
