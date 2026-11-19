@@ -1,6 +1,7 @@
 package com.gymflow.feature.member.trainer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -58,6 +60,7 @@ import com.gymflow.core.theme.StatusDestructive
 @Composable
 fun JoinTrainerScreen(
     onNavigateBack: () -> Unit = {},
+    onScanQrClick: () -> Unit = {},
     viewModel: TrainerConnectionViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -151,6 +154,51 @@ fun JoinTrainerScreen(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
+                // Scan QR Code Action Button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF27272A))
+                        .clickable { onScanQrClick() }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "Scan QR",
+                            tint = Color(0xFF4ADE80),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Scan Trainer QR Code",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF27272A)))
+                    Text(
+                        text = "  OR ENTER MANUALLY  ",
+                        fontSize = 11.sp,
+                        color = MemberTextTertiary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Box(modifier = Modifier.weight(1f).height(1.dp).background(Color(0xFF27272A)))
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
                 // Input Field
                 GymFlowTextField(
                     value = state.codeInput,
@@ -212,6 +260,14 @@ fun JoinTrainerScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        val trainerInitials = displayedTrainer.name.split(" ")
+                            .filter { it.isNotBlank() }
+                            .mapNotNull { it.firstOrNull()?.toString() }
+                            .take(2)
+                            .joinToString("")
+                            .uppercase()
+                            .ifBlank { "TR" }
+
                         Box(
                             modifier = Modifier
                                 .size(50.dp)
@@ -220,7 +276,7 @@ fun JoinTrainerScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "MV",
+                                text = trainerInitials,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

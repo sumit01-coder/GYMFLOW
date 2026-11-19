@@ -229,7 +229,40 @@ class TokenManager @Inject constructor(
         _emailVerifiedFlow.value = false
     }
 
+    fun saveTrainerInviteCode(code: String) {
+        prefs.edit().putString(KEY_TRAINER_INVITE_CODE, code).apply()
+    }
+
+    fun getTrainerInviteCode(): String {
+        return prefs.getString(KEY_TRAINER_INVITE_CODE, "GYM-82K91") ?: "GYM-82K91"
+    }
+
+    fun saveConnectedTrainerInfo(id: String, name: String, gymName: String, code: String) {
+        prefs.edit()
+            .putString(KEY_CONNECTED_TRAINER_ID, id)
+            .putString(KEY_CONNECTED_TRAINER_NAME, name)
+            .putString(KEY_CONNECTED_TRAINER_GYM, gymName)
+            .putString(KEY_CONNECTED_TRAINER_CODE, code)
+            .apply()
+    }
+
+    fun getConnectedTrainerName(): String? = prefs.getString(KEY_CONNECTED_TRAINER_NAME, null)
+    fun getConnectedTrainerGym(): String? = prefs.getString(KEY_CONNECTED_TRAINER_GYM, null)
+    fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)
+
+    fun clearConnectedTrainer() {
+        prefs.edit()
+            .remove(KEY_CONNECTED_TRAINER_ID)
+            .remove(KEY_CONNECTED_TRAINER_NAME)
+            .remove(KEY_CONNECTED_TRAINER_GYM)
+            .remove(KEY_CONNECTED_TRAINER_CODE)
+            .apply()
+    }
+
     companion object {
+        @Volatile
+        var pendingScannedJoinCode: String? = null
+
         private const val ENCRYPTED_PREFS_NAME = "gymflow_secure_prefs"
         private const val FALLBACK_PREFS_NAME = "gymflow_fallback_prefs"
         private const val KEY_AUTH_TOKEN = "auth_token"
@@ -242,5 +275,10 @@ class TokenManager @Inject constructor(
         private const val KEY_ACCOUNT_CREATED_AT = "account_created_at"
         private const val KEY_REMEMBER_ME = "remember_me"
         private const val KEY_REMEMBERED_EMAIL = "remembered_email"
+        private const val KEY_TRAINER_INVITE_CODE = "trainer_invite_code"
+        private const val KEY_CONNECTED_TRAINER_ID = "connected_trainer_id"
+        private const val KEY_CONNECTED_TRAINER_NAME = "connected_trainer_name"
+        private const val KEY_CONNECTED_TRAINER_GYM = "connected_trainer_gym"
+        private const val KEY_CONNECTED_TRAINER_CODE = "connected_trainer_code"
     }
 }

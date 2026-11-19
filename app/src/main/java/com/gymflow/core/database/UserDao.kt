@@ -26,6 +26,12 @@ interface UserDao {
     @Query("SELECT * FROM users ORDER BY lastUpdated DESC LIMIT 1")
     suspend fun getCurrentUser(): UserEntity?
 
+    @Query("SELECT * FROM users WHERE role = 'TRAINER' LIMIT 1")
+    suspend fun getPrimaryTrainer(): UserEntity?
+
+    @Query("SELECT * FROM users WHERE role = 'TRAINER' LIMIT 1")
+    fun getPrimaryTrainerFlow(): Flow<UserEntity?>
+
     @Query("UPDATE users SET heightCm = :heightCm, currentWeightKg = :weightKg, fitnessGoal = :goal, lastUpdated = :now WHERE id = :id")
     suspend fun updateMemberProfile(
         id: String,

@@ -83,6 +83,13 @@ class NutritionScannerViewModel @Inject constructor(
     fun onBarcodeDetected(barcode: String) {
         if (_uiState.value.isAnalyzing || _uiState.value.scannedProduct != null) return
 
+        // 1. Check if scanned barcode/QR code is a Trainer Invitation Join Code!
+        if (barcode.contains("GYM-", ignoreCase = true) || barcode.contains("join?code=", ignoreCase = true)) {
+            com.gymflow.core.security.TokenManager.pendingScannedJoinCode = barcode
+            com.gymflow.feature.navigation.AppNavigator.navigateTo(com.gymflow.feature.navigation.NavRoutes.MEMBER_JOIN_TRAINER)
+            return
+        }
+
         _uiState.update { it.copy(isAnalyzing = true, errorMessage = null) }
         viewModelScope.launch {
             val result = foodRepository.scanBarcode(barcode)

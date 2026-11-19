@@ -96,7 +96,7 @@ fun TrainerTopBar(
             .fillMaxWidth()
             .background(TrainerDarkBg)
             .statusBarsPadding()
-            .padding(top = 4.dp)
+            .padding(top = 14.dp, bottom = 4.dp)
     ) {
         Row(
             modifier = Modifier

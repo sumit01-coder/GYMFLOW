@@ -48,6 +48,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="gymflow" android:host="auth" />
                 <data android:scheme="gymflow" android:host="verify" />
+                <data android:scheme="gymflow" android:host="join" />
             </intent-filter>
 
             <intent-filter>

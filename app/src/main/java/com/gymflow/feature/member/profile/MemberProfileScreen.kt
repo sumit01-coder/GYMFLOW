@@ -468,7 +468,7 @@ fun MemberProfileScreen(
             // 3. Connected Trainer Row
             ProfileNavigationCard(
                 title = "Trainer Connection",
-                subtitle = if (!uiState.profile.connectedTrainerId.isNullOrBlank()) "Connected with Coach Marcus" else "Link with your Trainer via Invite Code",
+                subtitle = if (!uiState.profile.connectedTrainerId.isNullOrBlank()) "Connected with your Coach" else "Link with your Trainer via Invite Code",
                 icon = Icons.Default.Person,
                 onClick = onNavigateToJoinTrainer
             )

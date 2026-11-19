@@ -15,6 +15,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import com.gymflow.core.security.TokenManager
 import com.gymflow.core.service.OutdoorTrackingService
 import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.updater.AppUpdateManager
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
         appUpdateManager.checkForUpdate(isManualCheck = false)
 
         handleWidgetIntent(intent)
+        handleDeepLinkIntent(intent)
 
         setContent {
             GymFlowTheme {
@@ -68,6 +70,18 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleWidgetIntent(intent)
+        handleDeepLinkIntent(intent)
+    }
+
+    private fun handleDeepLinkIntent(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme == "gymflow" && (data.host == "join" || data.path?.contains("join") == true)) {
+            val code = data.getQueryParameter("code")
+            if (!code.isNullOrBlank()) {
+                TokenManager.pendingScannedJoinCode = code
+                AppNavigator.navigateTo(NavRoutes.MEMBER_JOIN_TRAINER)
+            }
+        }
     }
 
     override fun onResume() {

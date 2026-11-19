@@ -227,7 +227,8 @@ fun NavGraphBuilder.memberNavGraph(navController: NavController) {
     // Join / Connected Trainer
     composable(NavRoutes.MEMBER_JOIN_TRAINER) {
         JoinTrainerScreen(
-            onNavigateBack = { navController.popBackStack() }
+            onNavigateBack = { navController.popBackStack() },
+            onScanQrClick = { navController.navigate(NavRoutes.MEMBER_NUTRITION_SCANNER) }
         )
     }
 

@@ -502,6 +502,12 @@ class FakeUserDao : UserDao {
     override suspend fun getCurrentUser(): UserEntity? =
         usersMap.values.maxByOrNull { it.lastUpdated }
 
+    override suspend fun getPrimaryTrainer(): UserEntity? =
+        usersMap.values.find { it.role == com.gymflow.domain.model.Role.TRAINER }
+
+    override fun getPrimaryTrainerFlow(): Flow<UserEntity?> =
+        userStateFlow.map { usersMap.values.find { it.role == com.gymflow.domain.model.Role.TRAINER } }
+
     override suspend fun updateMemberProfile(
         id: String,
         heightCm: Float,

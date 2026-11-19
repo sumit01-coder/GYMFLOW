@@ -50,6 +50,11 @@ class TrainerConnectionViewModel @Inject constructor(
 
     init {
         observeConnectionStatus()
+        TokenManager.pendingScannedJoinCode?.let { pendingCode ->
+            TokenManager.pendingScannedJoinCode = null
+            onCodeChanged(pendingCode)
+            submitJoinCode()
+        }
     }
 
     private fun currentUserId(): String = tokenManager.getUserIdSync() ?: "default_member"
@@ -59,14 +64,21 @@ class TrainerConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             userDao.getUserFlow(userId).collect { user ->
                 if (user != null && !user.connectedTrainerId.isNullOrBlank()) {
+                    val realTrainerUser = userDao.getUserById(user.connectedTrainerId) ?: userDao.getPrimaryTrainer()
+                    val trainerName = tokenManager.getConnectedTrainerName()
+                        ?: realTrainerUser?.name?.let { if (it.startsWith("Coach", ignoreCase = true)) it else "Coach $it" }
+                        ?: "Coach"
+                    val gymName = tokenManager.getConnectedTrainerGym() ?: "GymFlow Fitness Center"
+                    val code = tokenManager.getConnectedTrainerCode() ?: tokenManager.getTrainerInviteCode()
+
                     val trainer = TrainerDetails(
                         id = user.connectedTrainerId,
-                        name = "Coach Marcus",
-                        specialization = "Strength & Conditioning",
+                        name = trainerName,
+                        specialization = "Personal Training & Fitness",
                         experienceYears = 5,
-                        activeMembersCount = 12,
-                        gymName = "Iron Works Performance",
-                        invitationCode = "GYM-82K91"
+                        activeMembersCount = 1,
+                        gymName = gymName,
+                        invitationCode = code
                     )
                     _uiState.update {
                         it.copy(
@@ -88,27 +100,35 @@ class TrainerConnectionViewModel @Inject constructor(
 
     fun onCodeChanged(input: String) {
         val formatted = formatInvitationCode(input)
-        _uiState.update { current ->
-            current.copy(
-                codeInput = formatted,
-                errorMessage = null,
-                previewTrainer = if (formatted.startsWith("GYM-") && formatted.length >= 7) {
-                    TrainerDetails(
-                        id = "trainer-new",
-                        name = "Coach Marcus",
-                        specialization = "Strength & Conditioning",
-                        experienceYears = 5,
-                        activeMembersCount = 12,
-                        gymName = "Iron Works Performance",
-                        invitationCode = formatted
-                    )
-                } else null
-            )
+        viewModelScope.launch {
+            val preview = if (formatted.startsWith("GYM-") && formatted.length >= 7) {
+                val realTrainerUser = userDao.getPrimaryTrainer()
+                val trainerName = realTrainerUser?.name?.let { if (it.startsWith("Coach", ignoreCase = true)) it else "Coach $it" }
+                    ?: tokenManager.getName()?.let { if (it.startsWith("Coach", ignoreCase = true)) it else "Coach $it" }
+                    ?: "Coach"
+                TrainerDetails(
+                    id = realTrainerUser?.id ?: "trainer-verified",
+                    name = trainerName,
+                    specialization = "Personal Training & Fitness",
+                    experienceYears = 5,
+                    activeMembersCount = 1,
+                    gymName = "GymFlow Fitness Center",
+                    invitationCode = formatted
+                )
+            } else null
+
+            _uiState.update { current ->
+                current.copy(
+                    codeInput = formatted,
+                    errorMessage = null,
+                    previewTrainer = preview
+                )
+            }
         }
     }
 
     fun submitJoinCode() {
-        val code = _uiState.value.codeInput.trim().uppercase()
+        val code = formatInvitationCode(_uiState.value.codeInput)
         if (code.length < 5) {
             _uiState.update { it.copy(errorMessage = "Please enter a valid invitation code (e.g. GYM-82K91)") }
             return
@@ -116,19 +136,27 @@ class TrainerConnectionViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null, successMessage = null) }
-            delay(500) // Fast snappy feedback
+            delay(300) // Snappy feedback
 
             if (code.contains("GYM")) {
+                val realTrainerUser = userDao.getPrimaryTrainer()
+                val trainerId = realTrainerUser?.id ?: "trainer-verified"
+                val trainerName = realTrainerUser?.name?.let { if (it.startsWith("Coach", ignoreCase = true)) it else "Coach $it" }
+                    ?: tokenManager.getName()?.let { if (it.startsWith("Coach", ignoreCase = true)) it else "Coach $it" }
+                    ?: "Coach"
+                val gymName = "GymFlow Fitness Center"
+
                 val userId = currentUserId()
-                userDao.updateTrainerConnection(userId, "trainer-verified", "Connected")
+                userDao.updateTrainerConnection(userId, trainerId, "Connected")
+                tokenManager.saveConnectedTrainerInfo(trainerId, trainerName, gymName, code)
 
                 val connected = TrainerDetails(
-                    id = "trainer-verified",
-                    name = "Coach Marcus",
-                    specialization = "Strength & Conditioning",
+                    id = trainerId,
+                    name = trainerName,
+                    specialization = "Personal Training & Fitness",
                     experienceYears = 5,
-                    activeMembersCount = 12,
-                    gymName = "Iron Works Performance",
+                    activeMembersCount = 1,
+                    gymName = gymName,
                     invitationCode = code
                 )
                 _uiState.update {
@@ -136,7 +164,7 @@ class TrainerConnectionViewModel @Inject constructor(
                         isLoading = false,
                         connectionStatus = TrainerConnectionStatus.CONNECTED,
                         activeTrainer = connected,
-                        successMessage = "Successfully connected to your Coach!"
+                        successMessage = "Successfully connected to $trainerName!"
                     )
                 }
             } else {
@@ -154,6 +182,7 @@ class TrainerConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = currentUserId()
             userDao.updateTrainerConnection(userId, null, "Not Connected")
+            tokenManager.clearConnectedTrainer()
             _uiState.update {
                 it.copy(
                     connectionStatus = TrainerConnectionStatus.NOT_CONNECTED,
@@ -167,7 +196,14 @@ class TrainerConnectionViewModel @Inject constructor(
     }
 
     private fun formatInvitationCode(raw: String): String {
-        val cleaned = raw.uppercase().replace("[^A-Z0-9-]".toRegex(), "")
+        val extracted = if (raw.contains("code=", ignoreCase = true)) {
+            raw.substringAfter("code=", "").substringBefore("&").trim()
+        } else if (raw.contains("GYM-", ignoreCase = true)) {
+            "GYM-" + raw.substringAfter("GYM-", "").trim()
+        } else {
+            raw
+        }
+        val cleaned = extracted.uppercase().replace("[^A-Z0-9-]".toRegex(), "")
         return if (!cleaned.startsWith("GYM-") && cleaned.length >= 3 && !cleaned.contains("-")) {
             "GYM-$cleaned"
         } else {

@@ -42,6 +42,7 @@ fun GymFlowTopBar(
             .fillMaxWidth()
             .background(MemberBg)
             .statusBarsPadding()
+            .padding(top = 8.dp)
     ) {
         Row(
             modifier = Modifier
