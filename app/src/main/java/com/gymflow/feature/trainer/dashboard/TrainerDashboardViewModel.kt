@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ConnectedMember
+import com.gymflow.domain.model.GymMember
+import com.gymflow.domain.model.MembershipDuration
+import com.gymflow.domain.model.PaymentMethod
 import com.gymflow.domain.model.PaymentStatus
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.repository.GymMemberRepository
@@ -12,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -76,13 +80,64 @@ class TrainerDashboardViewModel @Inject constructor(
 
     private fun observeRealMembers() {
         viewModelScope.launch {
-            gymMemberRepository.getAllMembers().collect { members ->
-                val total = members.size
-                val active = members.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID }
-                val pending = members.count { it.paymentStatus != PaymentStatus.PAID }
-                val expiring = members.count { it.isExpiringSoon }
+            combine(
+                gymMemberRepository.getAllMembers(),
+                userDao.getConnectedAthletesFlow()
+            ) { members, athletes ->
+                val existingIds = members.map { it.id }.toSet()
+                // Sync any athlete from UserDao not yet registered in gym_members
+                athletes.filter { it.id !in existingIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
+                    .forEach { athlete ->
+                        val newMember = GymMember(
+                            id = athlete.id,
+                            name = athlete.name.ifBlank { "Athlete" },
+                            phoneNumber = "+91 98765 43210",
+                            email = athlete.email,
+                            assignedTrainerId = athlete.connectedTrainerId,
+                            assignedTrainerName = _uiState.value.coachName,
+                            duration = MembershipDuration.ONE_MONTH,
+                            startDateEpochMs = athlete.createdAtEpochMs,
+                            endDateEpochMs = athlete.createdAtEpochMs + (30L * 24 * 60 * 60 * 1000),
+                            feeAmount = 1500.0,
+                            amountPaid = 1500.0,
+                            paymentStatus = PaymentStatus.PAID,
+                            paymentMethod = PaymentMethod.UPI,
+                            notes = "Connected athlete",
+                            isActive = true
+                        )
+                        gymMemberRepository.addMember(newMember)
+                    }
 
-                val connectedMembers = members.map { member ->
+                val athleteAsMembers = athletes
+                    .filter { it.id !in existingIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
+                    .map { athlete ->
+                        GymMember(
+                            id = athlete.id,
+                            name = athlete.name.ifBlank { "Athlete" },
+                            phoneNumber = "+91 98765 43210",
+                            email = athlete.email,
+                            assignedTrainerId = athlete.connectedTrainerId,
+                            assignedTrainerName = _uiState.value.coachName,
+                            duration = MembershipDuration.ONE_MONTH,
+                            startDateEpochMs = athlete.createdAtEpochMs,
+                            endDateEpochMs = athlete.createdAtEpochMs + (30L * 24 * 60 * 60 * 1000),
+                            feeAmount = 1500.0,
+                            amountPaid = 1500.0,
+                            paymentStatus = PaymentStatus.PAID,
+                            paymentMethod = PaymentMethod.UPI,
+                            notes = "Connected athlete",
+                            isActive = true
+                        )
+                    }
+
+                members + athleteAsMembers
+            }.collect { allMembers ->
+                val total = allMembers.size
+                val active = allMembers.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID }
+                val pending = allMembers.count { it.paymentStatus != PaymentStatus.PAID }
+                val expiring = allMembers.count { it.isExpiringSoon }
+
+                val connectedMembers = allMembers.map { member ->
                     ConnectedMember(
                         memberId = member.id,
                         name = member.name,

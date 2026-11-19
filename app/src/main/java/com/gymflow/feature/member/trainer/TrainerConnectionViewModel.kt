@@ -4,6 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.model.GymMember
+import com.gymflow.domain.model.MembershipDuration
+import com.gymflow.domain.model.PaymentMethod
+import com.gymflow.domain.model.PaymentStatus
+import com.gymflow.domain.repository.GymMemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +47,8 @@ data class JoinTrainerUiState(
 @HiltViewModel
 class TrainerConnectionViewModel @Inject constructor(
     private val userDao: UserDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val gymMemberRepository: GymMemberRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(JoinTrainerUiState())
@@ -150,6 +156,40 @@ class TrainerConnectionViewModel @Inject constructor(
                 userDao.updateTrainerConnection(userId, trainerId, "Connected")
                 tokenManager.saveConnectedTrainerInfo(trainerId, trainerName, gymName, code)
 
+                // Sync athlete into GymMemberRepository so the trainer dashboard reflects them immediately
+                val currentUser = userDao.getUserById(userId) ?: userDao.getCurrentUser()
+                val memberName = currentUser?.name?.takeIf { it.isNotBlank() }
+                    ?: tokenManager.getName()?.takeIf { it.isNotBlank() }
+                    ?: "Athlete Member"
+                val memberEmail = currentUser?.email?.takeIf { it.isNotBlank() }
+                    ?: tokenManager.getEmail()
+                    ?: "athlete@gymflow.local"
+                val memberPhone = "+91 98765 43210"
+
+                val existing = gymMemberRepository.getMemberById(userId)
+                val gymMember = GymMember(
+                    id = userId,
+                    name = memberName,
+                    phoneNumber = memberPhone,
+                    email = memberEmail,
+                    assignedTrainerId = trainerId,
+                    assignedTrainerName = trainerName,
+                    duration = existing?.duration ?: MembershipDuration.ONE_MONTH,
+                    startDateEpochMs = existing?.startDateEpochMs ?: System.currentTimeMillis(),
+                    endDateEpochMs = existing?.endDateEpochMs ?: (System.currentTimeMillis() + 30L * 24 * 60 * 60 * 1000),
+                    feeAmount = existing?.feeAmount ?: 1500.0,
+                    amountPaid = existing?.amountPaid ?: 1500.0,
+                    paymentStatus = PaymentStatus.PAID,
+                    paymentMethod = PaymentMethod.UPI,
+                    notes = "Connected via Trainer Code: $code",
+                    isActive = true
+                )
+                if (existing != null) {
+                    gymMemberRepository.updateMember(gymMember)
+                } else {
+                    gymMemberRepository.addMember(gymMember)
+                }
+
                 val connected = TrainerDetails(
                     id = trainerId,
                     name = trainerName,
@@ -183,6 +223,16 @@ class TrainerConnectionViewModel @Inject constructor(
             val userId = currentUserId()
             userDao.updateTrainerConnection(userId, null, "Not Connected")
             tokenManager.clearConnectedTrainer()
+            val existing = gymMemberRepository.getMemberById(userId)
+            if (existing != null) {
+                gymMemberRepository.updateMember(
+                    existing.copy(
+                        assignedTrainerId = null,
+                        assignedTrainerName = null,
+                        notes = "Disconnected from trainer"
+                    )
+                )
+            }
             _uiState.update {
                 it.copy(
                     connectionStatus = TrainerConnectionStatus.NOT_CONNECTED,

@@ -508,6 +508,14 @@ class FakeUserDao : UserDao {
     override fun getPrimaryTrainerFlow(): Flow<UserEntity?> =
         userStateFlow.map { usersMap.values.find { it.role == com.gymflow.domain.model.Role.TRAINER } }
 
+    override suspend fun getConnectedAthletes(): List<UserEntity> =
+        usersMap.values.filter { it.role == com.gymflow.domain.model.Role.MEMBER || it.connectedTrainerId != null }
+
+    override fun getConnectedAthletesFlow(): Flow<List<UserEntity>> =
+        userStateFlow.map {
+            usersMap.values.filter { it.role == com.gymflow.domain.model.Role.MEMBER || it.connectedTrainerId != null }
+        }
+
     override suspend fun updateMemberProfile(
         id: String,
         heightCm: Float,

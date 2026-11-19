@@ -132,12 +132,12 @@ fun TrainerDashboardScreen(
                         }
                         Text(
                             text = uiState.greeting,
-                            fontSize = 22.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = TrainerDarkTextPrimary,
                             modifier = Modifier.padding(top = 2.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines = 2,
+                            lineHeight = 24.sp
                         )
                     }
 
