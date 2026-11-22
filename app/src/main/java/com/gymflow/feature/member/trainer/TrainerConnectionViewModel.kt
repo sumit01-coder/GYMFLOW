@@ -252,7 +252,7 @@ class TrainerConnectionViewModel @Inject constructor(
     fun disconnectTrainer() {
         viewModelScope.launch {
             val userId = currentUserId()
-            val oldTrainerId = tokenManager.getConnectedTrainerName() ?: _uiState.value.activeTrainer?.id
+            val oldTrainerId = tokenManager.getConnectedTrainerId() ?: _uiState.value.activeTrainer?.id
             userDao.updateTrainerConnection(userId, null, "Not Connected")
             tokenManager.clearConnectedTrainer()
             val existing = gymMemberRepository.getMemberById(userId)

@@ -94,6 +94,7 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="com.gymflow.action.WORKOUT_REMINDER" />
+                <action android:name="com.gymflow.action.SNOOZE_10M" />
             </intent-filter>
         </receiver>
 

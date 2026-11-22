@@ -23,9 +23,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         OutdoorWorkoutEntity::class,
         OutdoorGpsPointEntity::class,
         FoodLogEntity::class,
-        GymMemberEntity::class
+        GymMemberEntity::class,
+        MembershipOrderEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -40,6 +41,7 @@ abstract class GymFlowDatabase : RoomDatabase() {
     abstract fun outdoorWorkoutDao(): OutdoorWorkoutDao
     abstract fun foodDao(): FoodDao
     abstract fun gymMemberDao(): GymMemberDao
+    abstract fun membershipOrderDao(): MembershipOrderDao
 
     companion object {
         const val DATABASE_NAME = "gymflow.db"
@@ -341,6 +343,38 @@ abstract class GymFlowDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_gym_members_endDateEpochMs` ON `gym_members` (`endDateEpochMs`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_gym_members_paymentStatus` ON `gym_members` (`paymentStatus`)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_gym_members_assignedTrainerId` ON `gym_members` (`assignedTrainerId`)")
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `membership_orders` (
+                        `orderId` TEXT NOT NULL,
+                        `memberId` TEXT NOT NULL,
+                        `memberName` TEXT NOT NULL,
+                        `memberEmail` TEXT NOT NULL,
+                        `memberPhone` TEXT NOT NULL,
+                        `trainerId` TEXT NOT NULL,
+                        `trainerName` TEXT NOT NULL,
+                        `gymName` TEXT NOT NULL,
+                        `planDurationMonths` INTEGER NOT NULL,
+                        `planDurationDisplayName` TEXT NOT NULL,
+                        `amountInr` REAL NOT NULL,
+                        `paymentMethod` TEXT NOT NULL,
+                        `targetUpiId` TEXT NOT NULL,
+                        `utrNumber` TEXT,
+                        `orderStatus` TEXT NOT NULL,
+                        `createdAtEpochMs` INTEGER NOT NULL,
+                        `approvedAtEpochMs` INTEGER,
+                        `notes` TEXT NOT NULL,
+                        `isSynced` INTEGER NOT NULL,
+                        PRIMARY KEY(`orderId`)
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_membership_orders_memberId` ON `membership_orders` (`memberId`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_membership_orders_createdAtEpochMs` ON `membership_orders` (`createdAtEpochMs`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_membership_orders_orderStatus` ON `membership_orders` (`orderStatus`)")
             }
         }
     }

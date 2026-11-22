@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
 
         handleWidgetIntent(intent)
         handleDeepLinkIntent(intent)
+        handleNotificationIntent(intent)
 
         setContent {
             GymFlowTheme {
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleWidgetIntent(intent)
         handleDeepLinkIntent(intent)
+        handleNotificationIntent(intent)
     }
 
     private fun handleDeepLinkIntent(intent: Intent?) {
@@ -113,6 +115,15 @@ class MainActivity : ComponentActivity() {
             GymFlowWidgetUpdater.ACTION_OPEN_STOPWATCH -> {
                 AppNavigator.navigateTo(NavRoutes.MEMBER_STOPWATCH)
             }
+        }
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
+        val destination = intent?.getStringExtra("navigate_to") ?: return
+        when (destination) {
+            "workout_schedule", "workout_start" -> AppNavigator.navigateTo(NavRoutes.WORKOUT_SCHEDULE)
+            "weight_tracker", "log_weight" -> AppNavigator.navigateTo(NavRoutes.MEMBER_WEIGHT)
+            "member_profile" -> AppNavigator.navigateTo(NavRoutes.MEMBER_PROFILE)
         }
     }
 

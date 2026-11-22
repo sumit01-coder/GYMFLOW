@@ -152,10 +152,16 @@ class TrainerSettingsViewModel @Inject constructor(
 
     private fun syncConnectedMembersFromCloud() {
         viewModelScope.launch {
-            val trainerId = tokenManager.getUserIdSync() ?: return@launch
-            try {
-                firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
-            } catch (_: Exception) {}
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            val trainerEmail = tokenManager.getEmail() ?: ""
+            if (trainerId.isNotBlank() || trainerEmail.isNotBlank()) {
+                gymMemberRepository.removeTrainerFromMembers(trainerId, trainerEmail)
+            }
+            if (trainerId.isNotBlank()) {
+                try {
+                    firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+                } catch (_: Exception) {}
+            }
         }
     }
 

@@ -45,7 +45,8 @@ object DatabaseModule {
                 GymFlowDatabase.MIGRATION_8_9,
                 GymFlowDatabase.MIGRATION_9_10,
                 GymFlowDatabase.MIGRATION_10_11,
-                GymFlowDatabase.MIGRATION_11_12
+                GymFlowDatabase.MIGRATION_11_12,
+                GymFlowDatabase.MIGRATION_12_13
             )
             .fallbackToDestructiveMigration()
             .build()
@@ -81,4 +82,8 @@ object DatabaseModule {
 
     @Provides
     fun provideGymMemberDao(database: GymFlowDatabase): GymMemberDao = database.gymMemberDao()
+
+    @Provides
+    fun provideMembershipOrderDao(database: GymFlowDatabase): com.gymflow.core.database.MembershipOrderDao =
+        database.membershipOrderDao()
 }

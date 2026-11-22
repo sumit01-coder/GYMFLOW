@@ -74,7 +74,9 @@ data class ProfileUiState(
     val isOrderSubmitted: Boolean = false,
     val submittedUtr: String? = null,
     val isUpiConfigured: Boolean = false,
-    val customPricing: Map<Int, Double> = mapOf(1 to 1500.0, 3 to 4000.0, 6 to 7500.0, 12 to 14000.0)
+    val customPricing: Map<Int, Double> = mapOf(1 to 1500.0, 3 to 4000.0, 6 to 7500.0, 12 to 14000.0),
+    val renewalOrders: List<MembershipOrder> = emptyList(),
+    val selectedOrderForReceipt: MembershipOrder? = null
 )
 
 @HiltViewModel
@@ -87,7 +89,8 @@ class ProfileViewModel @Inject constructor(
     private val firestoreConnectionManager: FirestoreConnectionManager,
     private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager,
     private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager,
-    private val gymMemberRepository: GymMemberRepository
+    private val gymMemberRepository: GymMemberRepository,
+    private val membershipOrderDao: com.gymflow.core.database.MembershipOrderDao
 ) : ViewModel() {
 
     fun checkForUpdates() {
@@ -235,6 +238,24 @@ class ProfileViewModel @Inject constructor(
                 _uiState.update { it.copy(membership = mem, gymName = gym) }
             }
         }
+
+        viewModelScope.launch {
+            try {
+                firestoreSyncManager.pullMemberRenewalOrders(memberId)
+            } catch (_: Exception) {}
+            membershipOrderDao.getOrdersForMemberFlow(memberId).collect { entities ->
+                val orders = entities.map { it.toDomain() }
+                _uiState.update { it.copy(renewalOrders = orders) }
+            }
+        }
+    }
+
+    fun viewOrderReceipt(order: MembershipOrder) {
+        _uiState.update { it.copy(selectedOrderForReceipt = order) }
+    }
+
+    fun dismissReceiptDialog() {
+        _uiState.update { it.copy(selectedOrderForReceipt = null) }
     }
 
     fun openRenewalDialog() {
@@ -270,7 +291,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRenewing = true) }
             val userId = tokenManager.getUserIdSync() ?: "default_member"
-            val trainerId = _uiState.value.profile.connectedTrainerId ?: tokenManager.getConnectedTrainerName() ?: ""
+            val trainerId = _uiState.value.profile.connectedTrainerId ?: tokenManager.getConnectedTrainerId() ?: ""
             val orderId = _uiState.value.currentOrderId.ifBlank { UpiPaymentHelper.generateOrderId() }
             val planLabel = "$durationMonths Month${if (durationMonths > 1) "s" else ""} Pass"
 
@@ -314,7 +335,7 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRenewing = true) }
             val userId = tokenManager.getUserIdSync() ?: "default_member"
-            val trainerId = _uiState.value.profile.connectedTrainerId ?: tokenManager.getConnectedTrainerName()
+            val trainerId = _uiState.value.profile.connectedTrainerId ?: tokenManager.getConnectedTrainerId() ?: ""
             val existing = gymMemberRepository.getMemberById(userId)
 
             val currentEnd = existing?.endDateEpochMs ?: System.currentTimeMillis()

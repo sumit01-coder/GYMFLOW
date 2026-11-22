@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.google.firebase.auth.FirebaseAuth
 import com.gymflow.domain.model.Role
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -97,7 +98,9 @@ class TokenManager @Inject constructor(
 
     fun getUserId(): Flow<String?> = _userIdFlow.asStateFlow()
 
-    fun getUserIdSync(): String? = _userIdFlow.value ?: prefs.getString(KEY_USER_ID, null)
+    fun getUserIdSync(): String? = _userIdFlow.value 
+        ?: prefs.getString(KEY_USER_ID, null)
+        ?: try { FirebaseAuth.getInstance().currentUser?.uid } catch (_: Exception) { null }
 
     // User Email Operations
     fun saveUserEmail(email: String) {
@@ -107,7 +110,9 @@ class TokenManager @Inject constructor(
 
     fun getUserEmail(): Flow<String?> = _userEmailFlow.asStateFlow()
 
-    fun getEmail(): String? = _userEmailFlow.value ?: prefs.getString(KEY_USER_EMAIL, null)
+    fun getEmail(): String? = _userEmailFlow.value 
+        ?: prefs.getString(KEY_USER_EMAIL, null)
+        ?: try { FirebaseAuth.getInstance().currentUser?.email } catch (_: Exception) { null }
 
     fun getUserEmailSync(): String? = getEmail()
 
@@ -119,7 +124,9 @@ class TokenManager @Inject constructor(
 
     fun getUserName(): Flow<String?> = _userNameFlow.asStateFlow()
 
-    fun getName(): String? = _userNameFlow.value ?: prefs.getString(KEY_USER_NAME, null)
+    fun getName(): String? = _userNameFlow.value 
+        ?: prefs.getString(KEY_USER_NAME, null)
+        ?: try { FirebaseAuth.getInstance().currentUser?.displayName } catch (_: Exception) { null }
 
     fun getUserNameSync(): String? = getName()
 
@@ -249,6 +256,7 @@ class TokenManager @Inject constructor(
         editor.apply()
     }
 
+    fun getConnectedTrainerId(): String? = prefs.getString(KEY_CONNECTED_TRAINER_ID, null)
     fun getConnectedTrainerName(): String? = prefs.getString(KEY_CONNECTED_TRAINER_NAME, null)
     fun getConnectedTrainerGym(): String? = prefs.getString(KEY_CONNECTED_TRAINER_GYM, null)
     fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)

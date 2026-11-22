@@ -100,6 +100,10 @@ class TrainerDashboardViewModel @Inject constructor(
     fun syncConnectedMembersFromCloud() {
         viewModelScope.launch {
             val trainerId = tokenManager.getUserIdSync() ?: return@launch
+            val trainerEmail = tokenManager.getEmail() ?: ""
+            if (trainerId.isNotBlank() || trainerEmail.isNotBlank()) {
+                gymMemberRepository.removeTrainerFromMembers(trainerId, trainerEmail)
+            }
             try {
                 firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
                 val orders = firestoreSyncManager.pullPendingOrdersForTrainer(trainerId)
@@ -109,6 +113,10 @@ class TrainerDashboardViewModel @Inject constructor(
         viewModelScope.launch {
             tokenManager.getUserId().collect { trainerId ->
                 if (!trainerId.isNullOrBlank() && trainerId != "default_member") {
+                    val trainerEmail = tokenManager.getEmail() ?: ""
+                    if (trainerId.isNotBlank() || trainerEmail.isNotBlank()) {
+                        gymMemberRepository.removeTrainerFromMembers(trainerId, trainerEmail)
+                    }
                     try {
                         firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
                         val orders = firestoreSyncManager.pullPendingOrdersForTrainer(trainerId)
@@ -166,33 +174,6 @@ class TrainerDashboardViewModel @Inject constructor(
                     it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
                 }
                 val existingIds = filteredMembers.map { it.id }.toSet()
-                // Sync any athlete from UserDao not yet registered in gym_members (excluding coach themselves)
-                athletes.filter {
-                    it.id != trainerId &&
-                    (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true)) &&
-                    it.id !in existingIds &&
-                    (it.connectedTrainerId != null || it.role == Role.MEMBER)
-                }.forEach { athlete ->
-                    val newMember = GymMember(
-                        id = athlete.id,
-                        name = athlete.name.ifBlank { "Athlete" },
-                        phoneNumber = "",
-                        email = athlete.email,
-                        assignedTrainerId = athlete.connectedTrainerId,
-                        assignedTrainerName = _uiState.value.coachName,
-                        duration = MembershipDuration.ONE_MONTH,
-                        startDateEpochMs = athlete.createdAtEpochMs,
-                        endDateEpochMs = athlete.createdAtEpochMs + (30L * 24 * 60 * 60 * 1000),
-                        feeAmount = 1500.0,
-                        amountPaid = 1500.0,
-                        paymentStatus = PaymentStatus.PAID,
-                        paymentMethod = PaymentMethod.UPI,
-                        notes = "Connected athlete",
-                        isActive = true
-                    )
-                    gymMemberRepository.addMember(newMember)
-                }
-
                 val athleteAsMembers = athletes
                     .filter {
                         it.id != trainerId &&

@@ -34,8 +34,11 @@ class WorkoutReminderManager @Inject constructor(
         const val CHANNEL_ID = "gymflow_workout_reminders"
         const val CHANNEL_NAME = "Workout Reminders"
         const val ACTION_WORKOUT_REMINDER = "com.gymflow.action.WORKOUT_REMINDER"
+        const val ACTION_SNOOZE_10M = "com.gymflow.action.SNOOZE_10M"
         const val NOTIFICATION_ID = 2001
+        const val HYDRATION_NOTIFICATION_ID = 2002
         const val REMINDER_REQUEST_CODE = 4001
+        const val SNOOZE_REQUEST_CODE = 4002
 
         private const val PREFS_NAME = "gymflow_reminder_preferences"
         private const val KEY_REMINDER_ENABLED = "key_workout_reminder_enabled"
@@ -303,16 +306,51 @@ class WorkoutReminderManager @Inject constructor(
 
         // Tap action: Launch MainActivity
         val launchIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             putExtra("navigate_to", "workout_schedule")
         }
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
         val contentPendingIntent = PendingIntent.getActivity(
             context,
             NOTIFICATION_ID,
             launchIntent,
-            flags
+            pendingFlags
+        )
+
+        // Action 1: Start Workout
+        val startWorkoutIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra("navigate_to", "workout_start")
+        }
+        val startWorkoutPending = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID + 10,
+            startWorkoutIntent,
+            pendingFlags
+        )
+
+        // Action 2: Log Weight Pre-Workout
+        val weightIntent = Intent(context, MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra("navigate_to", "weight_tracker")
+        }
+        val weightPending = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_ID + 20,
+            weightIntent,
+            pendingFlags
+        )
+
+        // Action 3: Snooze 10 Minutes
+        val snoozeIntent = Intent(context, WorkoutReminderReceiver::class.java).apply {
+            action = ACTION_SNOOZE_10M
+        }
+        val snoozePending = PendingIntent.getBroadcast(
+            context,
+            SNOOZE_REQUEST_CODE,
+            snoozeIntent,
+            pendingFlags
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -322,7 +360,7 @@ class WorkoutReminderManager @Inject constructor(
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .setBigContentTitle(title)
-                    .bigText("$content\nConsistency creates champions. Tap to view today's workout plan and log your sets.")
+                    .bigText("$content\nConsistency creates champions. Log your pre-workout weight & tap Start Workout when ready.")
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -330,10 +368,81 @@ class WorkoutReminderManager @Inject constructor(
             .setAutoCancel(true)
             .setContentIntent(contentPendingIntent)
             .setVibrate(longArrayOf(0, 250, 150, 250))
+            .addAction(android.R.drawable.ic_media_play, "Start Workout", startWorkoutPending)
+            .addAction(android.R.drawable.ic_menu_edit, "Log Weight", weightPending)
+            .addAction(android.R.drawable.ic_popup_reminder, "Snooze 10m", snoozePending)
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
-        Log.d(TAG, "Workout reminder notification displayed successfully.")
+        Log.d(TAG, "Workout reminder notification with drawer actions displayed successfully.")
+    }
+
+    /**
+     * Schedules a quick snooze alarm (e.g. 10 minutes later) when member taps Snooze in the notification drawer.
+     */
+    fun scheduleSnooze(minutes: Int = 10) {
+        val triggerMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        val pendingIntent = createAlarmPendingIntent()
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerMillis,
+                    pendingIntent
+                )
+            }
+            Log.d(TAG, "Snooze alarm set for $minutes minutes from now ($triggerMillis)")
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not set exact snooze alarm", e)
+        }
+    }
+
+    /**
+     * Notification sent immediately post-workout to guide sweat recovery and hydration deficit replenishment.
+     */
+    fun showPostWorkoutHydrationNotification(sweatLossKg: Float, recommendedWaterMl: Int) {
+        createNotificationChannel()
+
+        val launchIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("navigate_to", "member_hydration")
+        }
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        val contentPendingIntent = PendingIntent.getActivity(
+            context,
+            HYDRATION_NOTIFICATION_ID,
+            launchIntent,
+            flags
+        )
+
+        val fluidGrams = (sweatLossKg * 1000).toInt().coerceAtLeast(0)
+        val title = "Workout Complete! 💧 Rehydrate Now"
+        val body = if (fluidGrams > 0) {
+            "Sweat loss: ${fluidGrams}g. Drink at least ${recommendedWaterMl}ml water to replenish fluids."
+        } else {
+            "Great workout! Remember to drink at least ${recommendedWaterMl}ml water to stay fully hydrated."
+        }
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setAutoCancel(true)
+            .setContentIntent(contentPendingIntent)
+            .build()
+
+        notificationManager.notify(HYDRATION_NOTIFICATION_ID, notification)
     }
 }
 

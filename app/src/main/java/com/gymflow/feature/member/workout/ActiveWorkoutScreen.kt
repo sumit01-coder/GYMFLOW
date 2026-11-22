@@ -72,6 +72,10 @@ import com.gymflow.core.theme.GymFlowTheme
 import com.gymflow.core.theme.GymFlowWhite
 import com.gymflow.feature.member.exercises.ExerciseVisuals
 
+import com.gymflow.core.components.GymFlowTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+
 @Composable
 fun ActiveWorkoutScreen(
     viewModel: ActiveWorkoutViewModel,
@@ -80,6 +84,156 @@ fun ActiveWorkoutScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // 1. Pre-Workout Weigh-In Check-In Dialog
+    if (uiState.showPreWorkoutWeightDialog) {
+        var preWeightInput by remember { mutableStateOf(if (uiState.preWorkoutWeightKg > 0f) uiState.preWorkoutWeightKg.toString() else "") }
+        var inputError by remember { mutableStateOf<String?>(null) }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.skipPreWorkoutWeight() },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⚖️ Gym Check-In Weigh-In", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GymFlowTheme.colors.textPrimary)
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Log your baseline pre-workout weight today so GymFlow can automatically calculate your sweat loss and fluid replenishment.",
+                        fontSize = 13.sp,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    GymFlowTextField(
+                        value = preWeightInput,
+                        onValueChange = {
+                            preWeightInput = it
+                            inputError = null
+                        },
+                        label = "Pre-Workout Weight (kg)",
+                        placeholder = "e.g. 72.5",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        errorMessage = inputError
+                    )
+                }
+            },
+            confirmButton = {
+                GymFlowButton(
+                    text = "Save & Start",
+                    onClick = {
+                        val parsed = preWeightInput.trim().toFloatOrNull()
+                        if (parsed != null && parsed in 20f..300f) {
+                            viewModel.submitPreWorkoutWeight(parsed)
+                        } else {
+                            inputError = "Please enter a valid weight (20-300 kg)"
+                        }
+                    },
+                    style = GymFlowButtonStyle.PRIMARY
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.skipPreWorkoutWeight() }) {
+                    Text("Skip", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface
+        )
+    }
+
+    // 2. Post-Workout Weigh-In Check-Out Dialog
+    if (uiState.showPostWorkoutWeightDialog) {
+        var postWeightInput by remember { mutableStateOf("") }
+        var postError by remember { mutableStateOf<String?>(null) }
+
+        val enteredPostWeight = postWeightInput.trim().toFloatOrNull()
+        val sweatLossGrams = if (enteredPostWeight != null && uiState.preWorkoutWeightKg > 0f) {
+            ((uiState.preWorkoutWeightKg - enteredPostWeight) * 1000).toInt().coerceAtLeast(0)
+        } else null
+
+        AlertDialog(
+            onDismissRequest = { viewModel.skipPostWorkoutWeight(onCloseWorkout) },
+            title = {
+                Text("🏁 Gym Check-Out Weigh-In", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = GymFlowTheme.colors.textPrimary)
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Workout completed! Record your final weight to analyze sweat loss and calculate your optimal post-workout rehydration.",
+                        fontSize = 13.sp,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    if (uiState.preWorkoutWeightKg > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowTheme.colors.surfaceVariant)
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Pre-Workout Baseline:", fontSize = 12.sp, color = GymFlowTheme.colors.textSecondary)
+                                Text("${uiState.preWorkoutWeightKg} kg", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = GymFlowTheme.colors.textPrimary)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+                    GymFlowTextField(
+                        value = postWeightInput,
+                        onValueChange = {
+                            postWeightInput = it
+                            postError = null
+                        },
+                        label = "Post-Workout Weight (kg)",
+                        placeholder = "e.g. 72.1",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        errorMessage = postError
+                    )
+                    if (sweatLossGrams != null && sweatLossGrams > 0) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF0284C7).copy(alpha = 0.12f))
+                                .padding(10.dp)
+                        ) {
+                            Text(
+                                text = "💧 Fluid Loss: ${sweatLossGrams}g • Drink at least ${(sweatLossGrams * 1.25).toInt()}ml water",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF0284C7)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                GymFlowButton(
+                    text = "Save & Finish",
+                    onClick = {
+                        val parsed = postWeightInput.trim().toFloatOrNull()
+                        if (parsed != null && parsed in 20f..300f) {
+                            viewModel.submitPostWorkoutWeight(parsed, onCloseWorkout)
+                        } else {
+                            postError = "Please enter a valid weight (20-300 kg)"
+                        }
+                    },
+                    style = GymFlowButtonStyle.PRIMARY
+                )
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.skipPostWorkoutWeight(onCloseWorkout) }) {
+                    Text("Finish Without Weighing", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface
+        )
+    }
 
     ActiveWorkoutContent(
         uiState = uiState,

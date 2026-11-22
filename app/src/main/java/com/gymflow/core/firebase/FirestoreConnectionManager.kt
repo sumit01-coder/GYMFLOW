@@ -593,6 +593,7 @@ class FirestoreConnectionManager @Inject constructor(
         activeRegistrations.add(outdoorReg)
 
         // 10. Real-time Trainer Connected Athletes Listener (Live sync from Firestore)
+        val trainerEmail = tokenManager.getEmail() ?: try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email } catch (_: Exception) { null } ?: ""
         val trainerMembersReg = firestore.collection(FirestoreSyncManager.COLLECTION_TRAINERS)
             .document(userId)
             .collection("connected_members")
@@ -606,9 +607,22 @@ class FirestoreConnectionManager @Inject constructor(
                         for (doc in snapshot.documents) {
                             if (doc.exists()) {
                                 val athleteId = doc.getString("id") ?: doc.id
-                                val athleteName = doc.getString("name") ?: "Athlete"
                                 val athleteEmail = doc.getString("email") ?: ""
+                                if (athleteId.isBlank() || athleteId == userId) continue
+                                if (trainerEmail.isNotBlank() && athleteEmail.equals(trainerEmail, ignoreCase = true)) continue
+
+                                val athleteName = doc.getString("name") ?: "Athlete"
                                 val athletePhone = doc.getString("phoneNumber") ?: ""
+
+                                var durationMonths = doc.getLong("durationMonths")?.toInt() ?: 1
+                                var startDate = doc.getLong("startDateEpochMs") ?: doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis()
+                                var endDate = doc.getLong("endDateEpochMs") ?: (startDate + (durationMonths * 30L * 24 * 60 * 60 * 1000))
+                                var feeAmount = doc.getDouble("feeAmount") ?: 1500.0
+                                var amountPaid = doc.getDouble("amountPaid") ?: feeAmount
+                                var paymentStatus = doc.getString("paymentStatus") ?: "PAID"
+                                var paymentMethod = doc.getString("paymentMethod") ?: "UPI"
+                                var notes = doc.getString("notes") ?: "Connected athlete"
+                                var isActive = doc.getBoolean("isActive") ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
 
                                 val userEntity = UserEntity(
                                     id = athleteId,
@@ -632,15 +646,15 @@ class FirestoreConnectionManager @Inject constructor(
                                     email = athleteEmail,
                                     assignedTrainerId = userId,
                                     assignedTrainerName = tokenManager.getName() ?: "Coach",
-                                    durationMonths = 1,
-                                    startDateEpochMs = doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis(),
-                                    endDateEpochMs = (doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
-                                    feeAmount = 1500.0,
-                                    amountPaid = 1500.0,
-                                    paymentStatus = "PAID",
-                                    paymentMethod = "UPI",
-                                    notes = "Joined via QR / Code: ${doc.getString("invitationCode") ?: ""}",
-                                    isActive = true
+                                    durationMonths = durationMonths,
+                                    startDateEpochMs = startDate,
+                                    endDateEpochMs = endDate,
+                                    feeAmount = feeAmount,
+                                    amountPaid = amountPaid,
+                                    paymentStatus = paymentStatus,
+                                    paymentMethod = paymentMethod,
+                                    notes = notes,
+                                    isActive = isActive
                                 )
                                 gymMemberDao.insertMember(gymMemberEntity)
                             }
@@ -660,9 +674,35 @@ class FirestoreConnectionManager @Inject constructor(
                         for (doc in snapshot.documents) {
                             if (doc.exists()) {
                                 val athleteId = doc.getString("id") ?: doc.id
-                                val athleteName = doc.getString("name") ?: "Athlete"
                                 val athleteEmail = doc.getString("email") ?: ""
+                                if (athleteId.isBlank() || athleteId == userId) continue
+                                if (trainerEmail.isNotBlank() && athleteEmail.equals(trainerEmail, ignoreCase = true)) continue
+
+                                val athleteName = doc.getString("name") ?: "Athlete"
                                 val athletePhone = doc.getString("phoneNumber") ?: ""
+
+                                var durationMonths = 1
+                                var startDate = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+                                var endDate = startDate + (30L * 24 * 60 * 60 * 1000)
+                                var feeAmount = 1500.0
+                                var amountPaid = 1500.0
+                                var paymentStatus = "PAID"
+                                var paymentMethod = "UPI"
+                                var notes = "Connected athlete"
+                                var isActive = true
+
+                                val memMap = doc.get("membership") as? Map<*, *>
+                                if (memMap != null) {
+                                    durationMonths = (memMap["durationMonths"] as? Number)?.toInt() ?: durationMonths
+                                    startDate = (memMap["startDateEpochMs"] as? Number)?.toLong() ?: startDate
+                                    endDate = (memMap["endDateEpochMs"] as? Number)?.toLong() ?: endDate
+                                    feeAmount = (memMap["feeAmount"] as? Number)?.toDouble() ?: feeAmount
+                                    amountPaid = (memMap["amountPaid"] as? Number)?.toDouble() ?: amountPaid
+                                    paymentStatus = (memMap["paymentStatus"] as? String) ?: paymentStatus
+                                    paymentMethod = (memMap["paymentMethod"] as? String) ?: paymentMethod
+                                    isActive = (memMap["isActive"] as? Boolean) ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
+                                    notes = (memMap["notes"] as? String) ?: notes
+                                }
 
                                 val userEntity = UserEntity(
                                     id = athleteId,
@@ -686,15 +726,15 @@ class FirestoreConnectionManager @Inject constructor(
                                     email = athleteEmail,
                                     assignedTrainerId = userId,
                                     assignedTrainerName = tokenManager.getName() ?: "Coach",
-                                    durationMonths = 1,
-                                    startDateEpochMs = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
-                                    endDateEpochMs = (doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
-                                    feeAmount = 1500.0,
-                                    amountPaid = 1500.0,
-                                    paymentStatus = "PAID",
-                                    paymentMethod = "UPI",
-                                    notes = "Joined via Code / QR",
-                                    isActive = true
+                                    durationMonths = durationMonths,
+                                    startDateEpochMs = startDate,
+                                    endDateEpochMs = endDate,
+                                    feeAmount = feeAmount,
+                                    amountPaid = amountPaid,
+                                    paymentStatus = paymentStatus,
+                                    paymentMethod = paymentMethod,
+                                    notes = notes,
+                                    isActive = isActive
                                 )
                                 gymMemberDao.insertMember(gymMemberEntity)
                             }

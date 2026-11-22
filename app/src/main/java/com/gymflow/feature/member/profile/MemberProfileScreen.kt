@@ -36,9 +36,12 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MarkEmailUnread
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.Verified
+import com.gymflow.domain.model.MembershipOrder
+import com.gymflow.domain.model.OrderStatus
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -613,6 +616,166 @@ fun MemberProfileScreen(
                         style = GymFlowButtonStyle.PRIMARY,
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Payment & Renewal History Section
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.ReceiptLong,
+                        contentDescription = null,
+                        tint = Color(0xFF22C55E),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "PAYMENT & RENEWAL HISTORY",
+                        style = GymFlowTheme.typography.Caption.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                }
+                if (uiState.renewalOrders.isNotEmpty()) {
+                    GymFlowBadge(
+                        text = "${uiState.renewalOrders.size} Receipts",
+                        backgroundColor = GymFlowTheme.colors.surfaceVariant,
+                        textColor = GymFlowTheme.colors.textPrimary
+                    )
+                }
+            }
+
+            if (uiState.renewalOrders.isEmpty()) {
+                GymFlowCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = 14.dp
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(GymFlowTheme.colors.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ReceiptLong,
+                                contentDescription = null,
+                                tint = GymFlowTheme.colors.textSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "No Renewal Orders Yet",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = GymFlowTheme.colors.textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Your past subscription receipts and verified payments will appear here.",
+                                fontSize = 11.sp,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                        }
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    uiState.renewalOrders.take(5).forEach { order ->
+                        val dateFormatted = remember(order.createdAtEpochMs) {
+                            SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(order.createdAtEpochMs))
+                        }
+                        val statusBg = when (order.orderStatus) {
+                            OrderStatus.APPROVED -> Color(0xFFECFDF5)
+                            OrderStatus.PENDING_VERIFICATION, OrderStatus.PENDING -> Color(0xFFFEF3C7)
+                            OrderStatus.REJECTED -> Color(0xFFFEE2E2)
+                        }
+                        val statusText = when (order.orderStatus) {
+                            OrderStatus.APPROVED -> Color(0xFF059669)
+                            OrderStatus.PENDING_VERIFICATION, OrderStatus.PENDING -> Color(0xFFD97706)
+                            OrderStatus.REJECTED -> Color(0xFFDC2626)
+                        }
+
+                        GymFlowCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { viewModel.viewOrderReceipt(order) },
+                            contentPadding = 14.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF22C55E).copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ReceiptLong,
+                                            contentDescription = null,
+                                            tint = Color(0xFF22C55E),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column {
+                                        Text(
+                                            text = order.planDurationDisplayName,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = GymFlowTheme.colors.textPrimary
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "#${order.orderId} • $dateFormatted",
+                                            fontSize = 11.sp,
+                                            color = GymFlowTheme.colors.textSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = "₹${order.amountInr.toInt()}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GymFlowTheme.colors.textPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    GymFlowBadge(
+                                        text = order.orderStatus.displayName,
+                                        backgroundColor = statusBg,
+                                        textColor = statusText
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1603,6 +1766,14 @@ fun MemberProfileScreen(
                 }
             },
             containerColor = GymFlowTheme.colors.surface
+        )
+    }
+
+    // Modern Digital Animated Receipt Dialog
+    uiState.selectedOrderForReceipt?.let { order ->
+        DigitalReceiptDialog(
+            order = order,
+            onDismiss = { viewModel.dismissReceiptDialog() }
         )
     }
 }

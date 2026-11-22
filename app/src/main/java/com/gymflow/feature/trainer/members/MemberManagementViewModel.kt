@@ -80,8 +80,8 @@ class MemberManagementViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             gymMemberRepository.seedInitialMembersIfEmpty()
-            val trainerId = tokenManager.getUserIdSync() ?: ""
-            val trainerEmail = tokenManager.getEmail() ?: ""
+            val trainerId = tokenManager.getUserIdSync() ?: try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid } catch (_: Exception) { null } ?: ""
+            val trainerEmail = tokenManager.getEmail() ?: try { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email } catch (_: Exception) { null } ?: ""
             if (trainerId.isNotBlank() || trainerEmail.isNotBlank()) {
                 gymMemberRepository.removeTrainerFromMembers(trainerId, trainerEmail)
             }
@@ -95,13 +95,16 @@ class MemberManagementViewModel @Inject constructor(
                 userDao.getConnectedAthletesFlow()
             ) { members, athletes ->
                 val filteredMembers = members.filter {
-                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                    val isSameId = it.id.isNotBlank() && it.id == trainerId
+                    val isSameEmail = trainerEmail.isNotBlank() && it.email.isNotBlank() && it.email.equals(trainerEmail, ignoreCase = true)
+                    !isSameId && !isSameEmail
                 }
                 val memberIds = filteredMembers.map { it.id }.toSet()
                 val athleteAsMembers = athletes
                     .filter {
-                        it.id != trainerId &&
-                        (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true)) &&
+                        val isSameId = it.id.isNotBlank() && it.id == trainerId
+                        val isSameEmail = trainerEmail.isNotBlank() && it.email.isNotBlank() && it.email.equals(trainerEmail, ignoreCase = true)
+                        !isSameId && !isSameEmail &&
                         it.id !in memberIds &&
                         (it.connectedTrainerId != null || it.role == Role.MEMBER)
                     }

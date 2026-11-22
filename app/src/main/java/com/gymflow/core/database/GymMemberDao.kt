@@ -55,7 +55,7 @@ interface GymMemberDao {
     @Query("UPDATE gym_members SET isActive = 0, paymentStatus = 'EXPIRED', endDateEpochMs = :expiredEpochMs, notes = :notes WHERE id = :memberId")
     suspend fun revokeMembership(memberId: String, expiredEpochMs: Long, notes: String = "Revoked by trainer")
 
-    @Query("DELETE FROM gym_members WHERE id = :trainerId OR email = :trainerEmail")
+    @Query("DELETE FROM gym_members WHERE (:trainerId != '' AND id = :trainerId) OR (:trainerEmail != '' AND LOWER(email) = LOWER(:trainerEmail))")
     suspend fun removeTrainerFromMembers(trainerId: String, trainerEmail: String)
 
     @Query("SELECT COUNT(*) FROM gym_members")

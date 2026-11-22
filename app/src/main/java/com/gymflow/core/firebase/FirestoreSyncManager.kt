@@ -61,7 +61,8 @@ class FirestoreSyncManager @Inject constructor(
     private val planDao: PlanDao,
     private val dailyStepsDao: DailyStepsDao,
     private val outdoorWorkoutDao: OutdoorWorkoutDao,
-    private val tokenManager: com.gymflow.core.security.TokenManager
+    private val tokenManager: com.gymflow.core.security.TokenManager,
+    private val membershipOrderDao: com.gymflow.core.database.MembershipOrderDao
 ) {
 
     companion object {
@@ -1641,6 +1642,10 @@ class FirestoreSyncManager @Inject constructor(
                     .await()
             }
 
+            try {
+                membershipOrderDao.upsertOrder(com.gymflow.core.database.MembershipOrderEntity.fromDomain(order, isSynced = true))
+            } catch (_: Exception) {}
+
             true
         } catch (_: Exception) {
             false
@@ -1671,6 +1676,15 @@ class FirestoreSyncManager @Inject constructor(
                     .set(update, SetOptions.merge())
                     .await()
             }
+
+            try {
+                val local = membershipOrderDao.getOrderById(orderId)
+                if (local != null) {
+                    membershipOrderDao.upsertOrder(
+                        local.copy(utrNumber = cleanUtr, orderStatus = OrderStatus.PENDING_VERIFICATION.name)
+                    )
+                }
+            } catch (_: Exception) {}
 
             true
         } catch (_: Exception) {
@@ -1774,6 +1788,15 @@ class FirestoreSyncManager @Inject constructor(
                 trainerId = trainerId
             )
 
+            try {
+                val local = membershipOrderDao.getOrderById(orderId)
+                if (local != null) {
+                    membershipOrderDao.upsertOrder(
+                        local.copy(orderStatus = OrderStatus.APPROVED.name, approvedAtEpochMs = now)
+                    )
+                }
+            } catch (_: Exception) {}
+
             true
         } catch (_: Exception) {
             false
@@ -1804,9 +1827,77 @@ class FirestoreSyncManager @Inject constructor(
                     .await()
             }
 
+            try {
+                val local = membershipOrderDao.getOrderById(orderId)
+                if (local != null) {
+                    membershipOrderDao.upsertOrder(
+                        local.copy(orderStatus = OrderStatus.REJECTED.name, notes = reason)
+                    )
+                }
+            } catch (_: Exception) {}
+
             true
         } catch (_: Exception) {
             false
+        }
+    }
+
+    // 24. Pull All Renewal Orders for Member
+    suspend fun pullMemberRenewalOrders(memberId: String): List<MembershipOrder> {
+        if (memberId.isBlank() || memberId == "default_member") return emptyList()
+        return try {
+            val snapshot = firestore.collection(COLLECTION_MEMBERSHIP_ORDERS)
+                .whereEqualTo("memberId", memberId)
+                .get()
+                .await()
+            val orders = mutableListOf<MembershipOrder>()
+            for (doc in snapshot.documents) {
+                val orderId = doc.getString("orderId") ?: doc.id
+                val memberName = doc.getString("memberName") ?: "Athlete"
+                val memberEmail = doc.getString("memberEmail") ?: ""
+                val memberPhone = doc.getString("memberPhone") ?: ""
+                val trainerId = doc.getString("trainerId") ?: ""
+                val trainerName = doc.getString("trainerName") ?: "Coach"
+                val gymName = doc.getString("gymName") ?: "GymFlow Fitness Center"
+                val planDurationMonths = doc.getLong("planDurationMonths")?.toInt() ?: 1
+                val planDurationDisplayName = doc.getString("planDurationDisplayName") ?: "$planDurationMonths Month Pass"
+                val amountInr = doc.getDouble("amountInr") ?: 1500.0
+                val paymentMethod = doc.getString("paymentMethod") ?: "UPI"
+                val targetUpiId = doc.getString("targetUpiId") ?: ""
+                val utrNumber = doc.getString("utrNumber")
+                val statusStr = doc.getString("orderStatus") ?: OrderStatus.PENDING_VERIFICATION.name
+                val createdAt = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+                val approvedAt = doc.getLong("approvedAtEpochMs")
+                val notes = doc.getString("notes") ?: ""
+
+                val order = MembershipOrder(
+                    orderId = orderId,
+                    memberId = memberId,
+                    memberName = memberName,
+                    memberEmail = memberEmail,
+                    memberPhone = memberPhone,
+                    trainerId = trainerId,
+                    trainerName = trainerName,
+                    gymName = gymName,
+                    planDurationMonths = planDurationMonths,
+                    planDurationDisplayName = planDurationDisplayName,
+                    amountInr = amountInr,
+                    paymentMethod = paymentMethod,
+                    targetUpiId = targetUpiId,
+                    utrNumber = utrNumber,
+                    orderStatus = try { OrderStatus.valueOf(statusStr) } catch (_: Exception) { OrderStatus.PENDING_VERIFICATION },
+                    createdAtEpochMs = createdAt,
+                    approvedAtEpochMs = approvedAt,
+                    notes = notes
+                )
+                orders.add(order)
+                try {
+                    membershipOrderDao.upsertOrder(com.gymflow.core.database.MembershipOrderEntity.fromDomain(order, isSynced = true))
+                } catch (_: Exception) {}
+            }
+            orders.sortedByDescending { it.createdAtEpochMs }
+        } catch (_: Exception) {
+            emptyList()
         }
     }
 

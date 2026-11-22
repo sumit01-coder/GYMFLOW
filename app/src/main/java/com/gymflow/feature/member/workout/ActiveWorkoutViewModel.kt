@@ -19,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -62,7 +63,16 @@ data class ActiveWorkoutUiState(
     val completedExerciseIds: Set<String> = emptySet(),
     val hasNextExercise: Boolean = false,
     val nextExerciseTitle: String? = null,
-    val routineExercises: List<WorkoutExercise> = emptyList()
+    val routineExercises: List<WorkoutExercise> = emptyList(),
+
+    // Gym Check-In / Check-Out & Pre/Post Weigh-in Integration
+    val showPreWorkoutWeightDialog: Boolean = false,
+    val showPostWorkoutWeightDialog: Boolean = false,
+    val preWorkoutWeightKg: Float = 0f,
+    val postWorkoutWeightKg: Float = 0f,
+    val todayWeightLogId: String? = null,
+    val sweatLossKg: Float = 0f,
+    val recommendedWaterMl: Int = 0
 ) {
     val progressPercentage: Float
         get() = (completedSets.size.toFloat() / totalSets.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
@@ -81,7 +91,9 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val tokenManager: TokenManager,
-    private val firestoreSyncManager: FirestoreSyncManager
+    private val firestoreSyncManager: FirestoreSyncManager,
+    private val weightRepository: com.gymflow.domain.repository.WeightRepository,
+    private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager
 ) : ViewModel() {
 
     private val initialExerciseId: String = savedStateHandle.get<String>("exerciseId") ?: "ex_chest_press"
@@ -138,6 +150,22 @@ class ActiveWorkoutViewModel @Inject constructor(
             } else {
                 ensureSessionRecordCreated()
             }
+
+            // Check if member logged their pre-workout weight today
+            try {
+                val latestLog = weightRepository.getLatestWeight(userId).firstOrNull()
+                val isLoggedToday = latestLog != null && latestLog.recordedAtEpochMs >= startOfDayMs
+                if (!isLoggedToday && activeSession == null) {
+                    _uiState.update { it.copy(showPreWorkoutWeightDialog = true) }
+                } else if (latestLog != null) {
+                    _uiState.update {
+                        it.copy(
+                            preWorkoutWeightKg = latestLog.preWeightKg,
+                            todayWeightLogId = latestLog.id
+                        )
+                    }
+                }
+            } catch (_: Exception) {}
 
             startTimer()
             loadRoutineForToday()
@@ -535,9 +563,94 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     /**
-     * Finalizes the workout session, saves summary in Room DB, and navigates out.
+     * Intercepts finish request to present the post-workout check-out weigh-in dialog.
      */
     fun finishWorkout(onCloseWorkout: () -> Unit) {
+        _uiState.update { it.copy(showPostWorkoutWeightDialog = true) }
+    }
+
+    fun submitPreWorkoutWeight(weightKg: Float) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val now = System.currentTimeMillis()
+            try {
+                weightRepository.logWeight(
+                    memberId = userId,
+                    preWeightKg = weightKg,
+                    notes = "Pre-workout gym check-in weight",
+                    recordedAtEpochMs = now
+                ).collect { res ->
+                    if (res is com.gymflow.core.common.Resource.Success) {
+                        val log = res.data
+                        _uiState.update {
+                            it.copy(
+                                showPreWorkoutWeightDialog = false,
+                                preWorkoutWeightKg = weightKg,
+                                todayWeightLogId = log?.id
+                            )
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+                _uiState.update {
+                    it.copy(
+                        showPreWorkoutWeightDialog = false,
+                        preWorkoutWeightKg = weightKg
+                    )
+                }
+            }
+        }
+    }
+
+    fun skipPreWorkoutWeight() {
+        _uiState.update { it.copy(showPreWorkoutWeightDialog = false) }
+    }
+
+    fun submitPostWorkoutWeight(weightKg: Float, onCloseWorkout: () -> Unit) {
+        viewModelScope.launch {
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val preWeight = _uiState.value.preWorkoutWeightKg
+            val delta = if (preWeight > 0f) (preWeight - weightKg).coerceAtLeast(0f) else 0f
+            val recommendedWater = if (delta > 0f) (delta * 1250).toInt() else 500
+            val now = System.currentTimeMillis()
+
+            try {
+                weightRepository.logWeight(
+                    memberId = userId,
+                    preWeightKg = if (preWeight > 0f) preWeight else weightKg,
+                    postWeightKg = weightKg,
+                    notes = "Post-workout checkout weigh-in",
+                    existingLogId = _uiState.value.todayWeightLogId,
+                    postRecordedAtEpochMs = now
+                ).collect {}
+            } catch (_: Exception) {}
+
+            try {
+                workoutReminderManager.showPostWorkoutHydrationNotification(delta, recommendedWater)
+            } catch (_: Exception) {}
+
+            _uiState.update {
+                it.copy(
+                    showPostWorkoutWeightDialog = false,
+                    postWorkoutWeightKg = weightKg,
+                    sweatLossKg = delta,
+                    recommendedWaterMl = recommendedWater
+                )
+            }
+
+            finalizeSessionAndClose(onCloseWorkout)
+        }
+    }
+
+    fun skipPostWorkoutWeight(onCloseWorkout: () -> Unit) {
+        _uiState.update { it.copy(showPostWorkoutWeightDialog = false) }
+        finalizeSessionAndClose(onCloseWorkout)
+    }
+
+    /**
+     * Finalizes the workout session, saves summary in Room DB, and navigates out.
+     */
+    private fun finalizeSessionAndClose(onCloseWorkout: () -> Unit) {
         viewModelScope.launch {
             val currentState = _uiState.value
             val userId = tokenManager.getUserIdSync() ?: "default_member"

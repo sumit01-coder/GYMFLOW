@@ -42,6 +42,10 @@ class WorkoutReminderReceiver : BroadcastReceiver() {
                 // Re-arm exact alarm for the same time tomorrow
                 reminderManager.scheduleNextDailyAlarm()
             }
+            WorkoutReminderManager.ACTION_SNOOZE_10M -> {
+                Log.d(TAG, "Snooze action tapped! Rescheduling alarm 10 minutes later...")
+                reminderManager.scheduleSnooze(10)
+            }
             else -> {
                 Log.w(TAG, "Unknown action received: $action")
             }
