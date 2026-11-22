@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
@@ -289,6 +290,28 @@ fun TrainerSettingsScreen(
                                     Text("UPI Payment & QR Settings", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TrainerDarkTextPrimary)
                                     val upiLabel = if (uiState.trainerUpiId.isNotBlank()) uiState.trainerUpiId else "Tap to configure UPI ID & QR for renewals"
                                     Text(upiLabel, fontSize = 11.sp, color = if (uiState.trainerUpiId.isNotBlank()) Color(0xFF4ADE80) else TrainerDarkTextSecondary)
+                                }
+                            }
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = TrainerDarkTextTertiary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    TrainerCard(
+                        contentPadding = 14.dp,
+                        onClick = { viewModel.openPricingDialog() }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Payments, contentDescription = null, tint = Color(0xFF60A5FA), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text("Membership Plan Rates / Fees", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TrainerDarkTextPrimary)
+                                    val pricingSummary = "1M: ₹${uiState.pricing1M.toInt()} · 3M: ₹${uiState.pricing3M.toInt()} · 6M: ₹${uiState.pricing6M.toInt()} · 12M: ₹${uiState.pricing12M.toInt()}"
+                                    Text(pricingSummary, fontSize = 11.sp, color = TrainerDarkTextSecondary)
                                 }
                             }
                             Icon(Icons.Default.Edit, contentDescription = null, tint = TrainerDarkTextTertiary, modifier = Modifier.size(16.dp))
@@ -648,6 +671,89 @@ fun TrainerSettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissUpiDialog() }) {
+                        Text("Cancel", color = TrainerDarkTextSecondary)
+                    }
+                },
+                containerColor = TrainerDarkCard,
+                textContentColor = TrainerDarkTextSecondary
+            )
+        }
+
+        // Dialog: Custom Membership Plan Pricing
+        if (uiState.isPricingDialogOpen) {
+            var temp1M by remember { mutableStateOf(uiState.pricing1M.toInt().toString()) }
+            var temp3M by remember { mutableStateOf(uiState.pricing3M.toInt().toString()) }
+            var temp6M by remember { mutableStateOf(uiState.pricing6M.toInt().toString()) }
+            var temp12M by remember { mutableStateOf(uiState.pricing12M.toInt().toString()) }
+
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissPricingDialog() },
+                title = {
+                    Text(
+                        text = "Custom Membership Plan Rates",
+                        color = TrainerDarkTextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Set your gym's official renewal pricing. These rates will automatically display to your members when renewing their membership.",
+                            fontSize = 12.sp,
+                            color = TrainerDarkTextSecondary
+                        )
+
+                        Text("1 Month Pass (₹)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
+                        GymFlowTextField(
+                            value = temp1M,
+                            onValueChange = { temp1M = it.filter { c -> c.isDigit() } },
+                            placeholder = "1500",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Text("3 Months Pass (₹)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
+                        GymFlowTextField(
+                            value = temp3M,
+                            onValueChange = { temp3M = it.filter { c -> c.isDigit() } },
+                            placeholder = "4000",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Text("6 Months Pass (₹)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
+                        GymFlowTextField(
+                            value = temp6M,
+                            onValueChange = { temp6M = it.filter { c -> c.isDigit() } },
+                            placeholder = "7500",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Text("12 Months Annual Pass (₹)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
+                        GymFlowTextField(
+                            value = temp12M,
+                            onValueChange = { temp12M = it.filter { c -> c.isDigit() } },
+                            placeholder = "14000",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val p1 = temp1M.toDoubleOrNull() ?: 1500.0
+                            val p3 = temp3M.toDoubleOrNull() ?: 4000.0
+                            val p6 = temp6M.toDoubleOrNull() ?: 7500.0
+                            val p12 = temp12M.toDoubleOrNull() ?: 14000.0
+                            viewModel.updatePricing(p1, p3, p6, p12)
+                        }
+                    ) {
+                        Text("Save Plan Rates", color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissPricingDialog() }) {
                         Text("Cancel", color = TrainerDarkTextSecondary)
                     }
                 },

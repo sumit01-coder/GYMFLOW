@@ -80,9 +80,13 @@ class TrainerJoinCodeViewModel(
 
     private fun observeConnectedAthletes() {
         val dao = userDao ?: return
+        val trainerId = tokenManager?.getUserIdSync() ?: ""
+        val trainerEmail = tokenManager?.getEmail() ?: ""
         viewModelScope.launch {
             dao.getConnectedAthletesFlow().collect { athletes ->
-                val requests = athletes.map { athlete ->
+                val requests = athletes.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }.map { athlete ->
                     PendingConnectionRequest(
                         id = athlete.id,
                         memberName = athlete.name.ifBlank { "Athlete" },

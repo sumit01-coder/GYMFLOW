@@ -80,7 +80,9 @@ fun WorkoutPlanBuilderScreen(
     val daysOrder = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
     LaunchedEffect(initialMemberId) {
-        viewModel.selectMember(initialMemberId)
+        if (initialMemberId.isNotBlank()) {
+            viewModel.selectMember(initialMemberId)
+        }
     }
 
     TrainerTheme {

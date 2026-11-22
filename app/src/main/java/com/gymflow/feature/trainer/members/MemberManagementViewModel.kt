@@ -80,8 +80,12 @@ class MemberManagementViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             gymMemberRepository.seedInitialMembersIfEmpty()
-            val trainerId = tokenManager.getUserIdSync()
-            if (!trainerId.isNullOrBlank()) {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            val trainerEmail = tokenManager.getEmail() ?: ""
+            if (trainerId.isNotBlank() || trainerEmail.isNotBlank()) {
+                gymMemberRepository.removeTrainerFromMembers(trainerId, trainerEmail)
+            }
+            if (trainerId.isNotBlank()) {
                 try {
                     firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
                 } catch (_: Exception) {}
@@ -90,9 +94,17 @@ class MemberManagementViewModel @Inject constructor(
                 gymMemberRepository.getAllMembers(),
                 userDao.getConnectedAthletesFlow()
             ) { members, athletes ->
-                val memberIds = members.map { it.id }.toSet()
+                val filteredMembers = members.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }
+                val memberIds = filteredMembers.map { it.id }.toSet()
                 val athleteAsMembers = athletes
-                    .filter { it.id !in memberIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
+                    .filter {
+                        it.id != trainerId &&
+                        (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true)) &&
+                        it.id !in memberIds &&
+                        (it.connectedTrainerId != null || it.role == Role.MEMBER)
+                    }
                     .map { athlete ->
                         GymMember(
                             id = athlete.id,
@@ -112,7 +124,7 @@ class MemberManagementViewModel @Inject constructor(
                             isActive = true
                         )
                     }
-                members + athleteAsMembers
+                filteredMembers + athleteAsMembers
             }.collect { list ->
                 _uiState.update { it.copy(members = list) }
             }
@@ -237,6 +249,14 @@ class MemberManagementViewModel @Inject constructor(
     fun markReminderSent(memberId: String) {
         viewModelScope.launch {
             gymMemberRepository.markRenewalReminderSent(memberId)
+        }
+    }
+
+    fun revokeMembership(memberId: String) {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            gymMemberRepository.revokeMembership(memberId, "Revoked by trainer")
+            firestoreSyncManager.revokeMemberMembership(trainerId, memberId, "Revoked by trainer")
         }
     }
 }

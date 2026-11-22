@@ -148,6 +148,8 @@ class TrainerDashboardViewModel @Inject constructor(
 
     private fun observeRealMembers() {
         viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            val trainerEmail = tokenManager.getEmail() ?: ""
             val startOfToday = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
@@ -160,32 +162,44 @@ class TrainerDashboardViewModel @Inject constructor(
                 userDao.getConnectedAthletesFlow(),
                 workoutSessionDao.getAllCompletedSessionsFlow()
             ) { members, athletes, sessions ->
-                val existingIds = members.map { it.id }.toSet()
-                // Sync any athlete from UserDao not yet registered in gym_members
-                athletes.filter { it.id !in existingIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
-                    .forEach { athlete ->
-                        val newMember = GymMember(
-                            id = athlete.id,
-                            name = athlete.name.ifBlank { "Athlete" },
-                            phoneNumber = "",
-                            email = athlete.email,
-                            assignedTrainerId = athlete.connectedTrainerId,
-                            assignedTrainerName = _uiState.value.coachName,
-                            duration = MembershipDuration.ONE_MONTH,
-                            startDateEpochMs = athlete.createdAtEpochMs,
-                            endDateEpochMs = athlete.createdAtEpochMs + (30L * 24 * 60 * 60 * 1000),
-                            feeAmount = 1500.0,
-                            amountPaid = 1500.0,
-                            paymentStatus = PaymentStatus.PAID,
-                            paymentMethod = PaymentMethod.UPI,
-                            notes = "Connected athlete",
-                            isActive = true
-                        )
-                        gymMemberRepository.addMember(newMember)
-                    }
+                val filteredMembers = members.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }
+                val existingIds = filteredMembers.map { it.id }.toSet()
+                // Sync any athlete from UserDao not yet registered in gym_members (excluding coach themselves)
+                athletes.filter {
+                    it.id != trainerId &&
+                    (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true)) &&
+                    it.id !in existingIds &&
+                    (it.connectedTrainerId != null || it.role == Role.MEMBER)
+                }.forEach { athlete ->
+                    val newMember = GymMember(
+                        id = athlete.id,
+                        name = athlete.name.ifBlank { "Athlete" },
+                        phoneNumber = "",
+                        email = athlete.email,
+                        assignedTrainerId = athlete.connectedTrainerId,
+                        assignedTrainerName = _uiState.value.coachName,
+                        duration = MembershipDuration.ONE_MONTH,
+                        startDateEpochMs = athlete.createdAtEpochMs,
+                        endDateEpochMs = athlete.createdAtEpochMs + (30L * 24 * 60 * 60 * 1000),
+                        feeAmount = 1500.0,
+                        amountPaid = 1500.0,
+                        paymentStatus = PaymentStatus.PAID,
+                        paymentMethod = PaymentMethod.UPI,
+                        notes = "Connected athlete",
+                        isActive = true
+                    )
+                    gymMemberRepository.addMember(newMember)
+                }
 
                 val athleteAsMembers = athletes
-                    .filter { it.id !in existingIds && (it.connectedTrainerId != null || it.role == Role.MEMBER) }
+                    .filter {
+                        it.id != trainerId &&
+                        (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true)) &&
+                        it.id !in existingIds &&
+                        (it.connectedTrainerId != null || it.role == Role.MEMBER)
+                    }
                     .map { athlete ->
                         GymMember(
                             id = athlete.id,
@@ -206,7 +220,7 @@ class TrainerDashboardViewModel @Inject constructor(
                         )
                     }
 
-                val allMembers = members + athleteAsMembers
+                val allMembers = filteredMembers + athleteAsMembers
                 val total = allMembers.size
                 val active = allMembers.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID }
                 val pending = allMembers.count { it.paymentStatus != PaymentStatus.PAID }

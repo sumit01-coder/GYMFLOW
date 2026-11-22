@@ -72,7 +72,9 @@ data class ProfileUiState(
     val targetUpiId: String = "",
     val targetUpiPayeeName: String = "",
     val isOrderSubmitted: Boolean = false,
-    val submittedUtr: String? = null
+    val submittedUtr: String? = null,
+    val isUpiConfigured: Boolean = false,
+    val customPricing: Map<Int, Double> = mapOf(1 to 1500.0, 3 to 4000.0, 6 to 7500.0, 12 to 14000.0)
 )
 
 @HiltViewModel
@@ -239,14 +241,20 @@ class ProfileViewModel @Inject constructor(
         val newOrderId = UpiPaymentHelper.generateOrderId()
         val trainerUpi = tokenManager.getConnectedTrainerUpiId()
             ?: tokenManager.getTrainerUpiId()
-            ?: "gymflow@upi"
+            ?: ""
+        val isConfigured = trainerUpi.isNotBlank() &&
+                UpiPaymentHelper.isValidUpiId(trainerUpi) &&
+                !trainerUpi.equals("gymflow@upi", ignoreCase = true)
         val trainerName = tokenManager.getConnectedTrainerName() ?: _uiState.value.gymName
+        val pricing = tokenManager.getConnectedTrainerPricing()
         _uiState.update {
             it.copy(
                 isRenewalDialogOpen = true,
                 currentOrderId = newOrderId,
-                targetUpiId = trainerUpi,
+                targetUpiId = if (isConfigured) trainerUpi else "",
                 targetUpiPayeeName = trainerName,
+                isUpiConfigured = isConfigured,
+                customPricing = pricing,
                 isOrderSubmitted = false,
                 submittedUtr = null,
                 renewalSuccessMessage = null

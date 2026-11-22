@@ -28,6 +28,11 @@ data class TrainerSettingsUiState(
     val trainerUpiId: String = "",
     val trainerUpiName: String = "",
     val isUpiDialogOpen: Boolean = false,
+    val pricing1M: Double = 1500.0,
+    val pricing3M: Double = 4000.0,
+    val pricing6M: Double = 7500.0,
+    val pricing12M: Double = 14000.0,
+    val isPricingDialogOpen: Boolean = false,
     val totalMembers: Int = 0,
     val activePlansCount: Int = 0,
     val workoutCompletionNotifications: Boolean = true,
@@ -56,16 +61,49 @@ class TrainerSettingsViewModel @Inject constructor(
     val uiState: StateFlow<TrainerSettingsUiState> = _uiState.asStateFlow()
 
     init {
+        val currentPricing = tokenManager.getMembershipPricing()
         _uiState.update {
             it.copy(
                 gymAffiliation = tokenManager.getGymName(),
                 trainerUpiId = tokenManager.getTrainerUpiId() ?: "",
-                trainerUpiName = tokenManager.getTrainerUpiName() ?: tokenManager.getName() ?: ""
+                trainerUpiName = tokenManager.getTrainerUpiName() ?: tokenManager.getName() ?: "",
+                pricing1M = currentPricing[1] ?: 1500.0,
+                pricing3M = currentPricing[3] ?: 4000.0,
+                pricing6M = currentPricing[6] ?: 7500.0,
+                pricing12M = currentPricing[12] ?: 14000.0
             )
         }
         observeCoachInfo()
         syncConnectedMembersFromCloud()
         observeStudioMembersAndPlans()
+    }
+
+    fun openPricingDialog() {
+        _uiState.update { it.copy(isPricingDialogOpen = true) }
+    }
+
+    fun dismissPricingDialog() {
+        _uiState.update { it.copy(isPricingDialogOpen = false) }
+    }
+
+    fun updatePricing(p1: Double, p3: Double, p6: Double, p12: Double) {
+        tokenManager.saveMembershipPricing(p1, p3, p6, p12)
+        _uiState.update {
+            it.copy(
+                pricing1M = p1,
+                pricing3M = p3,
+                pricing6M = p6,
+                pricing12M = p12,
+                isPricingDialogOpen = false
+            )
+        }
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            firestoreSyncManager.updateTrainerMembershipPricing(
+                trainerId = trainerId,
+                pricing = mapOf("1" to p1, "3" to p3, "6" to p6, "12" to p12)
+            )
+        }
     }
 
     fun openGymNameDialog() {
@@ -124,12 +162,19 @@ class TrainerSettingsViewModel @Inject constructor(
     private fun observeStudioMembersAndPlans() {
         viewModelScope.launch {
             val trainerId = tokenManager.getUserIdSync() ?: ""
+            val trainerEmail = tokenManager.getEmail() ?: ""
             combine(
                 gymMemberRepository.getAllMembers(),
                 userDao.getConnectedAthletesFlow(),
                 planDao.getPlansForTrainer(trainerId)
             ) { members, athletes, plans ->
-                val allMemberIds = (members.map { it.id } + athletes.map { it.id }).toSet()
+                val filteredMembers = members.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }
+                val filteredAthletes = athletes.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }
+                val allMemberIds = (filteredMembers.map { it.id } + filteredAthletes.map { it.id }).toSet()
                 val total = allMemberIds.size
                 val activePlans = plans.count { it.isActive }
                 _uiState.update {

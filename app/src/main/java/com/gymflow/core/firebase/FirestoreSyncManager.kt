@@ -60,7 +60,8 @@ class FirestoreSyncManager @Inject constructor(
     private val weightDao: WeightDao,
     private val planDao: PlanDao,
     private val dailyStepsDao: DailyStepsDao,
-    private val outdoorWorkoutDao: OutdoorWorkoutDao
+    private val outdoorWorkoutDao: OutdoorWorkoutDao,
+    private val tokenManager: com.gymflow.core.security.TokenManager
 ) {
 
     companion object {
@@ -946,6 +947,14 @@ class FirestoreSyncManager @Inject constructor(
                 val gymName = trainerDoc.getString("gymName") ?: "GymFlow Fitness Center"
                 val code = trainerDoc.getString("currentInviteCode") ?: ""
                 val upi = trainerDoc.getString("upiId") ?: ""
+                val pMap = trainerDoc.get("membershipPricing") as? Map<*, *>
+                if (pMap != null) {
+                    val p1 = (pMap["1"] as? Number)?.toDouble() ?: 1500.0
+                    val p3 = (pMap["3"] as? Number)?.toDouble() ?: 4000.0
+                    val p6 = (pMap["6"] as? Number)?.toDouble() ?: 7500.0
+                    val p12 = (pMap["12"] as? Number)?.toDouble() ?: 14000.0
+                    tokenManager.saveConnectedTrainerPricing(p1, p3, p6, p12)
+                }
                 CloudTrainerInfo(trainerId, name, gymName, code, upi)
             } else {
                 val userDoc = firestore.collection(COLLECTION_USERS)
@@ -980,13 +989,23 @@ class FirestoreSyncManager @Inject constructor(
 
                 for (doc in subSnapshot.documents) {
                     val mId = doc.getString("id") ?: doc.id
-                    if (mId.isBlank() || mId in seenMemberIds) continue
+                    if (mId.isBlank() || mId in seenMemberIds || mId == trainerId) continue
                     seenMemberIds.add(mId)
                     val mName = doc.getString("name") ?: "Athlete"
                     val mEmail = doc.getString("email") ?: ""
                     val mPhone = doc.getString("phoneNumber") ?: ""
                     val joinedAt = doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis()
                     val code = doc.getString("invitationCode") ?: ""
+
+                    var durationMonths = doc.getLong("durationMonths")?.toInt() ?: 1
+                    var startDate = doc.getLong("startDateEpochMs") ?: joinedAt
+                    var endDate = doc.getLong("endDateEpochMs") ?: (startDate + (durationMonths * 30L * 24 * 60 * 60 * 1000))
+                    var feeAmount = doc.getDouble("feeAmount") ?: 1500.0
+                    var amountPaid = doc.getDouble("amountPaid") ?: feeAmount
+                    var paymentStatus = doc.getString("paymentStatus") ?: "PAID"
+                    var paymentMethod = doc.getString("paymentMethod") ?: "UPI"
+                    var isActive = doc.getBoolean("isActive") ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
+                    var notes = doc.getString("notes") ?: if (code.isNotBlank()) "Joined via Code: $code" else "Connected athlete"
 
                     var height = (doc.getDouble("heightCm") ?: 0.0).toFloat()
                     var weight = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat()
@@ -1000,6 +1019,18 @@ class FirestoreSyncManager @Inject constructor(
                             if (weight == 0f) weight = (uDoc.getDouble("currentWeightKg") ?: 0.0).toFloat()
                             if (goal == "General Fitness") goal = uDoc.getString("fitnessGoal") ?: goal
                             if (age == 0) age = (uDoc.getLong("age") ?: 0L).toInt()
+                            val memMap = uDoc.get("membership") as? Map<*, *>
+                            if (memMap != null) {
+                                durationMonths = (memMap["durationMonths"] as? Number)?.toInt() ?: durationMonths
+                                startDate = (memMap["startDateEpochMs"] as? Number)?.toLong() ?: startDate
+                                endDate = (memMap["endDateEpochMs"] as? Number)?.toLong() ?: endDate
+                                feeAmount = (memMap["feeAmount"] as? Number)?.toDouble() ?: feeAmount
+                                amountPaid = (memMap["amountPaid"] as? Number)?.toDouble() ?: amountPaid
+                                paymentStatus = (memMap["paymentStatus"] as? String) ?: paymentStatus
+                                paymentMethod = (memMap["paymentMethod"] as? String) ?: paymentMethod
+                                isActive = (memMap["isActive"] as? Boolean) ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
+                                notes = (memMap["notes"] as? String) ?: notes
+                            }
                         }
                     } catch (_: Exception) {}
 
@@ -1025,15 +1056,15 @@ class FirestoreSyncManager @Inject constructor(
                         email = mEmail,
                         assignedTrainerId = trainerId,
                         assignedTrainerName = "Coach",
-                        durationMonths = 1,
-                        startDateEpochMs = joinedAt,
-                        endDateEpochMs = joinedAt + (30L * 24 * 60 * 60 * 1000),
-                        feeAmount = 1500.0,
-                        amountPaid = 1500.0,
-                        paymentStatus = "PAID",
-                        paymentMethod = "UPI",
-                        notes = if (code.isNotBlank()) "Joined via Code: $code" else "Connected athlete",
-                        isActive = true
+                        durationMonths = durationMonths,
+                        startDateEpochMs = startDate,
+                        endDateEpochMs = endDate,
+                        feeAmount = feeAmount,
+                        amountPaid = amountPaid,
+                        paymentStatus = paymentStatus,
+                        paymentMethod = paymentMethod,
+                        notes = notes,
+                        isActive = isActive
                     )
                     gymMemberDao.insertMember(gymMemberEntity)
                     membersList.add(gymMemberEntity)
@@ -1049,7 +1080,7 @@ class FirestoreSyncManager @Inject constructor(
 
                 for (doc in usersSnapshot.documents) {
                     val mId = doc.getString("id") ?: doc.id
-                    if (mId.isBlank() || mId in seenMemberIds) continue
+                    if (mId.isBlank() || mId in seenMemberIds || mId == trainerId) continue
                     seenMemberIds.add(mId)
                     val mName = doc.getString("name") ?: "Athlete"
                     val mEmail = doc.getString("email") ?: ""
@@ -1058,6 +1089,29 @@ class FirestoreSyncManager @Inject constructor(
                     val weight = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat()
                     val goal = doc.getString("fitnessGoal") ?: "General Fitness"
                     val age = (doc.getLong("age") ?: 0L).toInt()
+
+                    var durationMonths = 1
+                    var startDate = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+                    var endDate = startDate + (30L * 24 * 60 * 60 * 1000)
+                    var feeAmount = 1500.0
+                    var amountPaid = 1500.0
+                    var paymentStatus = "PAID"
+                    var paymentMethod = "UPI"
+                    var isActive = true
+                    var notes = "Connected athlete"
+
+                    val memMap = doc.get("membership") as? Map<*, *>
+                    if (memMap != null) {
+                        durationMonths = (memMap["durationMonths"] as? Number)?.toInt() ?: durationMonths
+                        startDate = (memMap["startDateEpochMs"] as? Number)?.toLong() ?: startDate
+                        endDate = (memMap["endDateEpochMs"] as? Number)?.toLong() ?: endDate
+                        feeAmount = (memMap["feeAmount"] as? Number)?.toDouble() ?: feeAmount
+                        amountPaid = (memMap["amountPaid"] as? Number)?.toDouble() ?: amountPaid
+                        paymentStatus = (memMap["paymentStatus"] as? String) ?: paymentStatus
+                        paymentMethod = (memMap["paymentMethod"] as? String) ?: paymentMethod
+                        isActive = (memMap["isActive"] as? Boolean) ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
+                        notes = (memMap["notes"] as? String) ?: notes
+                    }
 
                     val userEntity = UserEntity(
                         id = mId,
@@ -1081,15 +1135,15 @@ class FirestoreSyncManager @Inject constructor(
                         email = mEmail,
                         assignedTrainerId = trainerId,
                         assignedTrainerName = "Coach",
-                        durationMonths = 1,
-                        startDateEpochMs = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
-                        endDateEpochMs = (doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
-                        feeAmount = 1500.0,
-                        amountPaid = 1500.0,
-                        paymentStatus = "PAID",
-                        paymentMethod = "UPI",
-                        notes = "Connected athlete",
-                        isActive = true
+                        durationMonths = durationMonths,
+                        startDateEpochMs = startDate,
+                        endDateEpochMs = endDate,
+                        feeAmount = feeAmount,
+                        amountPaid = amountPaid,
+                        paymentStatus = paymentStatus,
+                        paymentMethod = paymentMethod,
+                        notes = notes,
+                        isActive = isActive
                     )
                     gymMemberDao.insertMember(gymMemberEntity)
                     membersList.add(gymMemberEntity)
@@ -1104,7 +1158,7 @@ class FirestoreSyncManager @Inject constructor(
                     .await()
                 val activeIds = (trainerDoc.get("activeMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                 for (mId in activeIds) {
-                    if (mId.isBlank() || mId in seenMemberIds) continue
+                    if (mId.isBlank() || mId in seenMemberIds || mId == trainerId) continue
                     seenMemberIds.add(mId)
                     val uDoc = firestore.collection(COLLECTION_USERS).document(mId).get().await()
                     if (uDoc.exists()) {
@@ -1115,6 +1169,29 @@ class FirestoreSyncManager @Inject constructor(
                         val weight = (uDoc.getDouble("currentWeightKg") ?: 0.0).toFloat()
                         val goal = uDoc.getString("fitnessGoal") ?: "General Fitness"
                         val age = (uDoc.getLong("age") ?: 0L).toInt()
+
+                        var durationMonths = 1
+                        var startDate = uDoc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+                        var endDate = startDate + (30L * 24 * 60 * 60 * 1000)
+                        var feeAmount = 1500.0
+                        var amountPaid = 1500.0
+                        var paymentStatus = "PAID"
+                        var paymentMethod = "UPI"
+                        var isActive = true
+                        var notes = "Connected athlete"
+
+                        val memMap = uDoc.get("membership") as? Map<*, *>
+                        if (memMap != null) {
+                            durationMonths = (memMap["durationMonths"] as? Number)?.toInt() ?: durationMonths
+                            startDate = (memMap["startDateEpochMs"] as? Number)?.toLong() ?: startDate
+                            endDate = (memMap["endDateEpochMs"] as? Number)?.toLong() ?: endDate
+                            feeAmount = (memMap["feeAmount"] as? Number)?.toDouble() ?: feeAmount
+                            amountPaid = (memMap["amountPaid"] as? Number)?.toDouble() ?: amountPaid
+                            paymentStatus = (memMap["paymentStatus"] as? String) ?: paymentStatus
+                            paymentMethod = (memMap["paymentMethod"] as? String) ?: paymentMethod
+                            isActive = (memMap["isActive"] as? Boolean) ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
+                            notes = (memMap["notes"] as? String) ?: notes
+                        }
 
                         val userEntity = UserEntity(
                             id = mId,
@@ -1138,15 +1215,15 @@ class FirestoreSyncManager @Inject constructor(
                             email = mEmail,
                             assignedTrainerId = trainerId,
                             assignedTrainerName = "Coach",
-                            durationMonths = 1,
-                            startDateEpochMs = uDoc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
-                            endDateEpochMs = (uDoc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
-                            feeAmount = 1500.0,
-                            amountPaid = 1500.0,
-                            paymentStatus = "PAID",
-                            paymentMethod = "UPI",
-                            notes = "Connected athlete",
-                            isActive = true
+                            durationMonths = durationMonths,
+                            startDateEpochMs = startDate,
+                            endDateEpochMs = endDate,
+                            feeAmount = feeAmount,
+                            amountPaid = amountPaid,
+                            paymentStatus = paymentStatus,
+                            paymentMethod = paymentMethod,
+                            notes = notes,
+                            isActive = isActive
                         )
                         gymMemberDao.insertMember(gymMemberEntity)
                         membersList.add(gymMemberEntity)
@@ -1430,6 +1507,18 @@ class FirestoreSyncManager @Inject constructor(
                     if (trainerDoc.exists()) {
                         gymName = trainerDoc.getString("gymName") ?: gymName
                         trainerName = trainerDoc.getString("name") ?: trainerName
+                        val upi = trainerDoc.getString("upiId")
+                        if (!upi.isNullOrBlank()) {
+                            tokenManager.saveConnectedTrainerUpiId(upi)
+                        }
+                        val pricingMap = trainerDoc.get("membershipPricing") as? Map<*, *>
+                        if (pricingMap != null) {
+                            val p1 = (pricingMap["1"] as? Number)?.toDouble() ?: 1500.0
+                            val p3 = (pricingMap["3"] as? Number)?.toDouble() ?: 4000.0
+                            val p6 = (pricingMap["6"] as? Number)?.toDouble() ?: 7500.0
+                            val p12 = (pricingMap["12"] as? Number)?.toDouble() ?: 14000.0
+                            tokenManager.saveConnectedTrainerPricing(p1, p3, p6, p12)
+                        }
                     }
                     val cmDoc = firestore.collection(COLLECTION_TRAINERS)
                         .document(trainerId)
@@ -1719,5 +1808,86 @@ class FirestoreSyncManager @Inject constructor(
         } catch (_: Exception) {
             false
         }
+    }
+
+    // 24. Update Trainer Membership Pricing (1M, 3M, 6M, 12M)
+    suspend fun updateTrainerMembershipPricing(
+        trainerId: String,
+        pricing: Map<String, Double>
+    ): Boolean {
+        if (trainerId.isBlank() || trainerId == "default_member") return false
+        return try {
+            val now = System.currentTimeMillis()
+            val pricingData = mapOf(
+                "membershipPricing" to pricing,
+                "lastUpdated" to now
+            )
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .set(pricingData, SetOptions.merge())
+                .await()
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 25. Revoke Member Membership Access
+    suspend fun revokeMemberMembership(
+        trainerId: String,
+        memberId: String,
+        reason: String = "Revoked by trainer"
+    ): Boolean {
+        if (memberId.isBlank() || memberId == "default_member") return false
+        val now = System.currentTimeMillis()
+        var success = false
+
+        // 1) Update Room local DB
+        try {
+            gymMemberDao.revokeMembership(memberId, now, reason)
+        } catch (_: Exception) {}
+
+        // 2) Update trainers/{trainerId}/connected_members/{memberId}
+        if (trainerId.isNotBlank() && trainerId != "default_member") {
+            try {
+                val revokeDoc = mapOf(
+                    "isActive" to false,
+                    "paymentStatus" to "REVOKED",
+                    "status" to "REVOKED",
+                    "endDateEpochMs" to now,
+                    "revokedAtEpochMs" to now,
+                    "notes" to reason
+                )
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .collection("connected_members")
+                    .document(memberId)
+                    .set(revokeDoc, SetOptions.merge())
+                    .await()
+                success = true
+            } catch (_: Exception) {}
+        }
+
+        // 3) Update users/{memberId}/membership
+        try {
+            val memberRevoke = mapOf(
+                "membership" to mapOf(
+                    "isActive" to false,
+                    "paymentStatus" to "REVOKED",
+                    "status" to "REVOKED",
+                    "endDateEpochMs" to now,
+                    "revokedAtEpochMs" to now,
+                    "notes" to reason
+                ),
+                "lastUpdated" to now
+            )
+            firestore.collection(COLLECTION_USERS)
+                .document(memberId)
+                .set(memberRevoke, SetOptions.merge())
+                .await()
+            success = true
+        } catch (_: Exception) {}
+
+        return success
     }
 }

@@ -52,6 +52,12 @@ interface GymMemberDao {
     @Query("UPDATE gym_members SET lastRenewalNotificationEpochMs = :timestamp WHERE id = :memberId")
     suspend fun updateRenewalNotificationSent(memberId: String, timestamp: Long)
 
+    @Query("UPDATE gym_members SET isActive = 0, paymentStatus = 'EXPIRED', endDateEpochMs = :expiredEpochMs, notes = :notes WHERE id = :memberId")
+    suspend fun revokeMembership(memberId: String, expiredEpochMs: Long, notes: String = "Revoked by trainer")
+
+    @Query("DELETE FROM gym_members WHERE id = :trainerId OR email = :trainerEmail")
+    suspend fun removeTrainerFromMembers(trainerId: String, trainerEmail: String)
+
     @Query("SELECT COUNT(*) FROM gym_members")
     suspend fun getMemberCount(): Int
 }

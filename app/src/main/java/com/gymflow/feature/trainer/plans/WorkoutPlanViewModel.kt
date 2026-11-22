@@ -143,8 +143,9 @@ class WorkoutPlanViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val trainerId = tokenManager.getUserIdSync()
-            if (!trainerId.isNullOrBlank()) {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            val trainerEmail = tokenManager.getEmail() ?: ""
+            if (trainerId.isNotBlank()) {
                 try {
                     firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
                 } catch (_: Exception) {}
@@ -155,8 +156,10 @@ class WorkoutPlanViewModel @Inject constructor(
             ) { members, athletes ->
                 val allMemberMap = linkedMapOf<String, MemberOption>()
 
-                // 1. Members from GymMemberRepository
-                members.forEach { member ->
+                // 1. Members from GymMemberRepository (filter out coach themselves)
+                members.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }.forEach { member ->
                     allMemberMap[member.id] = MemberOption(
                         id = member.id,
                         name = member.name,
@@ -164,8 +167,10 @@ class WorkoutPlanViewModel @Inject constructor(
                     )
                 }
 
-                // 2. Connected Athletes from UserDao
-                athletes.forEach { athlete ->
+                // 2. Connected Athletes from UserDao (filter out coach themselves)
+                athletes.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }.forEach { athlete ->
                     if (!allMemberMap.containsKey(athlete.id)) {
                         allMemberMap[athlete.id] = MemberOption(
                             id = athlete.id,

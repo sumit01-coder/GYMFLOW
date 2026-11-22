@@ -48,6 +48,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -1333,12 +1334,20 @@ fun MemberProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
+                        val f1 = uiState.customPricing[1] ?: 1500.0
+                        val f3 = uiState.customPricing[3] ?: 4000.0
+                        val f6 = uiState.customPricing[6] ?: 7500.0
+                        val f12 = uiState.customPricing[12] ?: 14000.0
                         val planOptions = listOf(
-                            Triple(1, "1 Month Pass", 1500.0),
-                            Triple(3, "3 Months Pass (Save ₹500)", 4000.0),
-                            Triple(6, "6 Months Pass (Save ₹1,500)", 7500.0),
-                            Triple(12, "12 Months Annual Pass (Best Value)", 14000.0)
+                            Triple(1, "1 Month Pass", f1),
+                            Triple(3, "3 Months Pass", f3),
+                            Triple(6, "6 Months Pass", f6),
+                            Triple(12, "12 Months Annual Pass", f12)
                         )
+
+                        LaunchedEffect(uiState.customPricing, selectedDurationMonths) {
+                            selectedFee = uiState.customPricing[selectedDurationMonths] ?: selectedFee
+                        }
 
                         planOptions.forEach { (months, label, fee) ->
                             val isSelected = selectedDurationMonths == months
@@ -1432,91 +1441,119 @@ fun MemberProfileScreen(
                         if (selectedPaymentMethod == "UPI") {
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            // Payee & One-Tap UPI Launch
-                            Text(
-                                text = "PAY TO: $payeeName ($payeeUpi)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = GymFlowTheme.colors.textSecondary
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            GymFlowButton(
-                                text = "Pay ₹${selectedFee.toInt()} via UPI App (GPay/PhonePe)",
-                                onClick = {
-                                    try {
-                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(upiUri))
-                                        val chooser = Intent.createChooser(intent, "Pay ₹${selectedFee.toInt()} via UPI")
-                                        context.startActivity(chooser)
-                                    } catch (_: Exception) {}
-                                },
-                                style = GymFlowButtonStyle.PRIMARY,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Toggle QR Code Button
-                            TextButton(
-                                onClick = { showQrCode = !showQrCode },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = if (showQrCode) "▲ Hide QR Code" else "▼ Scan Dynamic UPI QR Code",
-                                    color = GymFlowTheme.colors.accentActive,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
-
-                            if (showQrCode && qrBitmap != null) {
+                            if (!uiState.isUpiConfigured) {
+                                // Intelligent UPI Unconfigured Warning Banner
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    contentAlignment = Alignment.Center
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFFFEF3C7))
+                                        .border(1.dp, Color(0xFFF59E0B), RoundedCornerShape(10.dp))
+                                        .padding(14.dp)
                                 ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(180.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White)
-                                                .padding(8.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Image(
-                                                bitmap = qrBitmap.asImageBitmap(),
-                                                contentDescription = "Renewal UPI QR Code",
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        }
+                                    Column {
+                                        Text(
+                                            text = "⚠️ UPI Not Set Up by Trainer / Owner",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = Color(0xFF92400E)
+                                        )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "Scan with Google Pay, PhonePe or Paytm",
-                                            fontSize = 11.sp,
-                                            color = GymFlowTheme.colors.textSecondary
+                                            text = "Your gym coach or owner has not created/configured their UPI ID yet. Online UPI renewal is unavailable until they set up their UPI in Trainer Settings.\n\nPlease contact your trainer/owner, or choose 'Gym Desk Cash' above to renew in person at the front desk.",
+                                            fontSize = 12.sp,
+                                            color = Color(0xFF78350F),
+                                            lineHeight = 17.sp
                                         )
                                     }
                                 }
+                            } else {
+                                // Payee & One-Tap UPI Launch
+                                Text(
+                                    text = "PAY TO: $payeeName ($payeeUpi)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = GymFlowTheme.colors.textSecondary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                GymFlowButton(
+                                    text = "Pay ₹${selectedFee.toInt()} via UPI App (GPay/PhonePe)",
+                                    onClick = {
+                                        try {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(upiUri))
+                                            val chooser = Intent.createChooser(intent, "Pay ₹${selectedFee.toInt()} via UPI")
+                                            context.startActivity(chooser)
+                                        } catch (_: Exception) {}
+                                    },
+                                    style = GymFlowButtonStyle.PRIMARY,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Toggle QR Code Button
+                                TextButton(
+                                    onClick = { showQrCode = !showQrCode },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = if (showQrCode) "▲ Hide QR Code" else "▼ Scan Dynamic UPI QR Code",
+                                        color = GymFlowTheme.colors.accentActive,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+
+                                if (showQrCode && qrBitmap != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(180.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(Color.White)
+                                                    .padding(8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Image(
+                                                    bitmap = qrBitmap.asImageBitmap(),
+                                                    contentDescription = "Renewal UPI QR Code",
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Scan with Google Pay, PhonePe or Paytm",
+                                                fontSize = 11.sp,
+                                                color = GymFlowTheme.colors.textSecondary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // UTR / Reference Input
+                                Text(
+                                    text = "ENTER 12-DIGIT UPI REFERENCE / UTR",
+                                    style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
+                                    color = GymFlowTheme.colors.textSecondary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                GymFlowTextField(
+                                    value = utrNumberInput,
+                                    onValueChange = { utrNumberInput = it.filter { c -> c.isLetterOrDigit() }.take(20) },
+                                    placeholder = "e.g. 432109876543 (from bank/app SMS)",
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // UTR / Reference Input
-                            Text(
-                                text = "ENTER 12-DIGIT UPI REFERENCE / UTR",
-                                style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
-                                color = GymFlowTheme.colors.textSecondary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            GymFlowTextField(
-                                value = utrNumberInput,
-                                onValueChange = { utrNumberInput = it.filter { c -> c.isLetterOrDigit() }.take(20) },
-                                placeholder = "e.g. 432109876543 (from bank/app SMS)",
-                                modifier = Modifier.fillMaxWidth()
-                            )
                         } else {
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
@@ -1532,12 +1569,17 @@ fun MemberProfileScreen(
                 if (!uiState.isOrderSubmitted) {
                     if (selectedPaymentMethod == "UPI") {
                         val isUtrValid = UpiPaymentHelper.isValidUtr(utrNumberInput)
+                        val btnText = when {
+                            !uiState.isUpiConfigured -> "UPI Setup Required by Trainer"
+                            uiState.isRenewing -> "Submitting..."
+                            else -> "Submit Payment Proof"
+                        }
                         GymFlowButton(
-                            text = if (uiState.isRenewing) "Submitting..." else "Submit Payment Proof",
+                            text = btnText,
                             onClick = {
                                 viewModel.submitUpiRenewalOrder(selectedDurationMonths, selectedFee, utrNumberInput)
                             },
-                            enabled = isUtrValid && !uiState.isRenewing
+                            enabled = uiState.isUpiConfigured && isUtrValid && !uiState.isRenewing
                         )
                     } else {
                         GymFlowButton(

@@ -254,6 +254,10 @@ class TokenManager @Inject constructor(
     fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)
     fun getConnectedTrainerUpiId(): String? = prefs.getString(KEY_CONNECTED_TRAINER_UPI_ID, null)
 
+    fun saveConnectedTrainerUpiId(upiId: String) {
+        prefs.edit().putString(KEY_CONNECTED_TRAINER_UPI_ID, upiId.trim()).apply()
+    }
+
     fun saveTrainerUpiId(upiId: String) {
         prefs.edit().putString(KEY_TRAINER_UPI_ID, upiId.trim()).apply()
     }
@@ -265,6 +269,40 @@ class TokenManager @Inject constructor(
     }
 
     fun getTrainerUpiName(): String? = prefs.getString(KEY_TRAINER_UPI_NAME, null)
+
+    fun saveMembershipPricing(p1: Double, p3: Double, p6: Double, p12: Double) {
+        prefs.edit()
+            .putFloat(KEY_MEMBERSHIP_FEE_1M, p1.toFloat())
+            .putFloat(KEY_MEMBERSHIP_FEE_3M, p3.toFloat())
+            .putFloat(KEY_MEMBERSHIP_FEE_6M, p6.toFloat())
+            .putFloat(KEY_MEMBERSHIP_FEE_12M, p12.toFloat())
+            .apply()
+    }
+
+    fun getMembershipPricing(): Map<Int, Double> {
+        val p1 = prefs.getFloat(KEY_MEMBERSHIP_FEE_1M, 1500f).toDouble()
+        val p3 = prefs.getFloat(KEY_MEMBERSHIP_FEE_3M, 4000f).toDouble()
+        val p6 = prefs.getFloat(KEY_MEMBERSHIP_FEE_6M, 7500f).toDouble()
+        val p12 = prefs.getFloat(KEY_MEMBERSHIP_FEE_12M, 14000f).toDouble()
+        return mapOf(1 to p1, 3 to p3, 6 to p6, 12 to p12)
+    }
+
+    fun saveConnectedTrainerPricing(p1: Double, p3: Double, p6: Double, p12: Double) {
+        prefs.edit()
+            .putFloat(KEY_CONNECTED_TRAINER_FEE_1M, p1.toFloat())
+            .putFloat(KEY_CONNECTED_TRAINER_FEE_3M, p3.toFloat())
+            .putFloat(KEY_CONNECTED_TRAINER_FEE_6M, p6.toFloat())
+            .putFloat(KEY_CONNECTED_TRAINER_FEE_12M, p12.toFloat())
+            .apply()
+    }
+
+    fun getConnectedTrainerPricing(): Map<Int, Double> {
+        val p1 = prefs.getFloat(KEY_CONNECTED_TRAINER_FEE_1M, 1500f).toDouble()
+        val p3 = prefs.getFloat(KEY_CONNECTED_TRAINER_FEE_3M, 4000f).toDouble()
+        val p6 = prefs.getFloat(KEY_CONNECTED_TRAINER_FEE_6M, 7500f).toDouble()
+        val p12 = prefs.getFloat(KEY_CONNECTED_TRAINER_FEE_12M, 14000f).toDouble()
+        return mapOf(1 to p1, 3 to p3, 6 to p6, 12 to p12)
+    }
 
     fun saveGymName(gymName: String) {
         prefs.edit().putString(KEY_GYM_NAME, gymName.trim()).apply()
@@ -316,5 +354,13 @@ class TokenManager @Inject constructor(
         private const val KEY_CONNECTED_TRAINER_UPI_ID = "connected_trainer_upi_id"
         private const val KEY_TRAINER_UPI_ID = "trainer_upi_id"
         private const val KEY_TRAINER_UPI_NAME = "trainer_upi_name"
+        private const val KEY_MEMBERSHIP_FEE_1M = "pricing_1_month"
+        private const val KEY_MEMBERSHIP_FEE_3M = "pricing_3_months"
+        private const val KEY_MEMBERSHIP_FEE_6M = "pricing_6_months"
+        private const val KEY_MEMBERSHIP_FEE_12M = "pricing_12_months"
+        private const val KEY_CONNECTED_TRAINER_FEE_1M = "conn_pricing_1_month"
+        private const val KEY_CONNECTED_TRAINER_FEE_3M = "conn_pricing_3_months"
+        private const val KEY_CONNECTED_TRAINER_FEE_6M = "conn_pricing_6_months"
+        private const val KEY_CONNECTED_TRAINER_FEE_12M = "conn_pricing_12_months"
     }
 }

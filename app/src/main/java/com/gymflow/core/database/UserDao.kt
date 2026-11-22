@@ -32,10 +32,10 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE role = 'TRAINER' LIMIT 1")
     fun getPrimaryTrainerFlow(): Flow<UserEntity?>
 
-    @Query("SELECT * FROM users WHERE role = 'MEMBER' OR connectedTrainerId IS NOT NULL")
+    @Query("SELECT * FROM users WHERE role != 'TRAINER' AND (role = 'MEMBER' OR connectedTrainerId IS NOT NULL)")
     suspend fun getConnectedAthletes(): List<UserEntity>
 
-    @Query("SELECT * FROM users WHERE role = 'MEMBER' OR connectedTrainerId IS NOT NULL")
+    @Query("SELECT * FROM users WHERE role != 'TRAINER' AND (role = 'MEMBER' OR connectedTrainerId IS NOT NULL)")
     fun getConnectedAthletesFlow(): Flow<List<UserEntity>>
 
     @Query("UPDATE users SET heightCm = :heightCm, currentWeightKg = :weightKg, fitnessGoal = :goal, lastUpdated = :now WHERE id = :id")

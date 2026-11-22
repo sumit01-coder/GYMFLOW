@@ -89,15 +89,23 @@ class TrainerAnalyticsViewModel(
         val wsDao = workoutSessionDao ?: return
 
         viewModelScope.launch {
+            val trainerId = tokenManager?.getUserIdSync() ?: ""
+            val trainerEmail = tokenManager?.getEmail() ?: ""
             combine(
                 repo.getAllMembers(),
                 uDao.getConnectedAthletesFlow(),
                 wsDao.getAllCompletedSessionsFlow()
             ) { gymMembers, athletes, sessions ->
-                val allMemberIds = (gymMembers.map { it.id } + athletes.map { it.id }).toSet()
+                val filteredGymMembers = gymMembers.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }
+                val filteredAthletes = athletes.filter {
+                    it.id != trainerId && (trainerEmail.isBlank() || !it.email.equals(trainerEmail, ignoreCase = true))
+                }
+                val allMemberIds = (filteredGymMembers.map { it.id } + filteredAthletes.map { it.id }).toSet()
                 val totalMembers = allMemberIds.size
-                val activeMembers = gymMembers.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID } +
-                        athletes.count { it.connectedTrainerId != null && it.id !in gymMembers.map { m -> m.id } }
+                val activeMembers = filteredGymMembers.count { !it.isExpired && it.paymentStatus == PaymentStatus.PAID } +
+                        filteredAthletes.count { it.connectedTrainerId != null && it.id !in filteredGymMembers.map { m -> m.id } }
 
                 val totalVolume = sessions.sumOf { it.totalVolumeKg.toDouble() }.toLong()
                 val completionRate = if (sessions.isNotEmpty()) 100 else 0

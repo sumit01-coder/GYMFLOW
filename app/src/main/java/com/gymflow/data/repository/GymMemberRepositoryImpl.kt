@@ -91,6 +91,14 @@ class GymMemberRepositoryImpl @Inject constructor(
         gymMemberDao.updateMember(updated)
     }
 
+    override suspend fun revokeMembership(memberId: String, reason: String) {
+        gymMemberDao.revokeMembership(memberId, System.currentTimeMillis(), reason)
+    }
+
+    override suspend fun removeTrainerFromMembers(trainerId: String, trainerEmail: String) {
+        gymMemberDao.removeTrainerFromMembers(trainerId, trainerEmail)
+    }
+
     override suspend fun deleteMember(memberId: String) {
         gymMemberDao.deleteMember(memberId)
     }

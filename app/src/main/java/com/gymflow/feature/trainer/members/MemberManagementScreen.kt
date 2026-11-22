@@ -8,6 +8,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -46,6 +48,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -100,6 +103,7 @@ fun MemberManagementScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val dateFormatter = remember { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()) }
+    var memberToRevoke by remember { mutableStateOf<GymMember?>(null) }
 
     TrainerTheme {
         Scaffold(
@@ -273,6 +277,7 @@ fun MemberManagementScreen(
                                 onMemberClick = { onMemberClick(member.id) },
                                 onSendWhatsApp = { viewModel.openWhatsAppPreview(member) },
                                 onRenewClick = { viewModel.openRenewDialog(member) },
+                                onRevokeClick = { memberToRevoke = member },
                                 onViewProgress = { onViewProgressClick(member.id) }
                             )
                         }
@@ -342,6 +347,58 @@ fun MemberManagementScreen(
                 }
             )
         }
+
+        // Dialog: Revoke Membership Confirmation
+        if (memberToRevoke != null) {
+            val member = memberToRevoke!!
+            AlertDialog(
+                onDismissRequest = { memberToRevoke = null },
+                title = {
+                    Text(
+                        text = "Revoke Membership?",
+                        fontWeight = FontWeight.Bold,
+                        color = TrainerDarkTextPrimary
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Are you sure you want to revoke gym membership for ${member.name}?",
+                            fontSize = 14.sp,
+                            color = TrainerDarkTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "• Pass validity will expire immediately\n• Member status will become REVOKED / EXPIRED\n• All apps will reflect 0 days remaining immediately",
+                            fontSize = 12.sp,
+                            color = Color(0xFFF87171),
+                            lineHeight = 18.sp
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.revokeMembership(member.id)
+                            memberToRevoke = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFDC2626),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Revoke Pass Now", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { memberToRevoke = null }) {
+                        Text("Cancel", color = TrainerDarkTextSecondary)
+                    }
+                },
+                containerColor = TrainerDarkCard
+            )
+        }
     }
 }
 
@@ -352,6 +409,7 @@ private fun MemberCardItem(
     onMemberClick: () -> Unit,
     onSendWhatsApp: () -> Unit,
     onRenewClick: () -> Unit,
+    onRevokeClick: () -> Unit,
     onViewProgress: () -> Unit
 ) {
     Box(
@@ -517,33 +575,34 @@ private fun MemberCardItem(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Action Row: WhatsApp Reminder & Quick Renew
+            // Action Row: WhatsApp Reminder, Quick Renew & Revoke
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Direct WhatsApp Button
                 val hasPhone = member.phoneNumber.isNotBlank()
                 Button(
                     onClick = onSendWhatsApp,
                     modifier = Modifier
-                        .weight(1.3f)
+                        .weight(1.2f)
                         .height(38.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (hasPhone) Color(0xFF25D366) else Color(0xFF27272A),
                         contentColor = if (hasPhone) Color.White else TrainerDarkTextSecondary
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Send,
                         contentDescription = "WhatsApp",
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = if (hasPhone) "WhatsApp Alert" else "No WhatsApp #",
-                        fontSize = 12.sp,
+                        text = if (hasPhone) "WhatsApp" else "No Phone",
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -552,24 +611,51 @@ private fun MemberCardItem(
                 Button(
                     onClick = onRenewClick,
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(0.9f)
                         .height(38.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF27272A),
                         contentColor = Color.White
-                    )
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Renew",
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Renew",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
+                    )
+                }
+
+                // Revoke Button
+                Button(
+                    onClick = onRevokeClick,
+                    modifier = Modifier
+                        .weight(0.9f)
+                        .height(38.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF3F1D1D),
+                        contentColor = Color(0xFFF87171)
+                    ),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Block,
+                        contentDescription = "Revoke",
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Revoke",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
