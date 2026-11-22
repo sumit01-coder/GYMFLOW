@@ -1,5 +1,8 @@
 package com.gymflow.feature.member.profile
 
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +66,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gymflow.core.util.QrCodeGenerator
+import com.gymflow.core.util.UpiPaymentHelper
 import com.gymflow.core.components.GymFlowBadge
 import com.gymflow.core.components.GymFlowBottomBar
 import com.gymflow.core.components.GymFlowButton
@@ -1229,144 +1235,329 @@ fun MemberProfileScreen(
 
     // Renew Membership Dialog
     if (uiState.isRenewalDialogOpen) {
+        val context = LocalContext.current
         var selectedDurationMonths by remember { mutableStateOf(1) }
         var selectedFee by remember { mutableStateOf(1500.0) }
         var selectedPaymentMethod by remember { mutableStateOf("UPI") }
+        var utrNumberInput by remember { mutableStateOf("") }
+        var showQrCode by remember { mutableStateOf(false) }
+
+        val activeOrderId = uiState.currentOrderId
+        val payeeUpi = uiState.targetUpiId.ifBlank { "gymflow@upi" }
+        val payeeName = uiState.targetUpiPayeeName.ifBlank { uiState.gymName }
+        val upiUri = remember(payeeUpi, payeeName, selectedFee, activeOrderId) {
+            UpiPaymentHelper.buildUpiPaymentUri(payeeUpi, payeeName, selectedFee, activeOrderId)
+        }
+        val qrBitmap = remember(upiUri) {
+            QrCodeGenerator.generateQrCodeBitmap(upiUri, sizePx = 400)
+        }
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissRenewalDialog() },
             title = {
-                Text(
-                    text = "Renew Gym Membership",
-                    style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
-                    color = GymFlowTheme.colors.textPrimary
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Renew Gym Membership",
+                        style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold),
+                        color = GymFlowTheme.colors.textPrimary
+                    )
+                }
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text(
-                        text = "Extend your active membership pass at ${uiState.gymName}.",
-                        style = GymFlowTheme.typography.BodySmall,
-                        color = GymFlowTheme.colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    // Order ID Header Badge
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(GymFlowTheme.colors.surfaceVariant)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "ORDER ID: $activeOrderId",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowTheme.colors.textSecondary,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "₹${selectedFee.toInt()}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GymFlowTheme.colors.accentActive
+                        )
+                    }
 
-                    Text(
-                        text = "SELECT PLAN",
-                        style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
-                        color = GymFlowTheme.colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                    val planOptions = listOf(
-                        Triple(1, "1 Month Pass", 1500.0),
-                        Triple(3, "3 Months Pass (Save ₹500)", 4000.0),
-                        Triple(6, "6 Months Pass (Save ₹1,500)", 7500.0),
-                        Triple(12, "12 Months Annual Pass (Best Value)", 14000.0)
-                    )
-
-                    planOptions.forEach { (months, label, fee) ->
-                        val isSelected = selectedDurationMonths == months
+                    if (uiState.isOrderSubmitted) {
+                        // Submitted confirmation banner
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(
-                                    if (isSelected) GymFlowTheme.colors.accentActive.copy(alpha = 0.1f)
-                                    else GymFlowTheme.colors.surfaceVariant
-                                )
-                                .border(
-                                    width = if (isSelected) 1.5.dp else 1.dp,
-                                    color = if (isSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.border,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .clickable {
-                                    selectedDurationMonths = months
-                                    selectedFee = fee
-                                }
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Color(0xFFECFDF5))
+                                .border(1.dp, Color(0xFFA7F3D0), RoundedCornerShape(10.dp))
+                                .padding(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column {
+                            Column {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF059669), modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = label,
-                                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                        color = GymFlowTheme.colors.textPrimary
-                                    )
-                                    Text(
-                                        text = "$months month${if (months > 1) "s" else ""} access",
-                                        style = GymFlowTheme.typography.Caption,
-                                        color = GymFlowTheme.colors.textSecondary
+                                        text = "Payment Proof Submitted",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF065F46)
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "₹${fee.toInt()}",
-                                    style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = if (isSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.textPrimary
+                                    text = "Order $activeOrderId is pending verification with your coach. Membership will update automatically upon approval.",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF047857)
                                 )
                             }
                         }
-                    }
+                    } else {
+                        Text(
+                            text = "SELECT PLAN",
+                            style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = "PAYMENT METHOD",
-                        style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
-                        color = GymFlowTheme.colors.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                        val planOptions = listOf(
+                            Triple(1, "1 Month Pass", 1500.0),
+                            Triple(3, "3 Months Pass (Save ₹500)", 4000.0),
+                            Triple(6, "6 Months Pass (Save ₹1,500)", 7500.0),
+                            Triple(12, "12 Months Annual Pass (Best Value)", 14000.0)
+                        )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        val upiSelected = selectedPaymentMethod == "UPI"
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (upiSelected) GymFlowTheme.colors.accentActive.copy(alpha = 0.1f) else GymFlowTheme.colors.surfaceVariant)
-                                .border(if (upiSelected) 1.5.dp else 1.dp, if (upiSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.border, RoundedCornerShape(8.dp))
-                                .clickable { selectedPaymentMethod = "UPI" }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("UPI / Online", style = GymFlowTheme.typography.BodySmall.copy(fontWeight = FontWeight.Bold), color = if (upiSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.textPrimary)
+                        planOptions.forEach { (months, label, fee) ->
+                            val isSelected = selectedDurationMonths == months
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (isSelected) GymFlowTheme.colors.accentActive.copy(alpha = 0.1f)
+                                        else GymFlowTheme.colors.surfaceVariant
+                                    )
+                                    .border(
+                                        width = if (isSelected) 1.5.dp else 1.dp,
+                                        color = if (isSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.border,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        selectedDurationMonths = months
+                                        selectedFee = fee
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 9.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = label,
+                                            style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                            color = GymFlowTheme.colors.textPrimary
+                                        )
+                                        Text(
+                                            text = "$months month${if (months > 1) "s" else ""} access",
+                                            style = GymFlowTheme.typography.Caption,
+                                            color = GymFlowTheme.colors.textSecondary
+                                        )
+                                    }
+                                    Text(
+                                        text = "₹${fee.toInt()}",
+                                        style = GymFlowTheme.typography.BodyMedium.copy(fontWeight = FontWeight.Bold),
+                                        color = if (isSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.textPrimary
+                                    )
+                                }
+                            }
                         }
 
-                        val cashSelected = selectedPaymentMethod == "CASH"
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (cashSelected) GymFlowTheme.colors.accentActive.copy(alpha = 0.1f) else GymFlowTheme.colors.surfaceVariant)
-                                .border(if (cashSelected) 1.5.dp else 1.dp, if (cashSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.border, RoundedCornerShape(8.dp))
-                                .clickable { selectedPaymentMethod = "CASH" }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "PAYMENT METHOD",
+                            style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.sp),
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Gym Desk Cash", style = GymFlowTheme.typography.BodySmall.copy(fontWeight = FontWeight.Bold), color = if (cashSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.textPrimary)
+                            val upiSelected = selectedPaymentMethod == "UPI"
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (upiSelected) GymFlowTheme.colors.accentActive.copy(alpha = 0.1f) else GymFlowTheme.colors.surfaceVariant)
+                                    .border(if (upiSelected) 1.5.dp else 1.dp, if (upiSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.border, RoundedCornerShape(8.dp))
+                                    .clickable { selectedPaymentMethod = "UPI" }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("UPI / QR Code", style = GymFlowTheme.typography.BodySmall.copy(fontWeight = FontWeight.Bold), color = if (upiSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.textPrimary)
+                            }
+
+                            val cashSelected = selectedPaymentMethod == "CASH"
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (cashSelected) GymFlowTheme.colors.accentActive.copy(alpha = 0.1f) else GymFlowTheme.colors.surfaceVariant)
+                                    .border(if (cashSelected) 1.5.dp else 1.dp, if (cashSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.border, RoundedCornerShape(8.dp))
+                                    .clickable { selectedPaymentMethod = "CASH" }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Gym Desk Cash", style = GymFlowTheme.typography.BodySmall.copy(fontWeight = FontWeight.Bold), color = if (cashSelected) GymFlowTheme.colors.accentActive else GymFlowTheme.colors.textPrimary)
+                            }
+                        }
+
+                        if (selectedPaymentMethod == "UPI") {
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            // Payee & One-Tap UPI Launch
+                            Text(
+                                text = "PAY TO: $payeeName ($payeeUpi)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            GymFlowButton(
+                                text = "Pay ₹${selectedFee.toInt()} via UPI App (GPay/PhonePe)",
+                                onClick = {
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(upiUri))
+                                        val chooser = Intent.createChooser(intent, "Pay ₹${selectedFee.toInt()} via UPI")
+                                        context.startActivity(chooser)
+                                    } catch (_: Exception) {}
+                                },
+                                style = GymFlowButtonStyle.PRIMARY,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Toggle QR Code Button
+                            TextButton(
+                                onClick = { showQrCode = !showQrCode },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = if (showQrCode) "▲ Hide QR Code" else "▼ Scan Dynamic UPI QR Code",
+                                    color = GymFlowTheme.colors.accentActive,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+
+                            if (showQrCode && qrBitmap != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(180.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(Color.White)
+                                                .padding(8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Image(
+                                                bitmap = qrBitmap.asImageBitmap(),
+                                                contentDescription = "Renewal UPI QR Code",
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Scan with Google Pay, PhonePe or Paytm",
+                                            fontSize = 11.sp,
+                                            color = GymFlowTheme.colors.textSecondary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // UTR / Reference Input
+                            Text(
+                                text = "ENTER 12-DIGIT UPI REFERENCE / UTR",
+                                style = GymFlowTheme.typography.Caption.copy(fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp),
+                                color = GymFlowTheme.colors.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            GymFlowTextField(
+                                value = utrNumberInput,
+                                onValueChange = { utrNumberInput = it.filter { c -> c.isLetterOrDigit() }.take(20) },
+                                placeholder = "e.g. 432109876543 (from bank/app SMS)",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Pay ₹${selectedFee.toInt()} directly in cash to your trainer at the front desk. Your membership will activate immediately upon confirmation.",
+                                fontSize = 12.sp,
+                                color = GymFlowTheme.colors.textSecondary
+                            )
                         }
                     }
                 }
             },
             confirmButton = {
-                GymFlowButton(
-                    text = if (uiState.isRenewing) "Renewing..." else "Confirm & Renew (₹${selectedFee.toInt()})",
-                    onClick = {
-                        viewModel.renewMembership(selectedDurationMonths, selectedFee, selectedPaymentMethod)
-                    },
-                    enabled = !uiState.isRenewing
-                )
+                if (!uiState.isOrderSubmitted) {
+                    if (selectedPaymentMethod == "UPI") {
+                        val isUtrValid = UpiPaymentHelper.isValidUtr(utrNumberInput)
+                        GymFlowButton(
+                            text = if (uiState.isRenewing) "Submitting..." else "Submit Payment Proof",
+                            onClick = {
+                                viewModel.submitUpiRenewalOrder(selectedDurationMonths, selectedFee, utrNumberInput)
+                            },
+                            enabled = isUtrValid && !uiState.isRenewing
+                        )
+                    } else {
+                        GymFlowButton(
+                            text = if (uiState.isRenewing) "Renewing..." else "Confirm Cash Renewal (₹${selectedFee.toInt()})",
+                            onClick = {
+                                viewModel.renewMembership(selectedDurationMonths, selectedFee, "CASH")
+                            },
+                            enabled = !uiState.isRenewing
+                        )
+                    }
+                } else {
+                    GymFlowButton(
+                        text = "Done",
+                        onClick = { viewModel.dismissRenewalDialog() }
+                    )
+                }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.dismissRenewalDialog() }) {
-                    Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                    Text(text = if (uiState.isOrderSubmitted) "Close" else "Cancel", color = GymFlowTheme.colors.textSecondary)
                 }
             },
             containerColor = GymFlowTheme.colors.surface

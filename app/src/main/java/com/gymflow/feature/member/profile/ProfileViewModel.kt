@@ -8,9 +8,12 @@ import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
+import com.gymflow.core.util.UpiPaymentHelper
 import com.gymflow.domain.model.GymMember
 import com.gymflow.domain.model.MembershipDuration
+import com.gymflow.domain.model.MembershipOrder
 import com.gymflow.domain.model.MemberProfile
+import com.gymflow.domain.model.OrderStatus
 import com.gymflow.domain.model.PaymentMethod
 import com.gymflow.domain.model.PaymentStatus
 import com.gymflow.domain.model.Role
@@ -64,7 +67,12 @@ data class ProfileUiState(
     val gymName: String = "GymFlow Fitness Center",
     val isRenewalDialogOpen: Boolean = false,
     val isRenewing: Boolean = false,
-    val renewalSuccessMessage: String? = null
+    val renewalSuccessMessage: String? = null,
+    val currentOrderId: String = "",
+    val targetUpiId: String = "",
+    val targetUpiPayeeName: String = "",
+    val isOrderSubmitted: Boolean = false,
+    val submittedUtr: String? = null
 )
 
 @HiltViewModel
@@ -228,11 +236,70 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun openRenewalDialog() {
-        _uiState.update { it.copy(isRenewalDialogOpen = true, renewalSuccessMessage = null) }
+        val newOrderId = UpiPaymentHelper.generateOrderId()
+        val trainerUpi = tokenManager.getConnectedTrainerUpiId()
+            ?: tokenManager.getTrainerUpiId()
+            ?: "gymflow@upi"
+        val trainerName = tokenManager.getConnectedTrainerName() ?: _uiState.value.gymName
+        _uiState.update {
+            it.copy(
+                isRenewalDialogOpen = true,
+                currentOrderId = newOrderId,
+                targetUpiId = trainerUpi,
+                targetUpiPayeeName = trainerName,
+                isOrderSubmitted = false,
+                submittedUtr = null,
+                renewalSuccessMessage = null
+            )
+        }
     }
 
     fun dismissRenewalDialog() {
         _uiState.update { it.copy(isRenewalDialogOpen = false) }
+    }
+
+    fun submitUpiRenewalOrder(durationMonths: Int, feeAmount: Double, utrNumber: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRenewing = true) }
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val trainerId = _uiState.value.profile.connectedTrainerId ?: tokenManager.getConnectedTrainerName() ?: ""
+            val orderId = _uiState.value.currentOrderId.ifBlank { UpiPaymentHelper.generateOrderId() }
+            val planLabel = "$durationMonths Month${if (durationMonths > 1) "s" else ""} Pass"
+
+            val order = MembershipOrder(
+                orderId = orderId,
+                memberId = userId,
+                memberName = _uiState.value.user.name.ifBlank { "Athlete" },
+                memberEmail = _uiState.value.user.email,
+                memberPhone = _uiState.value.phoneNumber,
+                trainerId = trainerId,
+                trainerName = tokenManager.getConnectedTrainerName() ?: "Coach",
+                gymName = _uiState.value.gymName,
+                planDurationMonths = durationMonths,
+                planDurationDisplayName = planLabel,
+                amountInr = feeAmount,
+                paymentMethod = "UPI",
+                targetUpiId = _uiState.value.targetUpiId,
+                utrNumber = utrNumber.trim(),
+                orderStatus = OrderStatus.PENDING_VERIFICATION,
+                createdAtEpochMs = System.currentTimeMillis(),
+                notes = "Renewal order submitted with UTR: ${utrNumber.trim()}"
+            )
+
+            try {
+                firestoreSyncManager.createMembershipOrder(order)
+                firestoreSyncManager.submitOrderPaymentProof(orderId, utrNumber.trim(), trainerId)
+            } catch (_: Exception) {}
+
+            _uiState.update {
+                it.copy(
+                    isRenewing = false,
+                    isOrderSubmitted = true,
+                    submittedUtr = utrNumber.trim(),
+                    renewalSuccessMessage = "Payment proof submitted! Order $orderId is pending trainer verification."
+                )
+            }
+        }
     }
 
     fun renewMembership(durationMonths: Int, feeAmount: Double, paymentMethod: String = "UPI") {

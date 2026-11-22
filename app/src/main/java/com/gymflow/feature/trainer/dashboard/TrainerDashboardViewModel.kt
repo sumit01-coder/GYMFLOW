@@ -9,6 +9,7 @@ import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.ConnectedMember
 import com.gymflow.domain.model.GymMember
 import com.gymflow.domain.model.MembershipDuration
+import com.gymflow.domain.model.MembershipOrder
 import com.gymflow.domain.model.PaymentMethod
 import com.gymflow.domain.model.PaymentStatus
 import com.gymflow.domain.model.Role
@@ -36,6 +37,7 @@ data class TrainerDashboardUiState(
     val gymName: String = "GymFlow Fitness Center",
     val kpis: TrainerDashboardKpis = TrainerDashboardKpis(),
     val recentMembers: List<ConnectedMember> = emptyList(),
+    val pendingRenewalOrders: List<MembershipOrder> = emptyList(),
     val invitationCode: String = "",
     val unreadNotificationsCount: Int = 0
 )
@@ -58,6 +60,41 @@ class TrainerDashboardViewModel @Inject constructor(
         observeCoachData()
         observeRealMembers()
         syncConnectedMembersFromCloud()
+        fetchPendingRenewalOrders()
+    }
+
+    fun fetchPendingRenewalOrders() {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: return@launch
+            try {
+                val orders = firestoreSyncManager.pullPendingOrdersForTrainer(trainerId)
+                _uiState.update { it.copy(pendingRenewalOrders = orders) }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun approveOrder(order: MembershipOrder) {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: order.trainerId
+            firestoreSyncManager.approveMembershipOrder(
+                orderId = order.orderId,
+                trainerId = trainerId,
+                memberId = order.memberId,
+                durationMonths = order.planDurationMonths,
+                feeAmount = order.amountInr
+            )
+            // Refresh orders and members
+            fetchPendingRenewalOrders()
+            firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+        }
+    }
+
+    fun rejectOrder(order: MembershipOrder, reason: String = "Payment not verified") {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: order.trainerId
+            firestoreSyncManager.rejectMembershipOrder(order.orderId, trainerId, reason)
+            fetchPendingRenewalOrders()
+        }
     }
 
     fun syncConnectedMembersFromCloud() {
@@ -65,6 +102,8 @@ class TrainerDashboardViewModel @Inject constructor(
             val trainerId = tokenManager.getUserIdSync() ?: return@launch
             try {
                 firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+                val orders = firestoreSyncManager.pullPendingOrdersForTrainer(trainerId)
+                _uiState.update { it.copy(pendingRenewalOrders = orders) }
             } catch (_: Exception) {}
         }
         viewModelScope.launch {
@@ -72,6 +111,8 @@ class TrainerDashboardViewModel @Inject constructor(
                 if (!trainerId.isNullOrBlank() && trainerId != "default_member") {
                     try {
                         firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+                        val orders = firestoreSyncManager.pullPendingOrdersForTrainer(trainerId)
+                        _uiState.update { it.copy(pendingRenewalOrders = orders) }
                     } catch (_: Exception) {}
                 }
             }

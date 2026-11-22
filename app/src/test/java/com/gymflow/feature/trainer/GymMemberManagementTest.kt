@@ -110,4 +110,51 @@ class GymMemberManagementTest {
         assertTrue("Message should mention duration", message.contains("3 Months"))
         assertTrue("Message should include UPI ID", message.contains("gymflow@upi"))
     }
+
+    @Test
+    fun testUpiOrderIdGeneration() {
+        val orderId = com.gymflow.core.util.UpiPaymentHelper.generateOrderId()
+        assertTrue("Order ID must start with ORD-", orderId.startsWith("ORD-"))
+        assertTrue("Order ID must have sufficient length", orderId.length >= 12)
+    }
+
+    @Test
+    fun testUpiDeepLinkUriBuilding() {
+        val orderId = "ORD-20261122-123"
+        val upiUri = com.gymflow.core.util.UpiPaymentHelper.buildUpiPaymentUri(
+            upiId = "coach@okaxis",
+            payeeName = "Titan Fitness",
+            amount = 4000.0,
+            orderId = orderId
+        )
+
+        assertTrue("URI must start with upi://pay", upiUri.startsWith("upi://pay?"))
+        assertTrue("URI must include pa payee VPA", upiUri.contains("pa=coach@okaxis"))
+        assertTrue("URI must include pn payee name", upiUri.contains("pn=Titan+Fitness"))
+        assertTrue("URI must include amount formatted to 2 decimals", upiUri.contains("am=4000.00"))
+        assertTrue("URI must include INR currency", upiUri.contains("cu=INR"))
+        assertTrue("URI must include Order ID in tr reference", upiUri.contains("tr=$orderId"))
+    }
+
+    @Test
+    fun testUpiIdValidation() {
+        assertTrue(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId("9974098894@upi"))
+        assertTrue(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId("coach@okaxis"))
+        assertTrue(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId("titanfitness@icici"))
+
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId(""))
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId("invalid_upi"))
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId("coach @upi"))
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUpiId("@upi"))
+    }
+
+    @Test
+    fun testUtrValidation() {
+        assertTrue(com.gymflow.core.util.UpiPaymentHelper.isValidUtr("432109876543"))
+        assertTrue(com.gymflow.core.util.UpiPaymentHelper.isValidUtr("UTR2026112299"))
+
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUtr(""))
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUtr("12345"))
+        assertFalse(com.gymflow.core.util.UpiPaymentHelper.isValidUtr("1234#5678@90"))
+    }
 }

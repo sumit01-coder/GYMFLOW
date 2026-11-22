@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -281,6 +282,96 @@ fun TrainerDashboardScreen(
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
+
+                // Pending Membership Renewals & Payment Approvals
+                if (uiState.pendingRenewalOrders.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Pending Renewal Approvals",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TrainerDarkTextPrimary
+                        )
+                        TrainerBadge(
+                            text = "${uiState.pendingRenewalOrders.size} PENDING",
+                            status = "Pending"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        uiState.pendingRenewalOrders.forEach { order ->
+                            TrainerCard(contentPadding = 14.dp) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = order.memberName,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TrainerDarkTextPrimary
+                                        )
+                                        Text(
+                                            text = "₹${order.amountInr.toInt()}",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF4ADE80)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "${order.planDurationDisplayName} · ORDER: ${order.orderId}",
+                                        fontSize = 12.sp,
+                                        color = TrainerDarkTextSecondary
+                                    )
+
+                                    if (!order.utrNumber.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Bank UTR: ${order.utrNumber}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFFFBBF24)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TextButton(
+                                            onClick = { viewModel.rejectOrder(order) }
+                                        ) {
+                                            Text("Decline", color = Color(0xFFEF4444), fontSize = 13.sp)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        TrainerButton(
+                                            text = "Approve & Activate",
+                                            onClick = { viewModel.approveOrder(order) },
+                                            style = TrainerButtonStyle.PRIMARY
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
 
                 // Connected Members Header
                 Row(

@@ -20,6 +20,8 @@ import com.gymflow.core.database.WeightLogEntity
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.database.WorkoutSessionEntity
 import com.gymflow.domain.model.ExerciseSet
+import com.gymflow.domain.model.MembershipOrder
+import com.gymflow.domain.model.OrderStatus
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
@@ -45,7 +47,8 @@ data class CloudTrainerInfo(
     val id: String,
     val name: String,
     val gymName: String,
-    val inviteCode: String
+    val inviteCode: String,
+    val upiId: String = ""
 )
 
 @Singleton
@@ -71,6 +74,7 @@ class FirestoreSyncManager @Inject constructor(
         const val COLLECTION_HYDRATION_LOGS = "hydration_logs"
         const val COLLECTION_DAILY_STEPS = "daily_steps"
         const val COLLECTION_OUTDOOR_WORKOUTS = "outdoor_workouts"
+        const val COLLECTION_MEMBERSHIP_ORDERS = "membership_orders"
     }
 
     // 1. Sync User Profile
@@ -941,7 +945,8 @@ class FirestoreSyncManager @Inject constructor(
                 val name = trainerDoc.getString("name") ?: "Coach"
                 val gymName = trainerDoc.getString("gymName") ?: "GymFlow Fitness Center"
                 val code = trainerDoc.getString("currentInviteCode") ?: ""
-                CloudTrainerInfo(trainerId, name, gymName, code)
+                val upi = trainerDoc.getString("upiId") ?: ""
+                CloudTrainerInfo(trainerId, name, gymName, code, upi)
             } else {
                 val userDoc = firestore.collection(COLLECTION_USERS)
                     .document(trainerId)
@@ -949,7 +954,8 @@ class FirestoreSyncManager @Inject constructor(
                     .await()
                 if (userDoc.exists()) {
                     val name = userDoc.getString("name") ?: "Coach"
-                    CloudTrainerInfo(trainerId, name, "GymFlow Fitness Center", "")
+                    val upi = userDoc.getString("upiId") ?: ""
+                    CloudTrainerInfo(trainerId, name, "GymFlow Fitness Center", "", upi)
                 } else null
             }
         } catch (_: Exception) {
@@ -1471,6 +1477,247 @@ class FirestoreSyncManager @Inject constructor(
             memberEntity
         } catch (_: Exception) {
             null
+        }
+    }
+
+    // 18. Update Trainer UPI ID & Business Name
+    suspend fun updateTrainerUpi(trainerId: String, upiId: String, upiName: String): Boolean {
+        if (trainerId.isBlank() || trainerId == "default_member") return false
+        return try {
+            val cleanUpi = upiId.trim()
+            val cleanName = upiName.trim()
+            val now = System.currentTimeMillis()
+
+            val upiData = mapOf(
+                "upiId" to cleanUpi,
+                "upiAccountName" to cleanName,
+                "lastUpdated" to now
+            )
+
+            // Update trainers/{trainerId}
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .set(upiData, SetOptions.merge())
+                .await()
+
+            // Update users/{trainerId}
+            firestore.collection(COLLECTION_USERS)
+                .document(trainerId)
+                .set(upiData, SetOptions.merge())
+                .await()
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 19. Create Membership Renewal Order in Cloud Firestore
+    suspend fun createMembershipOrder(order: MembershipOrder): Boolean {
+        return try {
+            val orderMap = mapOf(
+                "orderId" to order.orderId,
+                "memberId" to order.memberId,
+                "memberName" to order.memberName,
+                "memberEmail" to order.memberEmail,
+                "memberPhone" to order.memberPhone,
+                "trainerId" to order.trainerId,
+                "trainerName" to order.trainerName,
+                "gymName" to order.gymName,
+                "planDurationMonths" to order.planDurationMonths,
+                "planDurationDisplayName" to order.planDurationDisplayName,
+                "amountInr" to order.amountInr,
+                "paymentMethod" to order.paymentMethod,
+                "targetUpiId" to order.targetUpiId,
+                "utrNumber" to (order.utrNumber ?: ""),
+                "orderStatus" to order.orderStatus.name,
+                "createdAtEpochMs" to order.createdAtEpochMs,
+                "approvedAtEpochMs" to (order.approvedAtEpochMs ?: 0L),
+                "notes" to order.notes
+            )
+
+            // A. Global membership_orders collection
+            firestore.collection(COLLECTION_MEMBERSHIP_ORDERS)
+                .document(order.orderId)
+                .set(orderMap, SetOptions.merge())
+                .await()
+
+            // B. Trainer's private subcollection trainers/{trainerId}/renewal_orders
+            if (order.trainerId.isNotBlank() && order.trainerId != "default_member") {
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(order.trainerId)
+                    .collection("renewal_orders")
+                    .document(order.orderId)
+                    .set(orderMap, SetOptions.merge())
+                    .await()
+            }
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 20. Submit Order Payment Proof (UTR Number)
+    suspend fun submitOrderPaymentProof(orderId: String, utrNumber: String, trainerId: String): Boolean {
+        return try {
+            val cleanUtr = utrNumber.trim()
+            val now = System.currentTimeMillis()
+            val update = mapOf(
+                "utrNumber" to cleanUtr,
+                "orderStatus" to OrderStatus.PENDING_VERIFICATION.name,
+                "submittedAtEpochMs" to now
+            )
+
+            firestore.collection(COLLECTION_MEMBERSHIP_ORDERS)
+                .document(orderId)
+                .set(update, SetOptions.merge())
+                .await()
+
+            if (trainerId.isNotBlank() && trainerId != "default_member") {
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .collection("renewal_orders")
+                    .document(orderId)
+                    .set(update, SetOptions.merge())
+                    .await()
+            }
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 21. Pull Pending Renewal Orders for Trainer
+    suspend fun pullPendingOrdersForTrainer(trainerId: String): List<MembershipOrder> {
+        if (trainerId.isBlank() || trainerId == "default_member") return emptyList()
+        return try {
+            val orders = mutableListOf<MembershipOrder>()
+            val snapshot = firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .collection("renewal_orders")
+                .whereIn("orderStatus", listOf(OrderStatus.PENDING_VERIFICATION.name, OrderStatus.PENDING.name))
+                .get()
+                .await()
+
+            for (doc in snapshot.documents) {
+                val oId = doc.getString("orderId") ?: doc.id
+                val mId = doc.getString("memberId") ?: ""
+                val mName = doc.getString("memberName") ?: "Member"
+                val mEmail = doc.getString("memberEmail") ?: ""
+                val mPhone = doc.getString("memberPhone") ?: ""
+                val tName = doc.getString("trainerName") ?: "Coach"
+                val gName = doc.getString("gymName") ?: "GymFlow Fitness Center"
+                val duration = doc.getLong("planDurationMonths")?.toInt() ?: 1
+                val durationLabel = doc.getString("planDurationDisplayName") ?: "$duration Month Pass"
+                val amount = doc.getDouble("amountInr") ?: 1500.0
+                val method = doc.getString("paymentMethod") ?: "UPI"
+                val upi = doc.getString("targetUpiId") ?: ""
+                val utr = doc.getString("utrNumber")
+                val statusStr = doc.getString("orderStatus")
+                val created = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+                val notes = doc.getString("notes") ?: ""
+
+                orders.add(
+                    MembershipOrder(
+                        orderId = oId,
+                        memberId = mId,
+                        memberName = mName,
+                        memberEmail = mEmail,
+                        memberPhone = mPhone,
+                        trainerId = trainerId,
+                        trainerName = tName,
+                        gymName = gName,
+                        planDurationMonths = duration,
+                        planDurationDisplayName = durationLabel,
+                        amountInr = amount,
+                        paymentMethod = method,
+                        targetUpiId = upi,
+                        utrNumber = utr,
+                        orderStatus = OrderStatus.fromString(statusStr),
+                        createdAtEpochMs = created,
+                        notes = notes
+                    )
+                )
+            }
+            orders.sortedByDescending { it.createdAtEpochMs }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    // 22. Approve Membership Order & Extend Member's Pass
+    suspend fun approveMembershipOrder(
+        orderId: String,
+        trainerId: String,
+        memberId: String,
+        durationMonths: Int,
+        feeAmount: Double
+    ): Boolean {
+        return try {
+            val now = System.currentTimeMillis()
+            val update = mapOf(
+                "orderStatus" to OrderStatus.APPROVED.name,
+                "approvedAtEpochMs" to now
+            )
+
+            // Update order status
+            firestore.collection(COLLECTION_MEMBERSHIP_ORDERS)
+                .document(orderId)
+                .set(update, SetOptions.merge())
+                .await()
+
+            if (trainerId.isNotBlank() && trainerId != "default_member") {
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .collection("renewal_orders")
+                    .document(orderId)
+                    .set(update, SetOptions.merge())
+                    .await()
+            }
+
+            // Immediately extend the member's pass
+            renewMemberMembership(
+                memberId = memberId,
+                durationMonths = durationMonths,
+                feeAmount = feeAmount,
+                trainerId = trainerId
+            )
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 23. Reject Membership Order
+    suspend fun rejectMembershipOrder(orderId: String, trainerId: String, reason: String = "Invalid UTR / Payment not received"): Boolean {
+        return try {
+            val now = System.currentTimeMillis()
+            val update = mapOf(
+                "orderStatus" to OrderStatus.REJECTED.name,
+                "rejectedAtEpochMs" to now,
+                "rejectionReason" to reason
+            )
+
+            firestore.collection(COLLECTION_MEMBERSHIP_ORDERS)
+                .document(orderId)
+                .set(update, SetOptions.merge())
+                .await()
+
+            if (trainerId.isNotBlank() && trainerId != "default_member") {
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .collection("renewal_orders")
+                    .document(orderId)
+                    .set(update, SetOptions.merge())
+                    .await()
+            }
+
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 }

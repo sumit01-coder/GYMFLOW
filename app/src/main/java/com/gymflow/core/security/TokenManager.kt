@@ -237,18 +237,34 @@ class TokenManager @Inject constructor(
         return prefs.getString(KEY_TRAINER_INVITE_CODE, "GYM-82K91") ?: "GYM-82K91"
     }
 
-    fun saveConnectedTrainerInfo(id: String, name: String, gymName: String, code: String) {
-        prefs.edit()
+    fun saveConnectedTrainerInfo(id: String, name: String, gymName: String, code: String, upiId: String? = null) {
+        val editor = prefs.edit()
             .putString(KEY_CONNECTED_TRAINER_ID, id)
             .putString(KEY_CONNECTED_TRAINER_NAME, name)
             .putString(KEY_CONNECTED_TRAINER_GYM, gymName)
             .putString(KEY_CONNECTED_TRAINER_CODE, code)
-            .apply()
+        if (!upiId.isNullOrBlank()) {
+            editor.putString(KEY_CONNECTED_TRAINER_UPI_ID, upiId.trim())
+        }
+        editor.apply()
     }
 
     fun getConnectedTrainerName(): String? = prefs.getString(KEY_CONNECTED_TRAINER_NAME, null)
     fun getConnectedTrainerGym(): String? = prefs.getString(KEY_CONNECTED_TRAINER_GYM, null)
     fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)
+    fun getConnectedTrainerUpiId(): String? = prefs.getString(KEY_CONNECTED_TRAINER_UPI_ID, null)
+
+    fun saveTrainerUpiId(upiId: String) {
+        prefs.edit().putString(KEY_TRAINER_UPI_ID, upiId.trim()).apply()
+    }
+
+    fun getTrainerUpiId(): String? = prefs.getString(KEY_TRAINER_UPI_ID, null)
+
+    fun saveTrainerUpiName(name: String) {
+        prefs.edit().putString(KEY_TRAINER_UPI_NAME, name.trim()).apply()
+    }
+
+    fun getTrainerUpiName(): String? = prefs.getString(KEY_TRAINER_UPI_NAME, null)
 
     fun saveGymName(gymName: String) {
         prefs.edit().putString(KEY_GYM_NAME, gymName.trim()).apply()
@@ -297,5 +313,8 @@ class TokenManager @Inject constructor(
         private const val KEY_CONNECTED_TRAINER_NAME = "connected_trainer_name"
         private const val KEY_CONNECTED_TRAINER_GYM = "connected_trainer_gym"
         private const val KEY_CONNECTED_TRAINER_CODE = "connected_trainer_code"
+        private const val KEY_CONNECTED_TRAINER_UPI_ID = "connected_trainer_upi_id"
+        private const val KEY_TRAINER_UPI_ID = "trainer_upi_id"
+        private const val KEY_TRAINER_UPI_NAME = "trainer_upi_name"
     }
 }

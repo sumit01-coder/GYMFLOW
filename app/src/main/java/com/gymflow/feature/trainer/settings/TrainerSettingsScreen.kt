@@ -1,5 +1,6 @@
 package com.gymflow.feature.trainer.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -50,10 +52,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.gymflow.core.util.QrCodeGenerator
+import com.gymflow.core.util.UpiPaymentHelper
 import com.gymflow.feature.trainer.components.TrainerBottomNavBar
 import com.gymflow.feature.trainer.components.TrainerBottomNavTab
 import com.gymflow.feature.trainer.components.TrainerButton
@@ -265,6 +270,28 @@ fun TrainerSettingsScreen(
                                 }
                             }
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = TrainerDarkTextTertiary, modifier = Modifier.size(16.dp))
+                        }
+                    }
+
+                    TrainerCard(
+                        contentPadding = 14.dp,
+                        onClick = { viewModel.openUpiDialog() }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = Color(0xFF4ADE80), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text("UPI Payment & QR Settings", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TrainerDarkTextPrimary)
+                                    val upiLabel = if (uiState.trainerUpiId.isNotBlank()) uiState.trainerUpiId else "Tap to configure UPI ID & QR for renewals"
+                                    Text(upiLabel, fontSize = 11.sp, color = if (uiState.trainerUpiId.isNotBlank()) Color(0xFF4ADE80) else TrainerDarkTextSecondary)
+                                }
+                            }
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = TrainerDarkTextTertiary, modifier = Modifier.size(16.dp))
                         }
                     }
 
@@ -526,6 +553,101 @@ fun TrainerSettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissGymNameDialog() }) {
+                        Text("Cancel", color = TrainerDarkTextSecondary)
+                    }
+                },
+                containerColor = TrainerDarkCard,
+                textContentColor = TrainerDarkTextSecondary
+            )
+        }
+
+        // UPI Payment & QR Code Settings Dialog
+        if (uiState.isUpiDialogOpen) {
+            var tempUpi by remember { mutableStateOf(uiState.trainerUpiId) }
+            var tempName by remember { mutableStateOf(uiState.trainerUpiName.ifBlank { uiState.gymAffiliation }) }
+            val isUpiValid = UpiPaymentHelper.isValidUpiId(tempUpi)
+            val qrBitmap = remember(tempUpi, tempName) {
+                if (isUpiValid) {
+                    val uri = UpiPaymentHelper.buildUpiPaymentUri(tempUpi, tempName, 1500.0, "SAMPLE")
+                    QrCodeGenerator.generateQrCodeBitmap(uri, sizePx = 360)
+                } else null
+            }
+
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissUpiDialog() },
+                title = {
+                    Text(
+                        text = "UPI Payment & QR Settings",
+                        color = TrainerDarkTextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Set your business UPI ID (Google Pay, PhonePe, Paytm, BHIM). Members will pay directly to this account for membership renewals.",
+                            fontSize = 12.sp,
+                            color = TrainerDarkTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        GymFlowTextField(
+                            value = tempUpi,
+                            onValueChange = { tempUpi = it.trim() },
+                            placeholder = "UPI ID (e.g. 9974098894@upi, gym@okaxis)",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        GymFlowTextField(
+                            value = tempName,
+                            onValueChange = { tempName = it },
+                            placeholder = "Account / Gym Name (e.g. Titan Fitness)",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        if (isUpiValid && qrBitmap != null) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Text(
+                                text = "LIVE QR CODE PREVIEW",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4ADE80),
+                                letterSpacing = 1.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(160.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White)
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    bitmap = qrBitmap.asImageBitmap(),
+                                    contentDescription = "Trainer UPI QR Preview",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.updateTrainerUpi(tempUpi, tempName)
+                        },
+                        enabled = tempUpi.isBlank() || isUpiValid
+                    ) {
+                        Text("Save UPI Details", color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissUpiDialog() }) {
                         Text("Cancel", color = TrainerDarkTextSecondary)
                     }
                 },

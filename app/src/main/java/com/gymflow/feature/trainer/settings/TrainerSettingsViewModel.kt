@@ -25,6 +25,9 @@ data class TrainerSettingsUiState(
     val specialization: String = "General Strength & Conditioning",
     val gymAffiliation: String = "GymFlow Fitness Center",
     val isGymNameDialogOpen: Boolean = false,
+    val trainerUpiId: String = "",
+    val trainerUpiName: String = "",
+    val isUpiDialogOpen: Boolean = false,
     val totalMembers: Int = 0,
     val activePlansCount: Int = 0,
     val workoutCompletionNotifications: Boolean = true,
@@ -53,7 +56,13 @@ class TrainerSettingsViewModel @Inject constructor(
     val uiState: StateFlow<TrainerSettingsUiState> = _uiState.asStateFlow()
 
     init {
-        _uiState.update { it.copy(gymAffiliation = tokenManager.getGymName()) }
+        _uiState.update {
+            it.copy(
+                gymAffiliation = tokenManager.getGymName(),
+                trainerUpiId = tokenManager.getTrainerUpiId() ?: "",
+                trainerUpiName = tokenManager.getTrainerUpiName() ?: tokenManager.getName() ?: ""
+            )
+        }
         observeCoachInfo()
         syncConnectedMembersFromCloud()
         observeStudioMembersAndPlans()
@@ -74,6 +83,32 @@ class TrainerSettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val trainerId = tokenManager.getUserIdSync() ?: ""
             firestoreSyncManager.updateTrainerGymName(trainerId, cleanName)
+        }
+    }
+
+    fun openUpiDialog() {
+        _uiState.update { it.copy(isUpiDialogOpen = true) }
+    }
+
+    fun dismissUpiDialog() {
+        _uiState.update { it.copy(isUpiDialogOpen = false) }
+    }
+
+    fun updateTrainerUpi(upiId: String, upiName: String) {
+        val cleanUpi = upiId.trim()
+        val cleanName = upiName.trim().ifBlank { _uiState.value.gymAffiliation }
+        tokenManager.saveTrainerUpiId(cleanUpi)
+        tokenManager.saveTrainerUpiName(cleanName)
+        _uiState.update {
+            it.copy(
+                trainerUpiId = cleanUpi,
+                trainerUpiName = cleanName,
+                isUpiDialogOpen = false
+            )
+        }
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            firestoreSyncManager.updateTrainerUpi(trainerId, cleanUpi, cleanName)
         }
     }
 
