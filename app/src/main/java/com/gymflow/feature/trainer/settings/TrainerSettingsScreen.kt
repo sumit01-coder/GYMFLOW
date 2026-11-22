@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Lock
@@ -41,6 +42,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.gymflow.core.components.GymFlowTextField
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -184,11 +189,25 @@ fun TrainerSettingsScreen(
                             Text(uiState.specialization, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { viewModel.openGymNameDialog() }
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Gym Affiliation", fontSize = 13.sp, color = TrainerDarkTextSecondary)
-                            Text(uiState.gymAffiliation, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(uiState.gymAffiliation, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = TrainerDarkTextPrimary)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit Gym Name",
+                                    tint = TrainerDarkTextSecondary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -460,6 +479,53 @@ fun TrainerSettingsScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { viewModel.dismissLogoutDialog() }) {
+                        Text("Cancel", color = TrainerDarkTextSecondary)
+                    }
+                },
+                containerColor = TrainerDarkCard,
+                textContentColor = TrainerDarkTextSecondary
+            )
+        }
+
+        // Edit Gym Name Dialog
+        if (uiState.isGymNameDialogOpen) {
+            var tempGymName by remember { mutableStateOf(uiState.gymAffiliation) }
+            AlertDialog(
+                onDismissRequest = { viewModel.dismissGymNameDialog() },
+                title = {
+                    Text(
+                        text = "Edit Gym / Center Name",
+                        color = TrainerDarkTextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Set your custom Gym Name. Connected members and QR codes will display this name.",
+                            fontSize = 13.sp,
+                            color = TrainerDarkTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        GymFlowTextField(
+                            value = tempGymName,
+                            onValueChange = { tempGymName = it },
+                            placeholder = "e.g. Titan Fitness Studio",
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.updateGymName(tempGymName)
+                        }
+                    ) {
+                        Text("Save Gym Name", color = Color(0xFF4ADE80), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.dismissGymNameDialog() }) {
                         Text("Cancel", color = TrainerDarkTextSecondary)
                     }
                 },

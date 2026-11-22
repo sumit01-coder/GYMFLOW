@@ -106,7 +106,7 @@ class TrainerJoinCodeViewModel(
                 code = code,
                 trainerId = trainerId,
                 trainerName = trainerName,
-                gymName = "GymFlow Fitness Center"
+                gymName = tokenManager?.getGymName() ?: "GymFlow Fitness Center"
             )
         }
     }

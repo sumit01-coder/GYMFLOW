@@ -8,6 +8,7 @@ interface GymMemberRepository {
     fun getExpiringSoonMembers(): Flow<List<GymMember>>
     fun getExpiredMembers(): Flow<List<GymMember>>
     fun getPendingPaymentMembers(): Flow<List<GymMember>>
+    fun getMemberFlow(memberId: String): Flow<GymMember?>
     suspend fun getMemberById(memberId: String): GymMember?
     suspend fun addMember(member: GymMember)
     suspend fun updateMember(member: GymMember)

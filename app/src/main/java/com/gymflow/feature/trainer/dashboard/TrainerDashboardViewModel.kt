@@ -33,6 +33,7 @@ data class TrainerDashboardKpis(
 data class TrainerDashboardUiState(
     val coachName: String = "Coach",
     val greeting: String = "Good morning, Coach!",
+    val gymName: String = "GymFlow Fitness Center",
     val kpis: TrainerDashboardKpis = TrainerDashboardKpis(),
     val recentMembers: List<ConnectedMember> = emptyList(),
     val invitationCode: String = "",
@@ -53,6 +54,7 @@ class TrainerDashboardViewModel @Inject constructor(
     val uiState: StateFlow<TrainerDashboardUiState> = _uiState.asStateFlow()
 
     init {
+        _uiState.update { it.copy(gymName = tokenManager.getGymName()) }
         observeCoachData()
         observeRealMembers()
         syncConnectedMembersFromCloud()
@@ -64,6 +66,15 @@ class TrainerDashboardViewModel @Inject constructor(
             try {
                 firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
             } catch (_: Exception) {}
+        }
+        viewModelScope.launch {
+            tokenManager.getUserId().collect { trainerId ->
+                if (!trainerId.isNullOrBlank() && trainerId != "default_member") {
+                    try {
+                        firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+                    } catch (_: Exception) {}
+                }
+            }
         }
     }
 

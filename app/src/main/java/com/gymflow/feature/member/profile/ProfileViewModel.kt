@@ -8,10 +8,15 @@ import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.model.GymMember
+import com.gymflow.domain.model.MembershipDuration
 import com.gymflow.domain.model.MemberProfile
+import com.gymflow.domain.model.PaymentMethod
+import com.gymflow.domain.model.PaymentStatus
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.User
 import com.gymflow.domain.repository.AuthRepository
+import com.gymflow.domain.repository.GymMemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,7 +59,12 @@ data class ProfileUiState(
     val gender: String = "Male",
     val phoneNumber: String = "",
     val graceDaysRemaining: Int = 7,
-    val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED
+    val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED,
+    val membership: GymMember? = null,
+    val gymName: String = "GymFlow Fitness Center",
+    val isRenewalDialogOpen: Boolean = false,
+    val isRenewing: Boolean = false,
+    val renewalSuccessMessage: String? = null
 )
 
 @HiltViewModel
@@ -66,7 +76,8 @@ class ProfileViewModel @Inject constructor(
     private val firestoreSyncManager: FirestoreSyncManager,
     private val firestoreConnectionManager: FirestoreConnectionManager,
     private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager,
-    private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager
+    private val workoutReminderManager: com.gymflow.core.notification.WorkoutReminderManager,
+    private val gymMemberRepository: GymMemberRepository
 ) : ViewModel() {
 
     fun checkForUpdates() {
@@ -204,6 +215,77 @@ class ProfileViewModel @Inject constructor(
                         )
                     }
                 }
+            }
+        }
+
+        val memberId = tokenManager.getUserIdSync() ?: "default_member"
+        viewModelScope.launch {
+            gymMemberRepository.getMemberFlow(memberId).collect { mem ->
+                val gym = tokenManager.getConnectedTrainerGym() ?: "GymFlow Fitness Center"
+                _uiState.update { it.copy(membership = mem, gymName = gym) }
+            }
+        }
+    }
+
+    fun openRenewalDialog() {
+        _uiState.update { it.copy(isRenewalDialogOpen = true, renewalSuccessMessage = null) }
+    }
+
+    fun dismissRenewalDialog() {
+        _uiState.update { it.copy(isRenewalDialogOpen = false) }
+    }
+
+    fun renewMembership(durationMonths: Int, feeAmount: Double, paymentMethod: String = "UPI") {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRenewing = true) }
+            val userId = tokenManager.getUserIdSync() ?: "default_member"
+            val trainerId = _uiState.value.profile.connectedTrainerId ?: tokenManager.getConnectedTrainerName()
+            val existing = gymMemberRepository.getMemberById(userId)
+
+            val currentEnd = existing?.endDateEpochMs ?: System.currentTimeMillis()
+            val baseTime = if (currentEnd > System.currentTimeMillis()) currentEnd else System.currentTimeMillis()
+            val newEndDate = baseTime + (durationMonths.toLong() * 30L * 24 * 60 * 60 * 1000)
+
+            if (existing != null) {
+                gymMemberRepository.renewMembership(userId, durationMonths, feeAmount, paymentMethod)
+            } else {
+                val memberName = _uiState.value.user.name.ifBlank { "Athlete" }
+                val newMember = GymMember(
+                    id = userId,
+                    name = memberName,
+                    phoneNumber = _uiState.value.phoneNumber,
+                    email = _uiState.value.user.email,
+                    assignedTrainerId = trainerId,
+                    assignedTrainerName = tokenManager.getConnectedTrainerName() ?: "Coach",
+                    duration = MembershipDuration.fromMonths(durationMonths),
+                    startDateEpochMs = System.currentTimeMillis(),
+                    endDateEpochMs = newEndDate,
+                    feeAmount = feeAmount,
+                    amountPaid = feeAmount,
+                    paymentStatus = PaymentStatus.PAID,
+                    paymentMethod = if (paymentMethod.equals("CASH", ignoreCase = true)) PaymentMethod.CASH else PaymentMethod.UPI,
+                    notes = "Renewed $durationMonths months",
+                    isActive = true
+                )
+                gymMemberRepository.addMember(newMember)
+            }
+
+            // Sync to Firestore
+            try {
+                firestoreSyncManager.renewMemberMembership(
+                    memberId = userId,
+                    durationMonths = durationMonths,
+                    feeAmount = feeAmount,
+                    trainerId = trainerId
+                )
+            } catch (_: Exception) {}
+
+            _uiState.update {
+                it.copy(
+                    isRenewing = false,
+                    isRenewalDialogOpen = false,
+                    renewalSuccessMessage = "Membership successfully renewed for $durationMonths months!"
+                )
             }
         }
     }

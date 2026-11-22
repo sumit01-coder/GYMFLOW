@@ -123,7 +123,7 @@ fun TrainerDashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "TRAINER STUDIO",
+                                text = uiState.gymName.uppercase(),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF4ADE80),

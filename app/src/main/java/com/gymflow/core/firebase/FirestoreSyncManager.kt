@@ -815,6 +815,11 @@ class FirestoreSyncManager @Inject constructor(
                 pullConnectedMembersForTrainer(userId)
             } catch (_: Exception) {}
 
+            // 10. Member's Own Membership Details (If Member)
+            try {
+                pullMemberMembershipDetails(userId)
+            } catch (_: Exception) {}
+
             true
         } catch (_: Exception) {
             false
@@ -1276,6 +1281,196 @@ class FirestoreSyncManager @Inject constructor(
             true
         } catch (_: Exception) {
             false
+        }
+    }
+
+    // 15. Update Trainer Gym Name across Cloud Firestore
+    suspend fun updateTrainerGymName(trainerId: String, newGymName: String): Boolean {
+        if (trainerId.isBlank() || trainerId == "default_member") return false
+        return try {
+            val cleanName = newGymName.trim().ifBlank { "GymFlow Fitness Center" }
+            val now = System.currentTimeMillis()
+
+            // A. Update trainers/{trainerId}.gymName
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .set(mapOf("gymName" to cleanName, "lastUpdated" to now), SetOptions.merge())
+                .await()
+
+            // B. Update trainer's invite codes
+            try {
+                val codesSnapshot = firestore.collection(COLLECTION_TRAINER_CODES)
+                    .whereEqualTo("trainerId", trainerId)
+                    .get()
+                    .await()
+                for (doc in codesSnapshot.documents) {
+                    firestore.collection(COLLECTION_TRAINER_CODES)
+                        .document(doc.id)
+                        .set(mapOf("gymName" to cleanName), SetOptions.merge())
+                        .await()
+                }
+            } catch (_: Exception) {}
+
+            // C. Update connected members subcollection
+            try {
+                val membersSnapshot = firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .collection("connected_members")
+                    .get()
+                    .await()
+                for (doc in membersSnapshot.documents) {
+                    firestore.collection(COLLECTION_TRAINERS)
+                        .document(trainerId)
+                        .collection("connected_members")
+                        .document(doc.id)
+                        .set(mapOf("gymName" to cleanName), SetOptions.merge())
+                        .await()
+                }
+            } catch (_: Exception) {}
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 16. Renew Member Membership in Cloud Firestore
+    suspend fun renewMemberMembership(
+        memberId: String,
+        durationMonths: Int,
+        feeAmount: Double,
+        trainerId: String? = null
+    ): Boolean {
+        if (memberId.isBlank() || memberId == "default_member") return false
+        return try {
+            val now = System.currentTimeMillis()
+            val extensionMs = durationMonths * 30L * 24 * 60 * 60 * 1000
+
+            var newEndDate = now + extensionMs
+            try {
+                val uDoc = firestore.collection(COLLECTION_USERS).document(memberId).get().await()
+                val currentEnd = (uDoc.get("membership") as? Map<*, *>)?.get("endDateEpochMs") as? Long ?: 0L
+                if (currentEnd > now) {
+                    newEndDate = currentEnd + extensionMs
+                }
+            } catch (_: Exception) {}
+
+            val membershipData = mapOf(
+                "durationMonths" to durationMonths,
+                "startDateEpochMs" to now,
+                "endDateEpochMs" to newEndDate,
+                "paymentStatus" to "PAID",
+                "paymentMethod" to "UPI",
+                "feeAmount" to feeAmount,
+                "lastRenewedEpochMs" to now
+            )
+
+            // Update user document
+            firestore.collection(COLLECTION_USERS)
+                .document(memberId)
+                .set(mapOf("membership" to membershipData, "lastUpdated" to now), SetOptions.merge())
+                .await()
+
+            // Update trainer subcollection if connected
+            val targetTrainer = trainerId ?: run {
+                val uDoc = firestore.collection(COLLECTION_USERS).document(memberId).get().await()
+                uDoc.getString("connectedTrainerId")
+            }
+
+            if (!targetTrainer.isNullOrBlank()) {
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(targetTrainer)
+                    .collection("connected_members")
+                    .document(memberId)
+                    .set(mapOf(
+                        "endDateEpochMs" to newEndDate,
+                        "durationMonths" to durationMonths,
+                        "paymentStatus" to "PAID",
+                        "feeAmount" to feeAmount,
+                        "lastRenewedEpochMs" to now
+                    ), SetOptions.merge())
+                    .await()
+            }
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 17. Pull Member's own Membership Details from Cloud Firestore
+    suspend fun pullMemberMembershipDetails(userId: String): GymMemberEntity? {
+        if (userId.isBlank() || userId == "default_member") return null
+        return try {
+            val uDoc = firestore.collection(COLLECTION_USERS).document(userId).get().await()
+            if (!uDoc.exists()) return null
+
+            val trainerId = uDoc.getString("connectedTrainerId")
+            val name = uDoc.getString("name") ?: "Athlete"
+            val email = uDoc.getString("email") ?: ""
+            val phone = uDoc.getString("phoneNumber") ?: ""
+
+            var startDate = uDoc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+            var endDate = startDate + (30L * 24 * 60 * 60 * 1000)
+            var durationMonths = 1
+            var feeAmount = 1500.0
+            var paymentStatus = "PAID"
+            var trainerName = uDoc.getString("connectedTrainerName") ?: "Coach"
+            var gymName = "GymFlow Fitness Center"
+
+            if (!trainerId.isNullOrBlank()) {
+                try {
+                    val trainerDoc = firestore.collection(COLLECTION_TRAINERS).document(trainerId).get().await()
+                    if (trainerDoc.exists()) {
+                        gymName = trainerDoc.getString("gymName") ?: gymName
+                        trainerName = trainerDoc.getString("name") ?: trainerName
+                    }
+                    val cmDoc = firestore.collection(COLLECTION_TRAINERS)
+                        .document(trainerId)
+                        .collection("connected_members")
+                        .document(userId)
+                        .get()
+                        .await()
+                    if (cmDoc.exists()) {
+                        startDate = cmDoc.getLong("joinedAtEpochMs") ?: startDate
+                        endDate = cmDoc.getLong("endDateEpochMs") ?: (startDate + (30L * 24 * 60 * 60 * 1000))
+                        durationMonths = cmDoc.getLong("durationMonths")?.toInt() ?: 1
+                        feeAmount = cmDoc.getDouble("feeAmount") ?: 1500.0
+                        paymentStatus = cmDoc.getString("paymentStatus") ?: "PAID"
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val membershipMap = uDoc.get("membership") as? Map<*, *>
+            if (membershipMap != null) {
+                startDate = (membershipMap["startDateEpochMs"] as? Number)?.toLong() ?: startDate
+                endDate = (membershipMap["endDateEpochMs"] as? Number)?.toLong() ?: endDate
+                durationMonths = (membershipMap["durationMonths"] as? Number)?.toInt() ?: durationMonths
+                feeAmount = (membershipMap["feeAmount"] as? Number)?.toDouble() ?: feeAmount
+                paymentStatus = (membershipMap["paymentStatus"] as? String) ?: paymentStatus
+            }
+
+            val memberEntity = GymMemberEntity(
+                id = userId,
+                name = name,
+                phoneNumber = phone,
+                email = email,
+                assignedTrainerId = trainerId,
+                assignedTrainerName = trainerName,
+                durationMonths = durationMonths,
+                startDateEpochMs = startDate,
+                endDateEpochMs = endDate,
+                feeAmount = feeAmount,
+                amountPaid = feeAmount,
+                paymentStatus = paymentStatus,
+                paymentMethod = "UPI",
+                notes = "Gym Membership: $gymName",
+                isActive = true
+            )
+            gymMemberDao.insertMember(memberEntity)
+            memberEntity
+        } catch (_: Exception) {
+            null
         }
     }
 }

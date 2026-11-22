@@ -250,6 +250,14 @@ class TokenManager @Inject constructor(
     fun getConnectedTrainerGym(): String? = prefs.getString(KEY_CONNECTED_TRAINER_GYM, null)
     fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)
 
+    fun saveGymName(gymName: String) {
+        prefs.edit().putString(KEY_GYM_NAME, gymName.trim()).apply()
+    }
+
+    fun getGymName(): String {
+        return prefs.getString(KEY_GYM_NAME, null)?.takeIf { it.isNotBlank() } ?: "GymFlow Fitness Center"
+    }
+
     fun savePhoneNumber(phone: String) {
         prefs.edit().putString(KEY_PHONE_NUMBER, phone.trim()).apply()
     }
@@ -284,6 +292,7 @@ class TokenManager @Inject constructor(
         private const val KEY_REMEMBER_ME = "remember_me"
         private const val KEY_REMEMBERED_EMAIL = "remembered_email"
         private const val KEY_TRAINER_INVITE_CODE = "trainer_invite_code"
+        private const val KEY_GYM_NAME = "trainer_gym_name"
         private const val KEY_CONNECTED_TRAINER_ID = "connected_trainer_id"
         private const val KEY_CONNECTED_TRAINER_NAME = "connected_trainer_name"
         private const val KEY_CONNECTED_TRAINER_GYM = "connected_trainer_gym"

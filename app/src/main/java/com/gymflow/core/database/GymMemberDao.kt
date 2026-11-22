@@ -16,6 +16,9 @@ interface GymMemberDao {
     @Query("SELECT * FROM gym_members WHERE id = :memberId")
     suspend fun getMemberById(memberId: String): GymMemberEntity?
 
+    @Query("SELECT * FROM gym_members WHERE id = :memberId LIMIT 1")
+    fun getMemberFlow(memberId: String): Flow<GymMemberEntity?>
+
     @Query("SELECT * FROM gym_members WHERE endDateEpochMs <= :thresholdEpochMs AND endDateEpochMs > :currentEpochMs ORDER BY endDateEpochMs ASC")
     fun getExpiringSoonMembers(thresholdEpochMs: Long, currentEpochMs: Long): Flow<List<GymMemberEntity>>
 

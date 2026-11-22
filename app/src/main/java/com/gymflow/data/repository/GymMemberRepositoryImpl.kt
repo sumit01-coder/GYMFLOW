@@ -46,6 +46,10 @@ class GymMemberRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getMemberFlow(memberId: String): Flow<GymMember?> {
+        return gymMemberDao.getMemberFlow(memberId).map { it?.toDomain() }
+    }
+
     override suspend fun getMemberById(memberId: String): GymMember? {
         return gymMemberDao.getMemberById(memberId)?.toDomain()
     }

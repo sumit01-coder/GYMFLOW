@@ -23,7 +23,8 @@ data class TrainerSettingsUiState(
     val email: String = "",
     val experienceYears: Int = 0,
     val specialization: String = "General Strength & Conditioning",
-    val gymAffiliation: String = "",
+    val gymAffiliation: String = "GymFlow Fitness Center",
+    val isGymNameDialogOpen: Boolean = false,
     val totalMembers: Int = 0,
     val activePlansCount: Int = 0,
     val workoutCompletionNotifications: Boolean = true,
@@ -52,9 +53,28 @@ class TrainerSettingsViewModel @Inject constructor(
     val uiState: StateFlow<TrainerSettingsUiState> = _uiState.asStateFlow()
 
     init {
+        _uiState.update { it.copy(gymAffiliation = tokenManager.getGymName()) }
         observeCoachInfo()
         syncConnectedMembersFromCloud()
         observeStudioMembersAndPlans()
+    }
+
+    fun openGymNameDialog() {
+        _uiState.update { it.copy(isGymNameDialogOpen = true) }
+    }
+
+    fun dismissGymNameDialog() {
+        _uiState.update { it.copy(isGymNameDialogOpen = false) }
+    }
+
+    fun updateGymName(newGymName: String) {
+        val cleanName = newGymName.trim().ifBlank { "GymFlow Fitness Center" }
+        tokenManager.saveGymName(cleanName)
+        _uiState.update { it.copy(gymAffiliation = cleanName, isGymNameDialogOpen = false) }
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            firestoreSyncManager.updateTrainerGymName(trainerId, cleanName)
+        }
     }
 
     private fun syncConnectedMembersFromCloud() {
