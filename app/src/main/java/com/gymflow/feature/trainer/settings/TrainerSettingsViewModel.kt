@@ -2,13 +2,17 @@ package com.gymflow.feature.trainer.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.database.PlanDao
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.firebase.FirestoreSyncManager
 import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.Role
+import com.gymflow.domain.repository.GymMemberRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,6 +38,9 @@ data class TrainerSettingsUiState(
 class TrainerSettingsViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val userDao: UserDao,
+    private val gymMemberRepository: GymMemberRepository,
+    private val firestoreSyncManager: FirestoreSyncManager,
+    private val planDao: PlanDao,
     private val appUpdateManager: com.gymflow.core.updater.AppUpdateManager
 ) : ViewModel() {
 
@@ -46,6 +53,38 @@ class TrainerSettingsViewModel @Inject constructor(
 
     init {
         observeCoachInfo()
+        syncConnectedMembersFromCloud()
+        observeStudioMembersAndPlans()
+    }
+
+    private fun syncConnectedMembersFromCloud() {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: return@launch
+            try {
+                firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun observeStudioMembersAndPlans() {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: ""
+            combine(
+                gymMemberRepository.getAllMembers(),
+                userDao.getConnectedAthletesFlow(),
+                planDao.getPlansForTrainer(trainerId)
+            ) { members, athletes, plans ->
+                val allMemberIds = (members.map { it.id } + athletes.map { it.id }).toSet()
+                val total = allMemberIds.size
+                val activePlans = plans.count { it.isActive }
+                _uiState.update {
+                    it.copy(
+                        totalMembers = total,
+                        activePlansCount = activePlans
+                    )
+                }
+            }.collect {}
+        }
     }
 
     private fun observeCoachInfo() {

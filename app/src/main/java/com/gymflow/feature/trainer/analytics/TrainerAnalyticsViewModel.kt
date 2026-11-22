@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.UserDao
 import com.gymflow.core.database.WorkoutSessionDao
+import com.gymflow.core.firebase.FirestoreSyncManager
+import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.PaymentStatus
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.repository.GymMemberRepository
@@ -47,6 +49,8 @@ class TrainerAnalyticsViewModel(
     private val gymMemberRepository: GymMemberRepository?,
     private val userDao: UserDao?,
     private val workoutSessionDao: WorkoutSessionDao?,
+    private val firestoreSyncManager: FirestoreSyncManager?,
+    private val tokenManager: TokenManager?,
     @Suppress("UNUSED_PARAMETER") private val isHilt: Boolean
 ) : ViewModel() {
 
@@ -54,16 +58,29 @@ class TrainerAnalyticsViewModel(
     constructor(
         gymMemberRepository: GymMemberRepository,
         userDao: UserDao,
-        workoutSessionDao: WorkoutSessionDao
-    ) : this(gymMemberRepository, userDao, workoutSessionDao, true)
+        workoutSessionDao: WorkoutSessionDao,
+        firestoreSyncManager: FirestoreSyncManager,
+        tokenManager: TokenManager
+    ) : this(gymMemberRepository, userDao, workoutSessionDao, firestoreSyncManager, tokenManager, true)
 
-    constructor() : this(null, null, null, false)
+    constructor() : this(null, null, null, null, null, false)
 
     private val _uiState = MutableStateFlow(TrainerAnalyticsUiState())
     val uiState: StateFlow<TrainerAnalyticsUiState> = _uiState.asStateFlow()
 
     init {
+        syncConnectedMembersFromCloud()
         observeStudioRealData()
+    }
+
+    private fun syncConnectedMembersFromCloud() {
+        val fsm = firestoreSyncManager ?: return
+        val trainerId = tokenManager?.getUserIdSync() ?: return
+        viewModelScope.launch {
+            try {
+                fsm.pullConnectedMembersForTrainer(trainerId)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun observeStudioRealData() {
