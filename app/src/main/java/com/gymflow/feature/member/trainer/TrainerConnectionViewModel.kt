@@ -202,9 +202,8 @@ class TrainerConnectionViewModel @Inject constructor(
             val memberEmail = currentUser?.email?.takeIf { it.isNotBlank() }
                 ?: tokenManager.getEmail()
                 ?: "athlete@gymflow.local"
-            val memberPhone = "+91 98765 43210"
-
             val existing = gymMemberRepository.getMemberById(userId)
+            val memberPhone = existing?.phoneNumber ?: ""
             val gymMember = GymMember(
                 id = userId,
                 name = memberName,

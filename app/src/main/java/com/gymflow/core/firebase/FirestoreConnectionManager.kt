@@ -608,7 +608,7 @@ class FirestoreConnectionManager @Inject constructor(
                                 val athleteId = doc.getString("id") ?: doc.id
                                 val athleteName = doc.getString("name") ?: "Athlete"
                                 val athleteEmail = doc.getString("email") ?: ""
-                                val athletePhone = doc.getString("phoneNumber") ?: "+91 98765 43210"
+                                val athletePhone = doc.getString("phoneNumber") ?: ""
 
                                 val userEntity = UserEntity(
                                     id = athleteId,
@@ -662,7 +662,7 @@ class FirestoreConnectionManager @Inject constructor(
                                 val athleteId = doc.getString("id") ?: doc.id
                                 val athleteName = doc.getString("name") ?: "Athlete"
                                 val athleteEmail = doc.getString("email") ?: ""
-                                val athletePhone = doc.getString("phoneNumber") ?: "+91 98765 43210"
+                                val athletePhone = doc.getString("phoneNumber") ?: ""
 
                                 val userEntity = UserEntity(
                                     id = athleteId,

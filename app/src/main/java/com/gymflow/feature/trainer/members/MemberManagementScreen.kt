@@ -627,7 +627,7 @@ private fun AddMemberDialog(
                     onValueChange = { phone = it },
                     label = { Text("WhatsApp Phone (+91...) *") },
                     leadingIcon = { Icon(Icons.Default.Phone, null) },
-                    placeholder = { Text("e.g. 9876543210") },
+                    placeholder = { Text("Enter 10-digit mobile number") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = dialogTextFieldColors()
                 )

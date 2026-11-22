@@ -149,7 +149,7 @@ fun NavGraphBuilder.trainerNavGraph(
         )
     }
 
-    // Screen 19: Member Profile (Sarah Miller)
+    // Screen 19: Member Profile
     composable<TrainerRoute.MemberProfile> { backStackEntry ->
         val route = backStackEntry.toRoute<TrainerRoute.MemberProfile>()
         TrainerMemberProfileScreen(

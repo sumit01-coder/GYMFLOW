@@ -262,7 +262,7 @@ fun TrainerSettingsScreen(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text("Studio Analytics & PDF Reports", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TrainerDarkTextPrimary)
-                                    Text("78% completion rate, volume analysis", fontSize = 11.sp, color = TrainerDarkTextSecondary)
+                                    Text("Real-time completion rate & volume analysis", fontSize = 11.sp, color = TrainerDarkTextSecondary)
                                 }
                             }
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = TrainerDarkTextTertiary, modifier = Modifier.size(16.dp))

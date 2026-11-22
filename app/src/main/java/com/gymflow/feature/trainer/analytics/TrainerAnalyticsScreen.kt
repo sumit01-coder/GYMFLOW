@@ -162,8 +162,8 @@ fun TrainerAnalyticsScreen(
                 ) {
                     TrainerKpiCard(
                         title = "TOTAL STUDIO VOLUME",
-                        value = "48,200 kg",
-                        subtitle = "+14% vs last month",
+                        value = if (uiState.totalStudioVolumeKg > 0) "${String.format(java.util.Locale.US, "%,d", uiState.totalStudioVolumeKg)} kg" else "0 kg",
+                        subtitle = if (uiState.totalStudioVolumeKg > 0) "All logged sessions" else "No logged sessions yet",
                         icon = Icons.Default.FitnessCenter,
                         accentColor = TrainerDarkTextPrimary,
                         modifier = Modifier.weight(1f)

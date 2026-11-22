@@ -87,7 +87,7 @@ class MemberManagementViewModel @Inject constructor(
                         GymMember(
                             id = athlete.id,
                             name = athlete.name.ifBlank { "Athlete" },
-                            phoneNumber = "+91 98765 43210",
+                            phoneNumber = "",
                             email = athlete.email,
                             assignedTrainerId = athlete.connectedTrainerId,
                             assignedTrainerName = "Coach",

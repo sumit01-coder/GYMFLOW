@@ -104,7 +104,7 @@ class TrainerDashboardViewModel @Inject constructor(
                         val newMember = GymMember(
                             id = athlete.id,
                             name = athlete.name.ifBlank { "Athlete" },
-                            phoneNumber = "+91 98765 43210",
+                            phoneNumber = "",
                             email = athlete.email,
                             assignedTrainerId = athlete.connectedTrainerId,
                             assignedTrainerName = _uiState.value.coachName,
@@ -127,7 +127,7 @@ class TrainerDashboardViewModel @Inject constructor(
                         GymMember(
                             id = athlete.id,
                             name = athlete.name.ifBlank { "Athlete" },
-                            phoneNumber = "+91 98765 43210",
+                            phoneNumber = "",
                             email = athlete.email,
                             assignedTrainerId = athlete.connectedTrainerId,
                             assignedTrainerName = _uiState.value.coachName,
