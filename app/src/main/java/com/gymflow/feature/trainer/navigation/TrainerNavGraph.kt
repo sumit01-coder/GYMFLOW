@@ -1,7 +1,9 @@
 package com.gymflow.feature.trainer.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -189,6 +191,18 @@ fun NavGraphBuilder.trainerNavGraph(
     // Screen 20 Sub-screen: Exercise Assignment Editor
     composable<TrainerRoute.ExerciseAssignment> { backStackEntry ->
         val route = backStackEntry.toRoute<TrainerRoute.ExerciseAssignment>()
+        val parentEntry = remember(backStackEntry) {
+            try {
+                navController.getBackStackEntry<TrainerRoute.WorkoutPlanBuilder>()
+            } catch (_: Exception) {
+                null
+            }
+        }
+        val planViewModel: com.gymflow.feature.trainer.plans.WorkoutPlanViewModel = if (parentEntry != null) {
+            hiltViewModel(parentEntry)
+        } else {
+            hiltViewModel()
+        }
         ExerciseAssignmentScreen(
             dayOfWeek = route.dayOfWeek,
             planId = route.planId,
@@ -196,7 +210,8 @@ fun NavGraphBuilder.trainerNavGraph(
             onAddExerciseFromLibrary = {
                 navController.navigate(TrainerRoute.ExerciseLibrary(isSelectionMode = true))
             },
-            onSaved = { navController.popBackStack() }
+            onSaved = { navController.popBackStack() },
+            viewModel = planViewModel
         )
     }
 

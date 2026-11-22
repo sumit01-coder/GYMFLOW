@@ -39,7 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
@@ -62,7 +62,7 @@ fun ExerciseAssignmentScreen(
     onAddExerciseFromLibrary: () -> Unit,
     onSaved: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: WorkoutPlanViewModel = viewModel()
+    viewModel: WorkoutPlanViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val day = uiState.days[dayOfWeek]

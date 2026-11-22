@@ -71,7 +71,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.cos
 import kotlin.math.sin
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.gymflow.core.components.GymFlowButton
 import com.gymflow.core.components.GymFlowButtonStyle
 import com.gymflow.core.components.GymFlowCard
@@ -91,7 +91,7 @@ import com.gymflow.core.util.TimerAlertUtils
 @Composable
 fun StopwatchScreen(
     onNavigateBack: () -> Unit,
-    viewModel: StopwatchViewModel = viewModel()
+    viewModel: StopwatchViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
