@@ -197,70 +197,94 @@ fun MemberHomeContent(
                     vertical = adaptive.verticalScreenPadding
                 )
         ) {
-            // Top Bar
+            // Top Bar (Responsive & Optimized for Small Screens)
+            val isSmallScreen = adaptive.posture == com.gymflow.core.theme.DevicePosture.SMALL_PHONE || adaptive.screenWidthDp < 400.dp
+            val isVerySmallScreen = adaptive.screenWidthDp < 350.dp
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Left: Logo & Role Badge
                 Row(
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     Text(
                         text = "GYMFLOW",
                         style = GymFlowTheme.typography.Heading2.copy(
+                            fontSize = if (isSmallScreen) 20.sp else 24.sp,
                             fontWeight = FontWeight.Black,
-                            letterSpacing = 1.sp
+                            letterSpacing = if (isSmallScreen) 0.5.sp else 1.sp
                         ),
                         color = GymFlowTheme.colors.textPrimary
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    GymFlowBadge(
-                        text = "MEMBER",
-                        backgroundColor = GymFlowTheme.colors.surfaceVariant,
-                        textColor = GymFlowTheme.colors.textSecondary
-                    )
+                    if (!isVerySmallScreen) {
+                        Spacer(modifier = Modifier.width(if (isSmallScreen) 6.dp else 8.dp))
+                        GymFlowBadge(
+                            text = "MEMBER",
+                            backgroundColor = GymFlowTheme.colors.surfaceVariant,
+                            textColor = GymFlowTheme.colors.textSecondary
+                        )
+                    }
                 }
 
+                // Right: Cloud Sync Status + Notification Bell + User Avatar
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Cloud Connection Status Pill
-                    val (statusText, statusBg, statusColor) = when (uiState.connectionStatus) {
+                    val (fullStatusText, statusBg, statusColor) = when (uiState.connectionStatus) {
                         FirestoreConnectionStatus.CONNECTED -> Triple("Cloud Live", Color(0xFF10B981).copy(alpha = 0.15f), Color(0xFF10B981))
                         FirestoreConnectionStatus.SYNCING -> Triple("Syncing...", Color(0xFFF59E0B).copy(alpha = 0.15f), Color(0xFFF59E0B))
                         FirestoreConnectionStatus.OFFLINE -> Triple("Offline", Color.Gray.copy(alpha = 0.15f), Color.Gray)
+                    }
+
+                    val statusText = when {
+                        isVerySmallScreen -> "" // Compact dot-only pill
+                        isSmallScreen -> when (uiState.connectionStatus) {
+                            FirestoreConnectionStatus.CONNECTED -> "Live"
+                            FirestoreConnectionStatus.SYNCING -> "Sync"
+                            FirestoreConnectionStatus.OFFLINE -> "Off"
+                        }
+                        else -> fullStatusText
                     }
 
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
                             .background(statusBg)
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(
+                                horizontal = if (statusText.isEmpty()) 6.dp else (if (isSmallScreen) 7.dp else 8.dp),
+                                vertical = if (isSmallScreen) 3.dp else 4.dp
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
+                                .size(if (isSmallScreen) 5.dp else 6.dp)
                                 .background(statusColor, CircleShape)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = statusText,
-                            style = GymFlowTheme.typography.Caption.copy(
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = statusColor
-                        )
+                        if (statusText.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = statusText,
+                                style = GymFlowTheme.typography.Caption.copy(
+                                    fontSize = if (isSmallScreen) 10.sp else 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = statusColor
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(if (isSmallScreen) 6.dp else 10.dp))
 
                     // Notification Icon with Unread Dot
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(if (isSmallScreen) 34.dp else 40.dp)
                             .clip(CircleShape)
                             .background(GymFlowTheme.colors.surfaceVariant)
                             .clickable { /* Notifications */ },
@@ -269,26 +293,29 @@ fun MemberHomeContent(
                         Icon(
                             imageVector = Icons.Default.Notifications,
                             contentDescription = "Notifications",
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(if (isSmallScreen) 18.dp else 20.dp),
                             tint = GymFlowTheme.colors.textPrimary
                         )
                         if (uiState.hasUnreadNotifications) {
                             Box(
                                 modifier = Modifier
-                                    .size(8.dp)
+                                    .size(if (isSmallScreen) 6.dp else 8.dp)
                                     .align(Alignment.TopEnd)
-                                    .padding(top = 8.dp, end = 8.dp)
+                                    .padding(
+                                        top = if (isSmallScreen) 6.dp else 8.dp,
+                                        end = if (isSmallScreen) 6.dp else 8.dp
+                                    )
                                     .background(GymFlowRed, shape = CircleShape)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(if (isSmallScreen) 6.dp else 10.dp))
 
                     // User Avatar
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(if (isSmallScreen) 34.dp else 40.dp)
                             .clip(CircleShape)
                             .background(GymFlowBlack)
                             .clickable { onNavigateToProfile() },
@@ -298,6 +325,7 @@ fun MemberHomeContent(
                             text = uiState.userInitials,
                             style = GymFlowTheme.typography.Caption.copy(
                                 fontWeight = FontWeight.Bold,
+                                fontSize = if (isSmallScreen) 11.sp else 12.sp,
                                 color = GymFlowWhite
                             )
                         )
