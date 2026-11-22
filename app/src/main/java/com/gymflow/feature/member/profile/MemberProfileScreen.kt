@@ -24,6 +24,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
@@ -90,6 +91,7 @@ fun MemberProfileScreen(
     var isAgeDialogOpen by remember { mutableStateOf(false) }
     var isHeightDialogOpen by remember { mutableStateOf(false) }
     var isGenderDialogOpen by remember { mutableStateOf(false) }
+    var isPhoneDialogOpen by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val timePickerDialog = remember(context, uiState.reminderHour, uiState.reminderMinute) {
@@ -427,7 +429,64 @@ fun MemberProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // WhatsApp Contact Phone Card
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GymFlowTheme.colors.surface)
+                    .clickable { isPhoneDialogOpen = true }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF25D366).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "WhatsApp Phone",
+                            tint = Color(0xFF25D366),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "WHATSAPP PHONE NUMBER",
+                            style = GymFlowTheme.typography.Caption.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = GymFlowTheme.colors.textSecondary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = if (uiState.phoneNumber.isNotBlank()) uiState.phoneNumber else "Add phone for coach alerts",
+                            style = GymFlowTheme.typography.BodyMedium.copy(
+                                fontWeight = if (uiState.phoneNumber.isNotBlank()) FontWeight.Bold else FontWeight.Normal
+                            ),
+                            color = if (uiState.phoneNumber.isNotBlank()) GymFlowTheme.colors.textPrimary else GymFlowTheme.colors.textTertiary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = GymFlowTheme.colors.textSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Section Header
             Row(
@@ -746,7 +805,62 @@ fun MemberProfileScreen(
         )
     }
 
-    // Dialog 1d: Edit Gender Dialog
+    // Dialog 1d: Edit Phone Dialog
+    if (isPhoneDialogOpen) {
+        var phoneInput by remember { mutableStateOf(uiState.phoneNumber) }
+        AlertDialog(
+            onDismissRequest = { isPhoneDialogOpen = false },
+            title = {
+                Text(
+                    text = "WhatsApp Phone Number",
+                    style = GymFlowTheme.typography.Heading2.copy(fontSize = 20.sp),
+                    color = GymFlowTheme.colors.textPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Used by your trainer to send routines, attendance, and reminders via WhatsApp.",
+                        style = GymFlowTheme.typography.BodyRegular,
+                        color = GymFlowTheme.colors.textSecondary
+                    )
+                    GymFlowTextField(
+                        value = phoneInput,
+                        onValueChange = { phoneInput = it },
+                        label = "Phone Number",
+                        placeholder = "e.g. +91 9876543210",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.updatePhoneNumber(phoneInput)
+                        isPhoneDialogOpen = false
+                    }
+                ) {
+                    Text(
+                        text = "Save Number",
+                        color = GymFlowTheme.colors.textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isPhoneDialogOpen = false }) {
+                    Text(text = "Cancel", color = GymFlowTheme.colors.textSecondary)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Dialog 1e: Edit Gender Dialog
     if (isGenderDialogOpen) {
         val genders = listOf("Male", "Female", "Other")
         AlertDialog(

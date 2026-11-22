@@ -45,7 +45,8 @@ class TrainerDashboardViewModel @Inject constructor(
     private val userDao: UserDao,
     private val gymMemberRepository: GymMemberRepository,
     private val workoutSessionDao: WorkoutSessionDao,
-    private val firestoreConnectionManager: FirestoreConnectionManager
+    private val firestoreConnectionManager: FirestoreConnectionManager,
+    private val firestoreSyncManager: com.gymflow.core.firebase.FirestoreSyncManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrainerDashboardUiState())
@@ -54,6 +55,16 @@ class TrainerDashboardViewModel @Inject constructor(
     init {
         observeCoachData()
         observeRealMembers()
+        syncConnectedMembersFromCloud()
+    }
+
+    fun syncConnectedMembersFromCloud() {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync() ?: return@launch
+            try {
+                firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun observeCoachData() {

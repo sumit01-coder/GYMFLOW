@@ -6,6 +6,8 @@ import com.google.firebase.firestore.SetOptions
 import com.gymflow.core.database.BodyMeasurementEntity
 import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.DailyStepsEntity
+import com.gymflow.core.database.GymMemberDao
+import com.gymflow.core.database.GymMemberEntity
 import com.gymflow.core.database.HydrationLogEntity
 import com.gymflow.core.database.OutdoorWorkoutDao
 import com.gymflow.core.database.OutdoorWorkoutEntity
@@ -18,6 +20,7 @@ import com.gymflow.core.database.WeightLogEntity
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.database.WorkoutSessionEntity
 import com.gymflow.domain.model.ExerciseSet
+import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
 import com.gymflow.domain.model.WorkoutPlan
@@ -38,10 +41,18 @@ data class CloudTrainerCodeInfo(
     val expiresAtEpochMs: Long
 )
 
+data class CloudTrainerInfo(
+    val id: String,
+    val name: String,
+    val gymName: String,
+    val inviteCode: String
+)
+
 @Singleton
 class FirestoreSyncManager @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val userDao: UserDao,
+    private val gymMemberDao: GymMemberDao,
     private val workoutSessionDao: WorkoutSessionDao,
     private val weightDao: WeightDao,
     private val planDao: PlanDao,
@@ -799,6 +810,11 @@ class FirestoreSyncManager @Inject constructor(
                 }
             } catch (_: Exception) {}
 
+            // 9. Connected Members (If Trainer)
+            try {
+                pullConnectedMembersForTrainer(userId)
+            } catch (_: Exception) {}
+
             true
         } catch (_: Exception) {
             false
@@ -908,35 +924,266 @@ class FirestoreSyncManager @Inject constructor(
         }
     }
 
-    // 11. Link Member to Trainer in Cloud Firestore (Two-way Connection)
+    // 10c. Get Trainer Profile and Invite Code info for members
+    suspend fun getTrainerProfileInfo(trainerId: String): CloudTrainerInfo? {
+        if (trainerId.isBlank() || trainerId == "default_member") return null
+        return try {
+            val trainerDoc = firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .get()
+                .await()
+            if (trainerDoc.exists()) {
+                val name = trainerDoc.getString("name") ?: "Coach"
+                val gymName = trainerDoc.getString("gymName") ?: "GymFlow Fitness Center"
+                val code = trainerDoc.getString("currentInviteCode") ?: ""
+                CloudTrainerInfo(trainerId, name, gymName, code)
+            } else {
+                val userDoc = firestore.collection(COLLECTION_USERS)
+                    .document(trainerId)
+                    .get()
+                    .await()
+                if (userDoc.exists()) {
+                    val name = userDoc.getString("name") ?: "Coach"
+                    CloudTrainerInfo(trainerId, name, "GymFlow Fitness Center", "")
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    // 11. Pull Connected Members for Trainer and upsert into local Room database
+    suspend fun pullConnectedMembersForTrainer(trainerId: String): List<GymMemberEntity> {
+        if (trainerId.isBlank() || trainerId == "default_member") return emptyList()
+        return try {
+            val membersList = mutableListOf<GymMemberEntity>()
+            val seenMemberIds = mutableSetOf<String>()
+
+            // A. Fetch from trainers/{trainerId}/connected_members
+            try {
+                val subSnapshot = firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .collection("connected_members")
+                    .get()
+                    .await()
+
+                for (doc in subSnapshot.documents) {
+                    val mId = doc.getString("id") ?: doc.id
+                    if (mId.isBlank() || mId in seenMemberIds) continue
+                    seenMemberIds.add(mId)
+                    val mName = doc.getString("name") ?: "Athlete"
+                    val mEmail = doc.getString("email") ?: ""
+                    val mPhone = doc.getString("phoneNumber") ?: ""
+                    val joinedAt = doc.getLong("joinedAtEpochMs") ?: System.currentTimeMillis()
+                    val code = doc.getString("invitationCode") ?: ""
+
+                    var height = (doc.getDouble("heightCm") ?: 0.0).toFloat()
+                    var weight = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat()
+                    var goal = doc.getString("fitnessGoal") ?: "General Fitness"
+                    var age = (doc.getLong("age") ?: 0L).toInt()
+
+                    try {
+                        val uDoc = firestore.collection(COLLECTION_USERS).document(mId).get().await()
+                        if (uDoc.exists()) {
+                            if (height == 0f) height = (uDoc.getDouble("heightCm") ?: 0.0).toFloat()
+                            if (weight == 0f) weight = (uDoc.getDouble("currentWeightKg") ?: 0.0).toFloat()
+                            if (goal == "General Fitness") goal = uDoc.getString("fitnessGoal") ?: goal
+                            if (age == 0) age = (uDoc.getLong("age") ?: 0L).toInt()
+                        }
+                    } catch (_: Exception) {}
+
+                    val userEntity = UserEntity(
+                        id = mId,
+                        name = mName,
+                        email = mEmail,
+                        role = Role.MEMBER,
+                        heightCm = height,
+                        currentWeightKg = weight,
+                        fitnessGoal = goal,
+                        age = age,
+                        connectedTrainerId = trainerId,
+                        syncStatus = "Connected",
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                    userDao.upsertUser(userEntity)
+
+                    val gymMemberEntity = GymMemberEntity(
+                        id = mId,
+                        name = mName,
+                        phoneNumber = mPhone,
+                        email = mEmail,
+                        assignedTrainerId = trainerId,
+                        assignedTrainerName = "Coach",
+                        durationMonths = 1,
+                        startDateEpochMs = joinedAt,
+                        endDateEpochMs = joinedAt + (30L * 24 * 60 * 60 * 1000),
+                        feeAmount = 1500.0,
+                        amountPaid = 1500.0,
+                        paymentStatus = "PAID",
+                        paymentMethod = "UPI",
+                        notes = if (code.isNotBlank()) "Joined via Code: $code" else "Connected athlete",
+                        isActive = true
+                    )
+                    gymMemberDao.insertMember(gymMemberEntity)
+                    membersList.add(gymMemberEntity)
+                }
+            } catch (_: Exception) {}
+
+            // B. Fetch from users collection where connectedTrainerId == trainerId
+            try {
+                val usersSnapshot = firestore.collection(COLLECTION_USERS)
+                    .whereEqualTo("connectedTrainerId", trainerId)
+                    .get()
+                    .await()
+
+                for (doc in usersSnapshot.documents) {
+                    val mId = doc.getString("id") ?: doc.id
+                    if (mId.isBlank() || mId in seenMemberIds) continue
+                    seenMemberIds.add(mId)
+                    val mName = doc.getString("name") ?: "Athlete"
+                    val mEmail = doc.getString("email") ?: ""
+                    val mPhone = doc.getString("phoneNumber") ?: ""
+                    val height = (doc.getDouble("heightCm") ?: 0.0).toFloat()
+                    val weight = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat()
+                    val goal = doc.getString("fitnessGoal") ?: "General Fitness"
+                    val age = (doc.getLong("age") ?: 0L).toInt()
+
+                    val userEntity = UserEntity(
+                        id = mId,
+                        name = mName,
+                        email = mEmail,
+                        role = Role.MEMBER,
+                        heightCm = height,
+                        currentWeightKg = weight,
+                        fitnessGoal = goal,
+                        age = age,
+                        connectedTrainerId = trainerId,
+                        syncStatus = "Connected",
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                    userDao.upsertUser(userEntity)
+
+                    val gymMemberEntity = GymMemberEntity(
+                        id = mId,
+                        name = mName,
+                        phoneNumber = mPhone,
+                        email = mEmail,
+                        assignedTrainerId = trainerId,
+                        assignedTrainerName = "Coach",
+                        durationMonths = 1,
+                        startDateEpochMs = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
+                        endDateEpochMs = (doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
+                        feeAmount = 1500.0,
+                        amountPaid = 1500.0,
+                        paymentStatus = "PAID",
+                        paymentMethod = "UPI",
+                        notes = "Connected athlete",
+                        isActive = true
+                    )
+                    gymMemberDao.insertMember(gymMemberEntity)
+                    membersList.add(gymMemberEntity)
+                }
+            } catch (_: Exception) {}
+
+            // C. Fetch from trainers/{trainerId}.activeMemberIds
+            try {
+                val trainerDoc = firestore.collection(COLLECTION_TRAINERS)
+                    .document(trainerId)
+                    .get()
+                    .await()
+                val activeIds = (trainerDoc.get("activeMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                for (mId in activeIds) {
+                    if (mId.isBlank() || mId in seenMemberIds) continue
+                    seenMemberIds.add(mId)
+                    val uDoc = firestore.collection(COLLECTION_USERS).document(mId).get().await()
+                    if (uDoc.exists()) {
+                        val mName = uDoc.getString("name") ?: "Athlete"
+                        val mEmail = uDoc.getString("email") ?: ""
+                        val mPhone = uDoc.getString("phoneNumber") ?: ""
+                        val height = (uDoc.getDouble("heightCm") ?: 0.0).toFloat()
+                        val weight = (uDoc.getDouble("currentWeightKg") ?: 0.0).toFloat()
+                        val goal = uDoc.getString("fitnessGoal") ?: "General Fitness"
+                        val age = (uDoc.getLong("age") ?: 0L).toInt()
+
+                        val userEntity = UserEntity(
+                            id = mId,
+                            name = mName,
+                            email = mEmail,
+                            role = Role.MEMBER,
+                            heightCm = height,
+                            currentWeightKg = weight,
+                            fitnessGoal = goal,
+                            age = age,
+                            connectedTrainerId = trainerId,
+                            syncStatus = "Connected",
+                            lastUpdated = System.currentTimeMillis()
+                        )
+                        userDao.upsertUser(userEntity)
+
+                        val gymMemberEntity = GymMemberEntity(
+                            id = mId,
+                            name = mName,
+                            phoneNumber = mPhone,
+                            email = mEmail,
+                            assignedTrainerId = trainerId,
+                            assignedTrainerName = "Coach",
+                            durationMonths = 1,
+                            startDateEpochMs = uDoc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
+                            endDateEpochMs = (uDoc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()) + (30L * 24 * 60 * 60 * 1000),
+                            feeAmount = 1500.0,
+                            amountPaid = 1500.0,
+                            paymentStatus = "PAID",
+                            paymentMethod = "UPI",
+                            notes = "Connected athlete",
+                            isActive = true
+                        )
+                        gymMemberDao.insertMember(gymMemberEntity)
+                        membersList.add(gymMemberEntity)
+                    }
+                }
+            } catch (_: Exception) {}
+
+            membersList
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    // 12. Link Member to Trainer in Cloud Firestore (Two-way Connection)
     suspend fun registerMemberTrainerConnection(
         code: String,
         memberId: String,
         memberName: String,
         memberEmail: String,
         trainerId: String,
-        trainerName: String
+        trainerName: String,
+        memberPhone: String = ""
     ): Boolean {
         return try {
             val cleanCode = code.trim().uppercase()
             val now = System.currentTimeMillis()
 
             // 1) Update member's user profile in Firestore
-            val memberProfileUpdate = mapOf(
+            val memberProfileUpdate = mutableMapOf<String, Any>(
                 "connectedTrainerId" to trainerId,
+                "connectedTrainerName" to trainerName,
                 "syncStatus" to "Connected",
                 "lastUpdated" to now
             )
+            if (memberPhone.isNotBlank()) {
+                memberProfileUpdate["phoneNumber"] = memberPhone
+            }
             firestore.collection(COLLECTION_USERS)
                 .document(memberId)
                 .set(memberProfileUpdate, SetOptions.merge())
                 .await()
 
             // 2) Append to trainer's connected_members subcollection
-            val connectedMemberData = mapOf(
+            val connectedMemberData = mutableMapOf<String, Any>(
                 "id" to memberId,
                 "name" to memberName,
                 "email" to memberEmail,
+                "phoneNumber" to memberPhone,
                 "connectedTrainerId" to trainerId,
                 "connectedTrainerName" to trainerName,
                 "joinedAtEpochMs" to now,
@@ -953,6 +1200,77 @@ class FirestoreSyncManager @Inject constructor(
             firestore.collection(COLLECTION_TRAINERS)
                 .document(trainerId)
                 .update("activeMemberIds", FieldValue.arrayUnion(memberId))
+                .await()
+
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 13. Update Member Phone Number in Firestore
+    suspend fun updateMemberPhoneNumber(
+        memberId: String,
+        phoneNumber: String,
+        trainerId: String? = null
+    ): Boolean {
+        return try {
+            val cleanPhone = phoneNumber.trim()
+            val now = System.currentTimeMillis()
+
+            firestore.collection(COLLECTION_USERS)
+                .document(memberId)
+                .set(mapOf("phoneNumber" to cleanPhone, "lastUpdated" to now), SetOptions.merge())
+                .await()
+
+            val targetTrainerId = trainerId ?: run {
+                val uDoc = firestore.collection(COLLECTION_USERS).document(memberId).get().await()
+                uDoc.getString("connectedTrainerId")
+            }
+
+            if (!targetTrainerId.isNullOrBlank()) {
+                firestore.collection(COLLECTION_TRAINERS)
+                    .document(targetTrainerId)
+                    .collection("connected_members")
+                    .document(memberId)
+                    .set(mapOf("phoneNumber" to cleanPhone), SetOptions.merge())
+                    .await()
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    // 14. Remove Member Trainer Connection in Cloud Firestore
+    suspend fun removeMemberTrainerConnection(
+        memberId: String,
+        trainerId: String
+    ): Boolean {
+        return try {
+            firestore.collection(COLLECTION_USERS)
+                .document(memberId)
+                .set(
+                    mapOf(
+                        "connectedTrainerId" to FieldValue.delete(),
+                        "connectedTrainerName" to FieldValue.delete(),
+                        "syncStatus" to "Not Connected",
+                        "lastUpdated" to System.currentTimeMillis()
+                    ),
+                    SetOptions.merge()
+                )
+                .await()
+
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .collection("connected_members")
+                .document(memberId)
+                .delete()
+                .await()
+
+            firestore.collection(COLLECTION_TRAINERS)
+                .document(trainerId)
+                .update("activeMemberIds", FieldValue.arrayRemove(memberId))
                 .await()
 
             true

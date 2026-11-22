@@ -250,6 +250,12 @@ class TokenManager @Inject constructor(
     fun getConnectedTrainerGym(): String? = prefs.getString(KEY_CONNECTED_TRAINER_GYM, null)
     fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)
 
+    fun savePhoneNumber(phone: String) {
+        prefs.edit().putString(KEY_PHONE_NUMBER, phone.trim()).apply()
+    }
+
+    fun getPhoneNumber(): String? = prefs.getString(KEY_PHONE_NUMBER, null)
+
     fun clearConnectedTrainer() {
         prefs.edit()
             .remove(KEY_CONNECTED_TRAINER_ID)
@@ -270,6 +276,8 @@ class TokenManager @Inject constructor(
         private const val KEY_USER_ID = "user_id"
         private const val KEY_USER_EMAIL = "user_email"
         private const val KEY_USER_NAME = "user_name"
+        private const val KEY_USER_PHONE = "user_phone"
+        private const val KEY_PHONE_NUMBER = "key_phone_number"
         private const val KEY_USER_GENDER = "user_gender"
         private const val KEY_EMAIL_VERIFIED = "email_verified"
         private const val KEY_ACCOUNT_CREATED_AT = "account_created_at"

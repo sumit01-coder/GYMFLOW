@@ -401,11 +401,17 @@ private fun MemberCardItem(
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(2.dp))
+                        val contactText = when {
+                            member.phoneNumber.isNotBlank() -> member.phoneNumber
+                            member.email.isNotBlank() -> member.email
+                            else -> "No phone added"
+                        }
                         Text(
-                            text = member.phoneNumber,
+                            text = contactText,
                             fontSize = 12.sp,
-                            color = TrainerDarkTextSecondary,
-                            maxLines = 1
+                            color = if (member.phoneNumber.isNotBlank()) TrainerDarkTextSecondary else TrainerDarkTextTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (!member.assignedTrainerName.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(3.dp))
@@ -516,7 +522,8 @@ private fun MemberCardItem(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Direct WhatsApp Button (Green)
+                // Direct WhatsApp Button
+                val hasPhone = member.phoneNumber.isNotBlank()
                 Button(
                     onClick = onSendWhatsApp,
                     modifier = Modifier
@@ -524,8 +531,8 @@ private fun MemberCardItem(
                         .height(38.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF25D366),
-                        contentColor = Color.White
+                        containerColor = if (hasPhone) Color(0xFF25D366) else Color(0xFF27272A),
+                        contentColor = if (hasPhone) Color.White else TrainerDarkTextSecondary
                     )
                 ) {
                     Icon(
@@ -535,7 +542,7 @@ private fun MemberCardItem(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "WhatsApp Alert",
+                        text = if (hasPhone) "WhatsApp Alert" else "No WhatsApp #",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -944,11 +951,28 @@ private fun WhatsAppPreviewDialog(
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Sending directly to ${member.name} (${member.phoneNumber}) via normal WhatsApp:",
-                    fontSize = 12.sp,
-                    color = TrainerDarkTextSecondary
-                )
+                val hasPhone = member.phoneNumber.isNotBlank()
+                if (hasPhone) {
+                    Text(
+                        text = "Sending directly to ${member.name} (${member.phoneNumber}) via WhatsApp:",
+                        fontSize = 12.sp,
+                        color = TrainerDarkTextSecondary
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF2E1A1A))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ ${member.name} has not registered a phone number yet. You can copy the message to clipboard or ask the athlete to add their number in their profile.",
+                            fontSize = 12.sp,
+                            color = Color(0xFFFF8A80)
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -965,20 +989,35 @@ private fun WhatsAppPreviewDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "💡 Will open normal WhatsApp chat with text pre-filled. Tap send inside WhatsApp to dispatch.",
+                    text = if (hasPhone) "💡 Will open normal WhatsApp chat with text pre-filled. Tap send inside WhatsApp to dispatch." else "💡 Tap 'Copy Message' to copy this message to clipboard.",
                     fontSize = 11.sp,
                     color = TrainerDarkTextTertiary
                 )
             }
         },
         confirmButton = {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val hasPhone = member.phoneNumber.isNotBlank()
             Button(
-                onClick = { onSend(messageText) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366), contentColor = Color.White)
+                onClick = {
+                    if (hasPhone) {
+                        onSend(messageText)
+                    } else {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("GymFlow Message", messageText)
+                        clipboard?.setPrimaryClip(clip)
+                        android.widget.Toast.makeText(context, "Message copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                        onDismiss()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (hasPhone) Color(0xFF25D366) else TrainerGreenAccent,
+                    contentColor = Color.White
+                )
             ) {
                 Icon(Icons.Default.Send, null, modifier = Modifier.size(14.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Open WhatsApp", fontWeight = FontWeight.Bold)
+                Text(if (hasPhone) "Open WhatsApp" else "Copy Message", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

@@ -52,6 +52,7 @@ data class ProfileUiState(
     val selectedTheme: String = "Light",
     val isLogoutDialogOpen: Boolean = false,
     val gender: String = "Male",
+    val phoneNumber: String = "",
     val graceDaysRemaining: Int = 7,
     val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED
 )
@@ -77,6 +78,7 @@ class ProfileViewModel @Inject constructor(
             val name = tokenManager.getName() ?: ""
             val email = tokenManager.getEmail() ?: ""
             val id = tokenManager.getUserIdSync() ?: "default_member"
+            val phone = tokenManager.getPhoneNumber() ?: ""
             val inits = if (name.isNotBlank()) extractInitials(name) else "GF"
             val isVerified = tokenManager.isEmailVerifiedSync() || (firebaseAuth.currentUser?.isEmailVerified == true)
             ProfileUiState(
@@ -87,7 +89,8 @@ class ProfileViewModel @Inject constructor(
                     role = Role.MEMBER,
                     isEmailVerified = isVerified
                 ),
-                initials = inits
+                initials = inits,
+                phoneNumber = phone
             )
         }
     )
@@ -274,6 +277,22 @@ class ProfileViewModel @Inject constructor(
             if (updated != null) {
                 try { firestoreSyncManager.saveUserProfile(updated) } catch (_: Exception) {}
             }
+        }
+    }
+
+    fun updatePhoneNumber(newPhone: String) {
+        val cleanPhone = newPhone.trim()
+        val userId = _uiState.value.user.id
+        tokenManager.savePhoneNumber(cleanPhone)
+        _uiState.update { it.copy(phoneNumber = cleanPhone) }
+        viewModelScope.launch {
+            try {
+                firestoreSyncManager.updateMemberPhoneNumber(
+                    memberId = userId,
+                    phoneNumber = cleanPhone,
+                    trainerId = _uiState.value.profile.connectedTrainerId
+                )
+            } catch (_: Exception) {}
         }
     }
 

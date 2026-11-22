@@ -143,6 +143,12 @@ class WorkoutPlanViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync()
+            if (!trainerId.isNullOrBlank()) {
+                try {
+                    firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+                } catch (_: Exception) {}
+            }
             combine(
                 gymMemberRepository.getAllMembers(),
                 userDao.getConnectedAthletesFlow()

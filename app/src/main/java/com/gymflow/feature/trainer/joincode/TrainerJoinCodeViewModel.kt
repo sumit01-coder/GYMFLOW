@@ -64,7 +64,18 @@ class TrainerJoinCodeViewModel(
         val savedCode = tokenManager?.getTrainerInviteCode() ?: _uiState.value.currentCode
         _uiState.update { it.copy(currentCode = savedCode) }
         publishCodeToCloud(savedCode)
+        syncConnectedMembersFromCloud()
         observeConnectedAthletes()
+    }
+
+    private fun syncConnectedMembersFromCloud() {
+        val fsm = firestoreSyncManager ?: return
+        val trainerId = tokenManager?.getUserIdSync() ?: return
+        viewModelScope.launch {
+            try {
+                fsm.pullConnectedMembersForTrainer(trainerId)
+            } catch (_: Exception) {}
+        }
     }
 
     private fun observeConnectedAthletes() {

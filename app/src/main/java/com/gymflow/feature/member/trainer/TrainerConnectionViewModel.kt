@@ -72,21 +72,34 @@ class TrainerConnectionViewModel @Inject constructor(
         viewModelScope.launch {
             userDao.getUserFlow(userId).collect { user ->
                 if (user != null && !user.connectedTrainerId.isNullOrBlank()) {
-                    val realTrainerUser = userDao.getUserById(user.connectedTrainerId) ?: userDao.getPrimaryTrainer()
-                    val trainerName = tokenManager.getConnectedTrainerName()
-                        ?: realTrainerUser?.name?.let { if (it.startsWith("Coach", ignoreCase = true)) it else "Coach $it" }
-                        ?: "Coach"
-                    val gymName = tokenManager.getConnectedTrainerGym() ?: "GymFlow Fitness Center"
-                    val code = tokenManager.getConnectedTrainerCode() ?: tokenManager.getTrainerInviteCode()
+                    val trainerId = user.connectedTrainerId
+                    var trainerName = tokenManager.getConnectedTrainerName()
+                    var gymName = tokenManager.getConnectedTrainerGym() ?: "GymFlow Fitness Center"
+                    var code = tokenManager.getConnectedTrainerCode()
+
+                    // Ensure we don't display the member's own name as coach or an invalid code
+                    if (trainerName.isNullOrBlank() || trainerName.equals(user.name, ignoreCase = true) || trainerName.equals("Coach ${user.name}", ignoreCase = true) || code.isNullOrBlank()) {
+                        val cloudInfo = firestoreSyncManager.getTrainerProfileInfo(trainerId)
+                        if (cloudInfo != null) {
+                            trainerName = cloudInfo.name
+                            gymName = cloudInfo.gymName
+                            code = cloudInfo.inviteCode
+                            tokenManager.saveConnectedTrainerInfo(trainerId, trainerName, gymName, code)
+                        }
+                    }
+
+                    val finalTrainerName = if (!trainerName.isNullOrBlank()) {
+                        if (trainerName.startsWith("Coach", ignoreCase = true)) trainerName else "Coach $trainerName"
+                    } else "Coach"
 
                     val trainer = TrainerDetails(
-                        id = user.connectedTrainerId,
-                        name = trainerName,
+                        id = trainerId,
+                        name = finalTrainerName,
                         specialization = "Personal Training & Fitness",
                         experienceYears = 5,
                         activeMembersCount = 1,
                         gymName = gymName,
-                        invitationCode = code
+                        invitationCode = code ?: ""
                     )
                     _uiState.update {
                         it.copy(
@@ -124,20 +137,6 @@ class TrainerConnectionViewModel @Inject constructor(
                     gymName = codeInfo.gymName,
                     invitationCode = formatted
                 )
-            } else if (formatted.startsWith("GYM-") && formatted.length >= 7) {
-                val realTrainerUser = userDao.getPrimaryTrainer()
-                if (realTrainerUser != null) {
-                    val tName = if (realTrainerUser.name.startsWith("Coach", ignoreCase = true)) realTrainerUser.name else "Coach ${realTrainerUser.name}"
-                    TrainerDetails(
-                        id = realTrainerUser.id,
-                        name = tName,
-                        specialization = "Personal Training & Fitness",
-                        experienceYears = 5,
-                        activeMembersCount = 1,
-                        gymName = "GymFlow Fitness Center",
-                        invitationCode = formatted
-                    )
-                } else null
             } else null
 
             _uiState.update { current ->
@@ -162,33 +161,19 @@ class TrainerConnectionViewModel @Inject constructor(
             delay(200)
 
             val codeInfo = firestoreSyncManager.lookupTrainerInviteCode(code)
-            val realTrainerUser = userDao.getPrimaryTrainer()
-
-            val trainerId: String
-            val trainerName: String
-            val gymName: String
-
-            if (codeInfo != null && codeInfo.trainerId.isNotBlank()) {
-                trainerId = codeInfo.trainerId
-                trainerName = if (codeInfo.trainerName.startsWith("Coach", ignoreCase = true)) codeInfo.trainerName else "Coach ${codeInfo.trainerName}"
-                gymName = codeInfo.gymName
-            } else if (realTrainerUser != null) {
-                trainerId = realTrainerUser.id
-                trainerName = if (realTrainerUser.name.startsWith("Coach", ignoreCase = true)) realTrainerUser.name else "Coach ${realTrainerUser.name}"
-                gymName = "GymFlow Fitness Center"
-            } else if (code.contains("GYM")) {
-                trainerId = "trainer_${code.replace("-", "").lowercase()}"
-                trainerName = "Coach"
-                gymName = "GymFlow Fitness Center"
-            } else {
+            if (codeInfo == null || codeInfo.trainerId.isBlank()) {
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        errorMessage = "Invalid code. Check with your trainer for their GYM-XXXXX code."
+                        errorMessage = "Trainer code '$code' not found on server. Please ask your trainer for their valid code."
                     )
                 }
                 return@launch
             }
+
+            val trainerId = codeInfo.trainerId
+            val trainerName = if (codeInfo.trainerName.startsWith("Coach", ignoreCase = true)) codeInfo.trainerName else "Coach ${codeInfo.trainerName}"
+            val gymName = codeInfo.gymName
 
             val userId = currentUserId()
             userDao.updateTrainerConnection(userId, trainerId, "Connected")
@@ -203,7 +188,9 @@ class TrainerConnectionViewModel @Inject constructor(
                 ?: tokenManager.getEmail()
                 ?: "athlete@gymflow.local"
             val existing = gymMemberRepository.getMemberById(userId)
-            val memberPhone = existing?.phoneNumber ?: ""
+            val memberPhone = existing?.phoneNumber?.takeIf { it.isNotBlank() }
+                ?: tokenManager.getPhoneNumber()
+                ?: ""
             val gymMember = GymMember(
                 id = userId,
                 name = memberName,
@@ -236,7 +223,8 @@ class TrainerConnectionViewModel @Inject constructor(
                         memberName = memberName,
                         memberEmail = memberEmail,
                         trainerId = trainerId,
-                        trainerName = trainerName
+                        trainerName = trainerName,
+                        memberPhone = memberPhone
                     )
                 } catch (_: Exception) {}
             }
@@ -264,6 +252,7 @@ class TrainerConnectionViewModel @Inject constructor(
     fun disconnectTrainer() {
         viewModelScope.launch {
             val userId = currentUserId()
+            val oldTrainerId = tokenManager.getConnectedTrainerName() ?: _uiState.value.activeTrainer?.id
             userDao.updateTrainerConnection(userId, null, "Not Connected")
             tokenManager.clearConnectedTrainer()
             val existing = gymMemberRepository.getMemberById(userId)
@@ -275,6 +264,13 @@ class TrainerConnectionViewModel @Inject constructor(
                         notes = "Disconnected from trainer"
                     )
                 )
+            }
+            if (!oldTrainerId.isNullOrBlank()) {
+                launch {
+                    try {
+                        firestoreSyncManager.removeMemberTrainerConnection(userId, oldTrainerId)
+                    } catch (_: Exception) {}
+                }
             }
             _uiState.update {
                 it.copy(

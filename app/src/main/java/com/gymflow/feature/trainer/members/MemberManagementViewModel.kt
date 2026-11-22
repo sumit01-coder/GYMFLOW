@@ -3,6 +3,8 @@ package com.gymflow.feature.trainer.members
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.firebase.FirestoreSyncManager
+import com.gymflow.core.security.TokenManager
 import com.gymflow.domain.model.GymMember
 import com.gymflow.domain.model.MembershipDuration
 import com.gymflow.domain.model.PaymentMethod
@@ -67,7 +69,9 @@ data class MemberManagementUiState(
 @HiltViewModel
 class MemberManagementViewModel @Inject constructor(
     private val gymMemberRepository: GymMemberRepository,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val firestoreSyncManager: FirestoreSyncManager,
+    private val tokenManager: TokenManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MemberManagementUiState())
@@ -76,6 +80,12 @@ class MemberManagementViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             gymMemberRepository.seedInitialMembersIfEmpty()
+            val trainerId = tokenManager.getUserIdSync()
+            if (!trainerId.isNullOrBlank()) {
+                try {
+                    firestoreSyncManager.pullConnectedMembersForTrainer(trainerId)
+                } catch (_: Exception) {}
+            }
             combine(
                 gymMemberRepository.getAllMembers(),
                 userDao.getConnectedAthletesFlow()
