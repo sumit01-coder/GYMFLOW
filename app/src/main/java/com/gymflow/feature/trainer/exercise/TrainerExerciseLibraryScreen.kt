@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -42,11 +43,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.domain.model.Exercise
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
 import com.gymflow.feature.trainer.components.TrainerCard
@@ -197,112 +203,173 @@ fun TrainerExerciseLibraryScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(uiState.filteredExercises, key = { it.id }) { exercise ->
+                            val gifUrl = ExerciseVisuals.getGifUrl(exercise.id)
+                                ?: ExerciseVisuals.getGifUrl(exercise.name)
+                                ?: exercise.mediaUrl
+                                ?: ExerciseVisuals.getImageUrl(exercise.id)
+                                ?: ExerciseVisuals.getImageUrl(exercise.name)
+
                             TrainerCard(
                                 backgroundColor = TrainerDarkCard,
                                 borderColor = TrainerDarkBorder,
-                                contentPadding = 16.dp,
+                                contentPadding = 14.dp,
                                 onClick = { viewModel.openExerciseDetails(exercise) }
                             ) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    // Row 1: Name + Badges
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Exercise Animated GIF Thumbnail
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color.White)
+                                            .border(1.dp, Color(0xFF27272A), RoundedCornerShape(10.dp)),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = exercise.name,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = TrainerDarkTextPrimary
+                                        if (!gifUrl.isNullOrBlank()) {
+                                            SubcomposeAsyncImage(
+                                                model = ImageRequest.Builder(LocalContext.current)
+                                                    .data(gifUrl)
+                                                    .crossfade(true)
+                                                    .build(),
+                                                contentDescription = exercise.name,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize(),
+                                                loading = {
+                                                    Box(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(16.dp),
+                                                            strokeWidth = 2.dp,
+                                                            color = Color(0xFF4ADE80)
+                                                        )
+                                                    }
+                                                },
+                                                error = {
+                                                    Icon(
+                                                        imageVector = Icons.Default.FitnessCenter,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF71717A),
+                                                        modifier = Modifier.size(24.dp)
+                                                    )
+                                                }
                                             )
-                                            Text(
-                                                text = exercise.muscleGroup,
-                                                fontSize = 12.sp,
-                                                color = TrainerDarkTextSecondary,
-                                                modifier = Modifier.padding(top = 2.dp)
+                                        } else {
+                                            Icon(
+                                                imageVector = Icons.Default.FitnessCenter,
+                                                contentDescription = null,
+                                                tint = Color(0xFF71717A),
+                                                modifier = Modifier.size(24.dp)
                                             )
-                                        }
-
-                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(Color(0xFF27272A))
-                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                                            ) {
-                                                Text(
-                                                    text = exercise.equipment,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color.White
-                                                )
-                                            }
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(Color(0x264ADE80))
-                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
-                                            ) {
-                                                Text(
-                                                    text = exercise.category,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFF4ADE80)
-                                                )
-                                            }
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
 
-                                    // Row 2: Default rest timer & Instructions preview
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.Timer,
-                                                contentDescription = null,
-                                                tint = TrainerDarkTextTertiary,
-                                                modifier = Modifier.size(14.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        // Row 1: Name + Badges
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             Text(
-                                                text = "Default rest: ${exercise.defaultRestSeconds}s",
-                                                fontSize = 11.sp,
-                                                color = TrainerDarkTextTertiary
-                                            )
-                                        }
-
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Text(
-                                                text = "Instructions",
-                                                fontSize = 12.sp,
-                                                color = Color(0xFF4ADE80),
-                                                fontWeight = FontWeight.Medium,
-                                                modifier = Modifier.clickable {
-                                                    viewModel.openExerciseDetails(exercise)
-                                                }
+                                                text = exercise.name,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = TrainerDarkTextPrimary,
+                                                modifier = Modifier.weight(1f, fill = false)
                                             )
 
-                                            if (isSelectionMode) {
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                                 Box(
                                                     modifier = Modifier
-                                                        .clip(RoundedCornerShape(9999.dp))
-                                                        .background(Color.White)
-                                                        .clickable { onExerciseSelected(exercise) }
-                                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Color(0xFF27272A))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
-                                                        text = "Select",
-                                                        fontSize = 11.sp,
+                                                        text = exercise.equipment,
+                                                        fontSize = 10.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = Color.Black
+                                                        color = Color.White
                                                     )
+                                                }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Color(0x264ADE80))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = exercise.category,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF4ADE80)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.height(4.dp))
+
+                                        // Row 2: Default rest timer & Instructions / Select button
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(
+                                                    text = exercise.muscleGroup,
+                                                    fontSize = 12.sp,
+                                                    color = TrainerDarkTextSecondary
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.Timer,
+                                                    contentDescription = null,
+                                                    tint = TrainerDarkTextTertiary,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(2.dp))
+                                                Text(
+                                                    text = "${exercise.defaultRestSeconds}s",
+                                                    fontSize = 11.sp,
+                                                    color = TrainerDarkTextTertiary
+                                                )
+                                            }
+
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Text(
+                                                    text = "Details",
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFF4ADE80),
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier.clickable {
+                                                        viewModel.openExerciseDetails(exercise)
+                                                    }
+                                                )
+
+                                                if (isSelectionMode) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(9999.dp))
+                                                            .background(Color.White)
+                                                            .clickable { onExerciseSelected(exercise) }
+                                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Select",
+                                                            fontSize = 11.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color.Black
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -365,6 +432,64 @@ fun TrainerExerciseLibraryScreen(
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                     ) {
+                        val detailGifUrl = ExerciseVisuals.getGifUrl(selectedExercise.id)
+                            ?: ExerciseVisuals.getGifUrl(selectedExercise.name)
+                            ?: selectedExercise.mediaUrl
+                            ?: ExerciseVisuals.getImageUrl(selectedExercise.id)
+                            ?: ExerciseVisuals.getImageUrl(selectedExercise.name)
+
+                        // High-Resolution Animated GIF Preview
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .border(1.dp, Color(0xFF27272A), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!detailGifUrl.isNullOrBlank()) {
+                                SubcomposeAsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(detailGifUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = selectedExercise.name,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize(),
+                                    loading = {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp,
+                                                color = Color(0xFF4ADE80)
+                                            )
+                                        }
+                                    },
+                                    error = {
+                                        Icon(
+                                            imageVector = Icons.Default.FitnessCenter,
+                                            contentDescription = null,
+                                            tint = Color(0xFF71717A),
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.FitnessCenter,
+                                    contentDescription = null,
+                                    tint = Color(0xFF71717A),
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
                         Text(
                             text = "EXECUTION GUIDE",
                             fontSize = 11.sp,

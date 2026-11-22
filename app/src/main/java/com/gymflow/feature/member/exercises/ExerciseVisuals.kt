@@ -152,7 +152,44 @@ object ExerciseVisuals {
             }
         }
 
-        // 3. Dynamic mapping for catalog exercises: ex_<muscle>_<slug>
+        // 3. Keyword-based intelligent match
+        if (norm.contains("pulldown") || (norm.contains("lat") && norm.contains("pull"))) return "${BASE_GIF_URL}2330.gif"
+        if (norm.contains("row")) {
+            if (norm.contains("cable") || norm.contains("seated")) return "${BASE_GIF_URL}0159.gif"
+            if (norm.contains("tbar") || norm.contains("t_bar")) return "${BASE_GIF_URL}1349.gif"
+            return "${BASE_GIF_URL}0027.gif"
+        }
+        if (norm.contains("curl")) {
+            if (norm.contains("incline")) return "${BASE_GIF_URL}0315.gif"
+            if (norm.contains("preacher")) return "${BASE_GIF_URL}0059.gif"
+            if (norm.contains("hammer")) return "${BASE_GIF_URL}0165.gif"
+            if (norm.contains("concentration")) return "${BASE_GIF_URL}0976.gif"
+            return "${BASE_GIF_URL}0031.gif"
+        }
+        if (norm.contains("squat")) {
+            if (norm.contains("hack")) return "${BASE_GIF_URL}0046.gif"
+            return "${BASE_GIF_URL}0043.gif"
+        }
+        if (norm.contains("leg_press") || (norm.contains("leg") && norm.contains("press"))) return "${BASE_GIF_URL}0739.gif"
+        if (norm.contains("bench") || norm.contains("chest_press")) {
+            if (norm.contains("incline")) return "${BASE_GIF_URL}0314.gif"
+            return "${BASE_GIF_URL}0025.gif"
+        }
+        if (norm.contains("deadlift")) {
+            if (norm.contains("romanian")) return "${BASE_GIF_URL}0085.gif"
+            return "${BASE_GIF_URL}0032.gif"
+        }
+        if (norm.contains("press") && (norm.contains("shoulder") || norm.contains("overhead") || norm.contains("military"))) {
+            return "${BASE_GIF_URL}0103.gif"
+        }
+        if (norm.contains("lateral_raise") || norm.contains("side_raise")) return "${BASE_GIF_URL}0334.gif"
+        if (norm.contains("calf")) return "${BASE_GIF_URL}1372.gif"
+        if (norm.contains("crunch") || norm.contains("abs")) return "${BASE_GIF_URL}0175.gif"
+        if (norm.contains("pushdown") || norm.contains("tricep")) return "${BASE_GIF_URL}0241.gif"
+        if (norm.contains("dip")) return "${BASE_GIF_URL}0009.gif"
+        if (norm.contains("fly")) return "${BASE_GIF_URL}1261.gif"
+
+        // 4. Dynamic mapping for catalog exercises: ex_<muscle>_<slug>
         val validMuscles = setOf(
             "abs", "biceps", "calves", "chest", "forearms", "glutes", "hamstrings",
             "lats", "lower-back", "middle-back", "neck", "quadriceps", "shoulders",

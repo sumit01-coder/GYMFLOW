@@ -21,26 +21,38 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.gymflow.domain.model.WorkoutExercise
+import com.gymflow.feature.member.exercises.ExerciseVisuals
 import com.gymflow.feature.trainer.components.TrainerButton
 import com.gymflow.feature.trainer.components.TrainerButtonStyle
 import com.gymflow.feature.trainer.components.TrainerCard
@@ -67,6 +79,7 @@ fun ExerciseAssignmentScreen(
     val uiState by viewModel.uiState.collectAsState()
     val day = uiState.days[dayOfWeek]
     val exercises = day?.exercises ?: emptyList()
+    var previewExercise by remember { mutableStateOf<WorkoutExercise?>(null) }
 
     val restOptions = listOf(30, 45, 60, 90, 120)
 
@@ -169,38 +182,102 @@ fun ExerciseAssignmentScreen(
                             contentPadding = 16.dp
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                // Header: Name + Category + Delete
+                                // Header: Thumbnail + Name + Category + Delete
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val gifUrl = ExerciseVisuals.getGifUrl(exercise.exerciseId)
+                                            ?: ExerciseVisuals.getGifUrl(exercise.exerciseName)
+                                            ?: ExerciseVisuals.getImageUrl(exercise.exerciseId)
+                                            ?: ExerciseVisuals.getImageUrl(exercise.exerciseName)
+
+                                        // Animated Exercise GIF / Visual Thumbnail
                                         Box(
                                             modifier = Modifier
-                                                .size(28.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(0xFF27272A)),
+                                                .size(54.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(Color.White)
+                                                .border(1.dp, Color(0xFF27272A), RoundedCornerShape(10.dp))
+                                                .clickable { previewExercise = exercise },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = "${index + 1}",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF4ADE80)
-                                            )
+                                            if (!gifUrl.isNullOrBlank()) {
+                                                SubcomposeAsyncImage(
+                                                    model = ImageRequest.Builder(LocalContext.current)
+                                                        .data(gifUrl)
+                                                        .crossfade(true)
+                                                        .build(),
+                                                    contentDescription = exercise.exerciseName,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    loading = {
+                                                        Box(
+                                                            modifier = Modifier.fillMaxSize(),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(18.dp),
+                                                                strokeWidth = 2.dp,
+                                                                color = Color(0xFF4ADE80)
+                                                            )
+                                                        }
+                                                    },
+                                                    error = {
+                                                        Icon(
+                                                            imageVector = Icons.Default.FitnessCenter,
+                                                            contentDescription = null,
+                                                            tint = Color(0xFF71717A),
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                    }
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = Icons.Default.FitnessCenter,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF71717A),
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            }
                                         }
-                                        Spacer(modifier = Modifier.width(10.dp))
+
+                                        Spacer(modifier = Modifier.width(12.dp))
+
                                         Column {
-                                            Text(
-                                                text = exercise.exerciseName,
-                                                fontSize = 16.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = TrainerDarkTextPrimary
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .clip(CircleShape)
+                                                        .background(Color(0xFF27272A)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "${index + 1}",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF4ADE80)
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = exercise.exerciseName,
+                                                    fontSize = 15.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = TrainerDarkTextPrimary
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(3.dp))
                                             Text(
                                                 text = exercise.category,
                                                 fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
                                                 color = Color(0xFF4ADE80)
                                             )
                                         }
@@ -413,6 +490,114 @@ fun ExerciseAssignmentScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
             }
+        }
+
+        // Fullscreen Animated Exercise Demonstration Dialog
+        previewExercise?.let { exercise ->
+            val fullGifUrl = ExerciseVisuals.getGifUrl(exercise.exerciseId)
+                ?: ExerciseVisuals.getGifUrl(exercise.exerciseName)
+                ?: ExerciseVisuals.getImageUrl(exercise.exerciseId)
+                ?: ExerciseVisuals.getImageUrl(exercise.exerciseName)
+
+            AlertDialog(
+                onDismissRequest = { previewExercise = null },
+                title = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = exercise.exerciseName,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TrainerDarkTextPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = exercise.category.uppercase(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF4ADE80)
+                            )
+                        }
+                        IconButton(onClick = { previewExercise = null }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = TrainerDarkTextSecondary)
+                        }
+                    }
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(220.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .border(1.dp, Color(0xFF27272A), RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!fullGifUrl.isNullOrBlank()) {
+                                SubcomposeAsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(fullGifUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = exercise.exerciseName,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize(),
+                                    loading = {
+                                        Box(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator(color = Color(0xFF4ADE80))
+                                        }
+                                    },
+                                    error = {
+                                        Icon(
+                                            imageVector = Icons.Default.FitnessCenter,
+                                            contentDescription = null,
+                                            tint = Color(0xFF71717A),
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                    }
+                                )
+                            }
+                        }
+
+                        if (exercise.notes.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF27272A))
+                                    .padding(10.dp)
+                            ) {
+                                Text(
+                                    text = "💡 Technique Cue: ${exercise.notes}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFE4E4E7)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TrainerButton(
+                        text = "Close Preview",
+                        onClick = { previewExercise = null },
+                        style = TrainerButtonStyle.PRIMARY
+                    )
+                },
+                containerColor = TrainerDarkCard
+            )
         }
     }
 }
