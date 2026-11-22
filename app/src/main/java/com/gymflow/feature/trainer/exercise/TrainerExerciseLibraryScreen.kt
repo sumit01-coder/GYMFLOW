@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -212,7 +213,7 @@ fun TrainerExerciseLibraryScreen(
                             TrainerCard(
                                 backgroundColor = TrainerDarkCard,
                                 borderColor = TrainerDarkBorder,
-                                contentPadding = 14.dp,
+                                contentPadding = 12.dp,
                                 onClick = { viewModel.openExerciseDetails(exercise) }
                             ) {
                                 Row(
@@ -222,10 +223,11 @@ fun TrainerExerciseLibraryScreen(
                                     // Exercise Animated GIF Thumbnail
                                     Box(
                                         modifier = Modifier
-                                            .size(54.dp)
+                                            .size(62.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(Color.White)
-                                            .border(1.dp, Color(0xFF27272A), RoundedCornerShape(10.dp)),
+                                            .border(1.dp, Color(0xFF27272A), RoundedCornerShape(10.dp))
+                                            .clickable { viewModel.openExerciseDetails(exercise) },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (!gifUrl.isNullOrBlank()) {
@@ -270,8 +272,13 @@ fun TrainerExerciseLibraryScreen(
 
                                     Spacer(modifier = Modifier.width(12.dp))
 
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        // Row 1: Name + Badges
+                                    // Content Column
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                    ) {
+                                        // Row 1: Exercise Name + Badges
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -280,28 +287,35 @@ fun TrainerExerciseLibraryScreen(
                                             Text(
                                                 text = exercise.name,
                                                 fontSize = 15.sp,
-                                                fontWeight = FontWeight.SemiBold,
+                                                fontWeight = FontWeight.Bold,
                                                 color = TrainerDarkTextPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
                                                 modifier = Modifier.weight(1f, fill = false)
                                             )
 
-                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
                                                 Box(
                                                     modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .clip(RoundedCornerShape(4.dp))
                                                         .background(Color(0xFF27272A))
                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                                 ) {
                                                     Text(
                                                         text = exercise.equipment,
                                                         fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Color.White
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Color(0xFFD4D4D8)
                                                     )
                                                 }
                                                 Box(
                                                     modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .clip(RoundedCornerShape(4.dp))
                                                         .background(Color(0x264ADE80))
                                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                                 ) {
@@ -315,44 +329,62 @@ fun TrainerExerciseLibraryScreen(
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Spacer(modifier = Modifier.height(3.dp))
 
-                                        // Row 2: Default rest timer & Instructions / Select button
+                                        // Row 2: Target Muscles (Standalone row to prevent layout collisions)
+                                        Text(
+                                            text = exercise.muscleGroup,
+                                            fontSize = 12.sp,
+                                            color = TrainerDarkTextSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+                                        // Row 3: Rest Timer (Left) + Actions (Right)
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = exercise.muscleGroup,
-                                                    fontSize = 12.sp,
-                                                    color = TrainerDarkTextSecondary
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
+                                            // Rest Time Badge
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(Color(0xFF18181B))
+                                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                                            ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Timer,
                                                     contentDescription = null,
                                                     tint = TrainerDarkTextTertiary,
                                                     modifier = Modifier.size(12.dp)
                                                 )
-                                                Spacer(modifier = Modifier.width(2.dp))
+                                                Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
-                                                    text = "${exercise.defaultRestSeconds}s",
-                                                    fontSize = 11.sp,
+                                                    text = "${exercise.defaultRestSeconds}s rest",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Medium,
                                                     color = TrainerDarkTextTertiary
                                                 )
                                             }
 
-                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            // Action Buttons: Details + Select
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
                                                 Text(
                                                     text = "Details",
                                                     fontSize = 12.sp,
                                                     color = Color(0xFF4ADE80),
-                                                    fontWeight = FontWeight.Medium,
-                                                    modifier = Modifier.clickable {
-                                                        viewModel.openExerciseDetails(exercise)
-                                                    }
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    modifier = Modifier
+                                                        .clickable { viewModel.openExerciseDetails(exercise) }
+                                                        .padding(vertical = 2.dp, horizontal = 4.dp)
                                                 )
 
                                                 if (isSelectionMode) {
@@ -361,11 +393,11 @@ fun TrainerExerciseLibraryScreen(
                                                             .clip(RoundedCornerShape(9999.dp))
                                                             .background(Color.White)
                                                             .clickable { onExerciseSelected(exercise) }
-                                                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                            .padding(horizontal = 14.dp, vertical = 5.dp)
                                                     ) {
                                                         Text(
                                                             text = "Select",
-                                                            fontSize = 11.sp,
+                                                            fontSize = 12.sp,
                                                             fontWeight = FontWeight.Bold,
                                                             color = Color.Black
                                                         )

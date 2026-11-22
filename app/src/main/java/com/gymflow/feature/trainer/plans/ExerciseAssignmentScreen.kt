@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -249,7 +250,7 @@ fun ExerciseAssignmentScreen(
 
                                         Spacer(modifier = Modifier.width(12.dp))
 
-                                        Column {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(
                                                     modifier = Modifier
@@ -270,7 +271,10 @@ fun ExerciseAssignmentScreen(
                                                     text = exercise.exerciseName,
                                                     fontSize = 15.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = TrainerDarkTextPrimary
+                                                    color = TrainerDarkTextPrimary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f, fill = false)
                                                 )
                                             }
                                             Spacer(modifier = Modifier.height(3.dp))
