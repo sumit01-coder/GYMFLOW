@@ -1,14 +1,14 @@
 {
-  "version": "1.0.59",
-  "versionCode": 10059,
-  "tagName": "v1.0.59",
-  "releaseTitle": "GymFlow v1.0.59",
-  "changelog": "Connection-oriented fast updates with multi-tier CDN manifest, 64KB high-speed download streaming, and automatic immediate installation",
-  "downloadUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.59/GymFlow-v1.0.59.apk",
-  "directCdnUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.59/GymFlow-v1.0.59.apk",
-  "fileName": "GymFlow-v1.0.59.apk",
+  "version": "1.0.60",
+  "versionCode": 10060,
+  "tagName": "v1.0.60",
+  "releaseTitle": "GymFlow v1.0.60",
+  "changelog": "Fix GitHub Actions workflow YAML parsing, enable seamless manifest asset release, and maintain connection-oriented updates",
+  "downloadUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.60/GymFlow-v1.0.60.apk",
+  "directCdnUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.60/GymFlow-v1.0.60.apk",
+  "fileName": "GymFlow-v1.0.60.apk",
   "fileSizeBytes": 43927285,
-  "sha256": "a1508ca4735297cf1fb711ef49dae9ba1ae29a8fcdc5d08622829d4919e0b7a1",
-  "releasePageUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/tag/v1.0.59",
-  "publishedAt": "2026-11-23T03:02:25.049286+00:00"
+  "sha256": "e33528f082c40b89bedeed11b3ac60f33a907175acb04d55e8d9a3f9bf214f37",
+  "releasePageUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/tag/v1.0.60",
+  "publishedAt": "2026-11-23T04:04:55.756084+00:00"
 }
