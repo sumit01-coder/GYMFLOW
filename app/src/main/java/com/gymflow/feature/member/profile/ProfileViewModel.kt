@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.gymflow.core.database.UserDao
+import com.gymflow.core.firebase.CloudTrainerInfo
 import com.gymflow.core.firebase.FirestoreConnectionManager
 import com.gymflow.core.firebase.FirestoreConnectionStatus
 import com.gymflow.core.firebase.FirestoreSyncManager
@@ -280,6 +281,32 @@ class ProfileViewModel @Inject constructor(
                 submittedUtr = null,
                 renewalSuccessMessage = null
             )
+        }
+
+        // Defensive live refresh from Firestore to guarantee fresh pricing and UPI ID
+        val connectedTrainerId = _uiState.value.profile.connectedTrainerId
+            ?: tokenManager.getConnectedTrainerId()
+        if (!connectedTrainerId.isNullOrBlank() && connectedTrainerId != "default_member") {
+            viewModelScope.launch {
+                try {
+                    val trainerInfo = firestoreSyncManager.getTrainerProfileInfo(connectedTrainerId)
+                    if (trainerInfo != null) {
+                        val freshPricing = tokenManager.getConnectedTrainerPricing()
+                        val freshUpi = trainerInfo.upiId.ifBlank { tokenManager.getConnectedTrainerUpiId() ?: "" }
+                        val isFreshConfigured = freshUpi.isNotBlank() &&
+                                UpiPaymentHelper.isValidUpiId(freshUpi) &&
+                                !freshUpi.equals("gymflow@upi", ignoreCase = true)
+                        _uiState.update { current ->
+                            current.copy(
+                                targetUpiId = if (isFreshConfigured) freshUpi else current.targetUpiId,
+                                targetUpiPayeeName = trainerInfo.name.ifBlank { current.targetUpiPayeeName },
+                                isUpiConfigured = isFreshConfigured,
+                                customPricing = freshPricing
+                            )
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
         }
     }
 

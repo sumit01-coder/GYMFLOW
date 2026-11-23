@@ -49,7 +49,8 @@ class TrainerDashboardViewModel @Inject constructor(
     private val gymMemberRepository: GymMemberRepository,
     private val workoutSessionDao: WorkoutSessionDao,
     private val firestoreConnectionManager: FirestoreConnectionManager,
-    private val firestoreSyncManager: com.gymflow.core.firebase.FirestoreSyncManager
+    private val firestoreSyncManager: com.gymflow.core.firebase.FirestoreSyncManager,
+    private val membershipOrderDao: com.gymflow.core.database.MembershipOrderDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TrainerDashboardUiState())
@@ -59,6 +60,7 @@ class TrainerDashboardViewModel @Inject constructor(
         _uiState.update { it.copy(gymName = tokenManager.getGymName()) }
         observeCoachData()
         observeRealMembers()
+        observePendingOrdersFromDatabase()
         syncConnectedMembersFromCloud()
         fetchPendingRenewalOrders()
     }
@@ -70,6 +72,28 @@ class TrainerDashboardViewModel @Inject constructor(
                 val orders = firestoreSyncManager.pullPendingOrdersForTrainer(trainerId)
                 _uiState.update { it.copy(pendingRenewalOrders = orders) }
             } catch (_: Exception) {}
+        }
+    }
+
+    private fun observePendingOrdersFromDatabase() {
+        viewModelScope.launch {
+            val trainerId = tokenManager.getUserIdSync()
+            if (!trainerId.isNullOrBlank() && trainerId != "default_member") {
+                membershipOrderDao.getPendingOrdersForTrainerFlow(trainerId).collect { entities ->
+                    val orders = entities.map { it.toDomain() }
+                    _uiState.update { it.copy(pendingRenewalOrders = orders) }
+                }
+            }
+        }
+        viewModelScope.launch {
+            tokenManager.getUserId().collect { trainerId ->
+                if (!trainerId.isNullOrBlank() && trainerId != "default_member") {
+                    membershipOrderDao.getPendingOrdersForTrainerFlow(trainerId).collect { entities ->
+                        val orders = entities.map { it.toDomain() }
+                        _uiState.update { it.copy(pendingRenewalOrders = orders) }
+                    }
+                }
+            }
         }
     }
 

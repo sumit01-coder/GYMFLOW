@@ -11,6 +11,12 @@ interface MembershipOrderDao {
     @Query("SELECT * FROM membership_orders WHERE memberId = :memberId ORDER BY createdAtEpochMs DESC")
     fun getOrdersForMemberFlow(memberId: String): Flow<List<MembershipOrderEntity>>
 
+    @Query("SELECT * FROM membership_orders WHERE trainerId = :trainerId ORDER BY createdAtEpochMs DESC")
+    fun getOrdersForTrainerFlow(trainerId: String): Flow<List<MembershipOrderEntity>>
+
+    @Query("SELECT * FROM membership_orders WHERE trainerId = :trainerId AND (orderStatus = 'PENDING' OR orderStatus = 'PENDING_VERIFICATION') ORDER BY createdAtEpochMs DESC")
+    fun getPendingOrdersForTrainerFlow(trainerId: String): Flow<List<MembershipOrderEntity>>
+
     @Query("SELECT * FROM membership_orders WHERE orderId = :orderId LIMIT 1")
     suspend fun getOrderById(orderId: String): MembershipOrderEntity?
 

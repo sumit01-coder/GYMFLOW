@@ -1,14 +1,14 @@
 {
-  "version": "1.0.61",
-  "versionCode": 10061,
-  "tagName": "v1.0.61",
-  "releaseTitle": "GymFlow v1.0.61",
-  "changelog": "Move AI Food Scanner to private beta gated for sumitpatel00784@gmail.com with beta badge and access dialog",
-  "downloadUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.61/GymFlow-v1.0.61.apk",
-  "directCdnUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.61/GymFlow-v1.0.61.apk",
-  "fileName": "GymFlow-v1.0.61.apk",
+  "version": "1.0.62",
+  "versionCode": 10062,
+  "tagName": "v1.0.62",
+  "releaseTitle": "GymFlow v1.0.62",
+  "changelog": "Fix real-time data integrity: live trainer pricing & UPI sync to members, live membership status/revocation sync, and reactive renewal orders",
+  "downloadUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.62/GymFlow-v1.0.62.apk",
+  "directCdnUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/download/v1.0.62/GymFlow-v1.0.62.apk",
+  "fileName": "GymFlow-v1.0.62.apk",
   "fileSizeBytes": 43943669,
-  "sha256": "506c9e866561837d972211c715d80800d5cb9336a59de3a4103606126b9ba1dd",
-  "releasePageUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/tag/v1.0.61",
-  "publishedAt": "2026-11-23T04:42:55.341824+00:00"
+  "sha256": "4660787b8eac478aee84de9868c38836f9d70d954b86dcc0f1f8f1ab432df857",
+  "releasePageUrl": "https://github.com/sumit01-coder/GYMFLOW/releases/tag/v1.0.62",
+  "publishedAt": "2026-11-23T06:05:37.164836+00:00"
 }

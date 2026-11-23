@@ -262,6 +262,14 @@ class TokenManager @Inject constructor(
     fun getConnectedTrainerCode(): String? = prefs.getString(KEY_CONNECTED_TRAINER_CODE, null)
     fun getConnectedTrainerUpiId(): String? = prefs.getString(KEY_CONNECTED_TRAINER_UPI_ID, null)
 
+    fun saveConnectedTrainerName(name: String) {
+        prefs.edit().putString(KEY_CONNECTED_TRAINER_NAME, name.trim()).apply()
+    }
+
+    fun saveConnectedTrainerGym(gymName: String) {
+        prefs.edit().putString(KEY_CONNECTED_TRAINER_GYM, gymName.trim()).apply()
+    }
+
     fun saveConnectedTrainerUpiId(upiId: String) {
         prefs.edit().putString(KEY_CONNECTED_TRAINER_UPI_ID, upiId.trim()).apply()
     }

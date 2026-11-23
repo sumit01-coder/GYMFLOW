@@ -7,6 +7,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.util.Log
 import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.gymflow.core.database.BodyMeasurementEntity
@@ -15,6 +16,8 @@ import com.gymflow.core.database.DailyStepsEntity
 import com.gymflow.core.database.GymMemberDao
 import com.gymflow.core.database.GymMemberEntity
 import com.gymflow.core.database.HydrationLogEntity
+import com.gymflow.core.database.MembershipOrderDao
+import com.gymflow.core.database.MembershipOrderEntity
 import com.gymflow.core.database.OutdoorWorkoutDao
 import com.gymflow.core.database.OutdoorWorkoutEntity
 import com.gymflow.core.database.PlanDao
@@ -26,6 +29,7 @@ import com.gymflow.core.database.WeightLogEntity
 import com.gymflow.core.database.WorkoutSessionDao
 import com.gymflow.core.database.WorkoutSessionEntity
 import com.gymflow.core.security.TokenManager
+import com.gymflow.domain.model.OrderStatus
 import com.gymflow.domain.model.Role
 import com.gymflow.domain.model.WorkoutDay
 import com.gymflow.domain.model.WorkoutExercise
@@ -66,7 +70,8 @@ class FirestoreConnectionManager @Inject constructor(
     private val weightDao: WeightDao,
     private val planDao: PlanDao,
     private val dailyStepsDao: DailyStepsDao,
-    private val outdoorWorkoutDao: OutdoorWorkoutDao
+    private val outdoorWorkoutDao: OutdoorWorkoutDao,
+    private val membershipOrderDao: MembershipOrderDao
 ) {
     private val tag = "FirestoreConnectionMgr"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -75,6 +80,8 @@ class FirestoreConnectionManager @Inject constructor(
     val connectionStatus: StateFlow<FirestoreConnectionStatus> = _connectionStatus.asStateFlow()
 
     private val activeRegistrations = mutableListOf<ListenerRegistration>()
+    private var connectedTrainerListenerRegistration: ListenerRegistration? = null
+    private var currentListeningTrainerId: String? = null
     private var isNetworkAvailable = false
     private var currentConnectedUserId: String? = null
 
@@ -147,6 +154,12 @@ class FirestoreConnectionManager @Inject constructor(
 
         _connectionStatus.value = if (isNetworkAvailable) FirestoreConnectionStatus.SYNCING else FirestoreConnectionStatus.OFFLINE
 
+        // If member has a connected trainer in local storage, start live trainer listener immediately
+        val cachedTrainerId = tokenManager.getConnectedTrainerId()
+        if (!cachedTrainerId.isNullOrBlank() && cachedTrainerId != "default_member") {
+            attachConnectedTrainerListener(cachedTrainerId)
+        }
+
         // 1. Initial bidirectional synchronization in background
         scope.launch {
             try {
@@ -174,6 +187,7 @@ class FirestoreConnectionManager @Inject constructor(
                         try {
                             val roleStr = doc.getString("role") ?: "MEMBER"
                             val role = try { Role.valueOf(roleStr) } catch (_: Exception) { Role.MEMBER }
+                            val connectedTrainer = doc.getString("connectedTrainerId")
                             val userEntity = UserEntity(
                                 id = doc.getString("id") ?: doc.id,
                                 name = doc.getString("name") ?: "",
@@ -184,13 +198,51 @@ class FirestoreConnectionManager @Inject constructor(
                                 currentWeightKg = (doc.getDouble("currentWeightKg") ?: 0.0).toFloat(),
                                 fitnessGoal = doc.getString("fitnessGoal") ?: "General Fitness",
                                 age = (doc.getLong("age") ?: 0L).toInt(),
-                                connectedTrainerId = doc.getString("connectedTrainerId"),
+                                connectedTrainerId = connectedTrainer,
                                 syncStatus = "Connected",
                                 isEmailVerified = doc.getBoolean("isEmailVerified") ?: false,
                                 createdAtEpochMs = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis(),
                                 lastUpdated = System.currentTimeMillis()
                             )
                             userDao.upsertUser(userEntity)
+
+                            // Real-time Membership Synchronization: reflect trainer pricing, dates, and revocations immediately
+                            val membershipMap = doc.get("membership") as? Map<*, *>
+                            if (membershipMap != null) {
+                                val durationMonths = (membershipMap["durationMonths"] as? Number)?.toInt() ?: 1
+                                val startDate = (membershipMap["startDateEpochMs"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                                val endDate = (membershipMap["endDateEpochMs"] as? Number)?.toLong() ?: (startDate + (durationMonths * 30L * 24 * 60 * 60 * 1000))
+                                val feeAmount = (membershipMap["feeAmount"] as? Number)?.toDouble() ?: 1500.0
+                                val amountPaid = (membershipMap["amountPaid"] as? Number)?.toDouble() ?: feeAmount
+                                val paymentStatus = membershipMap["paymentStatus"] as? String ?: "PAID"
+                                val paymentMethod = membershipMap["paymentMethod"] as? String ?: "UPI"
+                                val notes = membershipMap["notes"] as? String ?: "Active Member"
+                                val isActive = (membershipMap["isActive"] as? Boolean)
+                                    ?: (endDate > System.currentTimeMillis() && paymentStatus != "REVOKED")
+
+                                val gymMemberEntity = GymMemberEntity(
+                                    id = userId,
+                                    name = doc.getString("name") ?: "Athlete",
+                                    phoneNumber = doc.getString("phoneNumber") ?: "",
+                                    email = doc.getString("email") ?: "",
+                                    assignedTrainerId = connectedTrainer,
+                                    assignedTrainerName = tokenManager.getConnectedTrainerName() ?: "Coach",
+                                    durationMonths = durationMonths,
+                                    startDateEpochMs = startDate,
+                                    endDateEpochMs = endDate,
+                                    feeAmount = feeAmount,
+                                    amountPaid = amountPaid,
+                                    paymentStatus = paymentStatus,
+                                    paymentMethod = paymentMethod,
+                                    notes = notes,
+                                    isActive = isActive
+                                )
+                                gymMemberDao.insertMember(gymMemberEntity)
+                            }
+
+                            if (!connectedTrainer.isNullOrBlank() && connectedTrainer != "default_member") {
+                                attachConnectedTrainerListener(connectedTrainer)
+                            }
                         } catch (e: Exception) {
                             Log.w(tag, "Failed to parse profile snapshot", e)
                         }
@@ -743,6 +795,148 @@ class FirestoreConnectionManager @Inject constructor(
                 }
             }
         activeRegistrations.add(usersConnectedToTrainerReg)
+
+        // 12. Real-time Member Renewal Orders Listener (live tracking of member payment receipts and approval status)
+        val memberOrdersReg = firestore.collection(FirestoreSyncManager.COLLECTION_MEMBERSHIP_ORDERS)
+            .whereEqualTo("memberId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(tag, "Member renewal orders listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    scope.launch {
+                        for (doc in snapshot.documents) {
+                            if (doc.exists()) {
+                                try {
+                                    val order = parseRenewalOrderDoc(doc)
+                                    if (order != null) {
+                                        membershipOrderDao.upsertOrder(order)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(tag, "Failed to parse member renewal order", e)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(memberOrdersReg)
+
+        // 13. Real-time Trainer Renewal Orders Listener (instant push when athletes submit payment proofs)
+        val trainerOrdersReg = firestore.collection(FirestoreSyncManager.COLLECTION_MEMBERSHIP_ORDERS)
+            .whereEqualTo("trainerId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.w(tag, "Trainer renewal orders listener error", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    scope.launch {
+                        for (doc in snapshot.documents) {
+                            if (doc.exists()) {
+                                try {
+                                    val order = parseRenewalOrderDoc(doc)
+                                    if (order != null) {
+                                        membershipOrderDao.upsertOrder(order)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(tag, "Failed to parse trainer renewal order", e)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        activeRegistrations.add(trainerOrdersReg)
+    }
+
+    private fun attachConnectedTrainerListener(trainerId: String) {
+        if (trainerId.isBlank() || trainerId == "default_member") return
+        if (currentListeningTrainerId == trainerId && connectedTrainerListenerRegistration != null) return
+
+        try {
+            connectedTrainerListenerRegistration?.remove()
+        } catch (_: Exception) {}
+        currentListeningTrainerId = trainerId
+
+        val trainerReg = firestore.collection(FirestoreSyncManager.COLLECTION_TRAINERS)
+            .document(trainerId)
+            .addSnapshotListener { doc, error ->
+                if (error != null) {
+                    Log.w(tag, "Connected trainer listener error", error)
+                    return@addSnapshotListener
+                }
+                if (doc != null && doc.exists()) {
+                    scope.launch {
+                        try {
+                            val name = doc.getString("name")
+                            val gymName = doc.getString("gymName")
+                            val upiId = doc.getString("upiId")
+                            if (!name.isNullOrBlank()) tokenManager.saveConnectedTrainerName(name)
+                            if (!gymName.isNullOrBlank()) tokenManager.saveConnectedTrainerGym(gymName)
+                            if (!upiId.isNullOrBlank()) tokenManager.saveConnectedTrainerUpiId(upiId)
+
+                            val pMap = doc.get("membershipPricing") as? Map<*, *>
+                            if (pMap != null) {
+                                val p1 = (pMap["1"] as? Number)?.toDouble() ?: 1500.0
+                                val p3 = (pMap["3"] as? Number)?.toDouble() ?: 4000.0
+                                val p6 = (pMap["6"] as? Number)?.toDouble() ?: 7500.0
+                                val p12 = (pMap["12"] as? Number)?.toDouble() ?: 14000.0
+                                tokenManager.saveConnectedTrainerPricing(p1, p3, p6, p12)
+                            }
+                            Log.d(tag, "Synced live trainer pricing & UPI ID for member")
+                        } catch (e: Exception) {
+                            Log.w(tag, "Error parsing live trainer pricing", e)
+                        }
+                    }
+                }
+            }
+        connectedTrainerListenerRegistration = trainerReg
+        activeRegistrations.add(trainerReg)
+    }
+
+    private fun parseRenewalOrderDoc(doc: DocumentSnapshot): MembershipOrderEntity? {
+        val orderId = doc.getString("orderId") ?: doc.id
+        val memberId = doc.getString("memberId") ?: return null
+        val memberName = doc.getString("memberName") ?: "Athlete"
+        val memberEmail = doc.getString("memberEmail") ?: ""
+        val memberPhone = doc.getString("memberPhone") ?: ""
+        val trainerId = doc.getString("trainerId") ?: ""
+        val trainerName = doc.getString("trainerName") ?: "Coach"
+        val gymName = doc.getString("gymName") ?: "GymFlow Fitness Center"
+        val planDurationMonths = doc.getLong("planDurationMonths")?.toInt() ?: 1
+        val planDurationDisplayName = doc.getString("planDurationDisplayName") ?: "$planDurationMonths Month Pass"
+        val amountInr = doc.getDouble("amountInr") ?: 1500.0
+        val paymentMethod = doc.getString("paymentMethod") ?: "UPI"
+        val targetUpiId = doc.getString("targetUpiId") ?: ""
+        val utrNumber = doc.getString("utrNumber")
+        val statusStr = doc.getString("orderStatus") ?: OrderStatus.PENDING_VERIFICATION.name
+        val createdAt = doc.getLong("createdAtEpochMs") ?: System.currentTimeMillis()
+        val approvedAt = doc.getLong("approvedAtEpochMs")
+        val notes = doc.getString("notes") ?: ""
+
+        return MembershipOrderEntity(
+            orderId = orderId,
+            memberId = memberId,
+            memberName = memberName,
+            memberEmail = memberEmail,
+            memberPhone = memberPhone,
+            trainerId = trainerId,
+            trainerName = trainerName,
+            gymName = gymName,
+            planDurationMonths = planDurationMonths,
+            planDurationDisplayName = planDurationDisplayName,
+            amountInr = amountInr,
+            paymentMethod = paymentMethod,
+            targetUpiId = targetUpiId,
+            utrNumber = utrNumber,
+            orderStatus = statusStr,
+            createdAtEpochMs = createdAt,
+            approvedAtEpochMs = approvedAt,
+            notes = notes,
+            isSynced = true
+        )
     }
 
     @Synchronized
@@ -754,6 +948,9 @@ class FirestoreConnectionManager @Inject constructor(
             }
             activeRegistrations.clear()
         }
+        try { connectedTrainerListenerRegistration?.remove() } catch (_: Exception) {}
+        connectedTrainerListenerRegistration = null
+        currentListeningTrainerId = null
         currentConnectedUserId = null
         _connectionStatus.value = FirestoreConnectionStatus.OFFLINE
     }
