@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
@@ -81,6 +82,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -145,6 +147,76 @@ fun NutritionScannerScreen(
     }
 
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
+
+    if (!uiState.isBetaAuthorized) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .statusBarsPadding()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color(0xFF18181B))
+                    .border(1.dp, Color(0xFF27272A), RoundedCornerShape(20.dp))
+                    .padding(24.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF59E0B).copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = Color(0xFFF59E0B),
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                Text(
+                    text = "Private Beta Access Restricted",
+                    style = GymFlowTheme.typography.Heading2.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                )
+
+                Text(
+                    text = "The AI Food Scanner & Meal Vision feature is currently in private closed beta testing.\n\nAuthorized Tester:\nsumitpatel00784@gmail.com\n\nPublic release will be made available to all members once test verification completes.",
+                    style = GymFlowTheme.typography.BodySmall.copy(
+                        color = Color(0xFFA1A1AA),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = onNavigateBack,
+                    colors = ButtonDefaults.buttonColors(containerColor = GymFlowGreen),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Return to Dashboard",
+                        color = GymFlowBlack,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+        return
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

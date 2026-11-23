@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import coil.Coil
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import com.gymflow.core.common.BetaFeatureGate
 import com.gymflow.core.database.DailyStepsDao
 import com.gymflow.core.database.DailyStepsEntity
 import com.gymflow.core.database.OutdoorWorkoutDao
@@ -86,6 +87,7 @@ data class MemberHomeUiState(
     val userInitials: String = "GF",
     val isEmailVerified: Boolean = true,
     val graceDaysRemaining: Int = 7,
+    val isAiFoodScannerBetaTester: Boolean = false,
     val connectionStatus: FirestoreConnectionStatus = FirestoreConnectionStatus.CONNECTED,
     val todaySteps: Int = 0,
     val stepGoal: Int = 10000,
@@ -300,13 +302,15 @@ class MemberHomeViewModel @Inject constructor(
                 val initials = extractInitials(cachedName)
                 val isVerified = tokenManager.isEmailVerifiedSync()
                 val daysLeft = tokenManager.getGraceDaysRemaining()
+                val isBetaTester = BetaFeatureGate.isAiFoodScannerEnabled(tokenManager.getEmail())
                 _uiState.update {
                     it.copy(
                         memberName = firstName,
                         greeting = getWallClockGreeting(firstName),
                         userInitials = initials,
                         isEmailVerified = isVerified,
-                        graceDaysRemaining = daysLeft
+                        graceDaysRemaining = daysLeft,
+                        isAiFoodScannerBetaTester = isBetaTester
                     )
                 }
             }
@@ -331,6 +335,8 @@ class MemberHomeViewModel @Inject constructor(
                 if (userEntity != null && userEntity.name.isNotBlank()) {
                     val firstName = userEntity.name.trim().split(" ").firstOrNull() ?: userEntity.name
                     val initials = extractInitials(userEntity.name)
+                    val effectiveEmail = userEntity.email.ifBlank { tokenManager.getEmail() }
+                    val isBetaTester = BetaFeatureGate.isAiFoodScannerEnabled(effectiveEmail)
                     _uiState.update { current ->
                         val displayWeight = if (userEntity.currentWeightKg > 0f) {
                             String.format(Locale.US, "%.1f", userEntity.currentWeightKg)
@@ -343,7 +349,8 @@ class MemberHomeViewModel @Inject constructor(
                             userInitials = initials,
                             currentWeightKg = displayWeight,
                             isEmailVerified = userEntity.isEmailVerified,
-                            graceDaysRemaining = tokenManager.getGraceDaysRemaining()
+                            graceDaysRemaining = tokenManager.getGraceDaysRemaining(),
+                            isAiFoodScannerBetaTester = isBetaTester
                         )
                     }
                 }

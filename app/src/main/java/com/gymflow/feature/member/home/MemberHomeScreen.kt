@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Pause
@@ -166,6 +167,7 @@ fun MemberHomeContent(
     modifier: Modifier = Modifier
 ) {
     var showWalkingHistorySheet by remember { mutableStateOf(false) }
+    var showBetaAccessDialog by remember { mutableStateOf(false) }
 
     val adaptive = GymFlowTheme.adaptive
 
@@ -426,7 +428,13 @@ fun MemberHomeContent(
                         icon = Icons.Default.LocalFireDepartment,
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { onNavigateToNutritionScanner() }
+                            .clickable {
+                                if (uiState.isAiFoodScannerBetaTester) {
+                                    onNavigateToNutritionScanner()
+                                } else {
+                                    showBetaAccessDialog = true
+                                }
+                            }
                     )
                     MetricCard(
                         label = "Exercises",
@@ -467,7 +475,13 @@ fun MemberHomeContent(
                         icon = Icons.Default.LocalFireDepartment,
                         modifier = Modifier
                             .weight(1f)
-                            .clickable { onNavigateToNutritionScanner() }
+                            .clickable {
+                                if (uiState.isAiFoodScannerBetaTester) {
+                                    onNavigateToNutritionScanner()
+                                } else {
+                                    showBetaAccessDialog = true
+                                }
+                            }
                     )
                 }
 
@@ -504,30 +518,70 @@ fun MemberHomeContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Food Scanner Tile
+                // Food Scanner Tile (Private Beta Gated)
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(18.dp))
                         .background(GymFlowTheme.colors.surface)
                         .border(1.dp, GymFlowTheme.colors.border, RoundedCornerShape(18.dp))
-                        .clickable { onNavigateToNutritionScanner() }
+                        .clickable {
+                            if (uiState.isAiFoodScannerBetaTester) {
+                                onNavigateToNutritionScanner()
+                            } else {
+                                showBetaAccessDialog = true
+                            }
+                        }
                         .padding(14.dp)
                 ) {
                     Column {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(GymFlowGreen.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = null,
-                                tint = GymFlowGreen,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(GymFlowGreen.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = null,
+                                    tint = GymFlowGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            // Beta Badge & Lock Status
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                if (!uiState.isAiFoodScannerBetaTester) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Beta Restricted",
+                                        tint = Color(0xFFD97706),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFFFEF3C7))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "BETA",
+                                        color = Color(0xFFD97706),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -1032,6 +1086,46 @@ fun MemberHomeContent(
             onDismiss = { showWalkingHistorySheet = false },
             onUpdateStepGoal = onUpdateStepGoal,
             onDeleteOutdoorWorkout = onDeleteOutdoorWorkout
+        )
+    }
+
+    if (showBetaAccessDialog) {
+        AlertDialog(
+            onDismissRequest = { showBetaAccessDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Color(0xFFF59E0B),
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Private Beta Testing",
+                    style = GymFlowTheme.typography.Heading2.copy(fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "The AI Food Scanner & Meal Vision feature is currently in private closed beta testing.",
+                        style = GymFlowTheme.typography.BodyMedium
+                    )
+                    Text(
+                        text = "Authorized Beta Tester:\nsumitpatel00784@gmail.com\n\nOnce testing is complete and verified, this feature will be released to the public for all GymFlow members.",
+                        style = GymFlowTheme.typography.BodySmall.copy(color = GymFlowTheme.colors.textSecondary)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showBetaAccessDialog = false }) {
+                    Text(text = "Understood", color = GymFlowGreen, fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = GymFlowTheme.colors.surface,
+            textContentColor = GymFlowTheme.colors.textPrimary,
+            titleContentColor = GymFlowTheme.colors.textPrimary
         )
     }
 }

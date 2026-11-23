@@ -3,6 +3,7 @@ package com.gymflow.feature.member.nutrition
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gymflow.core.common.BetaFeatureGate
 import com.gymflow.core.database.FoodLogEntity
 import com.gymflow.core.network.OpenFoodProduct
 import com.gymflow.core.security.TokenManager
@@ -31,6 +32,7 @@ data class NutritionScannerUiState(
     val scanMode: ScanMode = ScanMode.BARCODE,
     val isAnalyzing: Boolean = false,
     val isFlashEnabled: Boolean = false,
+    val isBetaAuthorized: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val scannedProduct: OpenFoodProduct? = null,
@@ -51,6 +53,9 @@ class NutritionScannerViewModel @Inject constructor(
     val uiState: StateFlow<NutritionScannerUiState> = _uiState.asStateFlow()
 
     init {
+        val userEmail = tokenManager.getEmail()
+        val isAuthorized = BetaFeatureGate.isAiFoodScannerEnabled(userEmail)
+        _uiState.update { it.copy(isBetaAuthorized = isAuthorized) }
         observeTodayNutrition()
     }
 
