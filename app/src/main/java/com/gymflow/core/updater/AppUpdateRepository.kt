@@ -20,8 +20,20 @@ class AppUpdateRepository @Inject constructor(
     companion object {
         const val GITHUB_OWNER = "sumit01-coder"
         const val GITHUB_REPO = "GYMFLOW"
+
+        // Tier 1: Fast CDN Manifest (Raw GitHub Fastly CDN - zero rate limits, sub-100ms global latency)
+        const val CDN_MANIFEST_URL = "https://raw.githubusercontent.com/$GITHUB_OWNER/$GITHUB_REPO/main/public/version.json"
+
+        // Tier 2: GitHub REST API Single Latest Release (Minimal payload, official GitHub releases)
+        const val LATEST_RELEASE_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases/latest"
+
+        // Tier 3: GitHub Pages Edge CDN
+        const val PAGES_MANIFEST_URL = "https://$GITHUB_OWNER.github.io/$GITHUB_REPO/version.json"
+
+        // Tier 4: Fallback full releases list
         const val RELEASES_URL = "https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/releases"
-        private const val CACHE_EXPIRATION_MS = 10 * 60 * 1000L // 10 minutes cache
+
+        private const val CACHE_EXPIRATION_MS = 5 * 60 * 1000L // 5 minutes cache
     }
 
     private val json = Json {
@@ -42,49 +54,193 @@ class AppUpdateRepository @Inject constructor(
             return@withContext Result.success(cachedUpdateInfo)
         }
 
-        try {
-            val endpoint = customEndpoint ?: RELEASES_URL
-            val url = URL(endpoint)
+        // Custom endpoint override takes immediate precedence
+        if (customEndpoint != null) {
+            return@withContext tryQueryEndpoint(customEndpoint)
+        }
+
+        val currentVersion = BuildConfig.VERSION_NAME
+
+        // Tier 1: Fast Raw CDN Manifest (Zero Rate-Limit)
+        val cdnResult = fetchManifestFromUrl(CDN_MANIFEST_URL, currentVersion)
+        if (cdnResult.isSuccess) {
+            val info = cdnResult.getOrNull()
+            cachedUpdateInfo = info
+            lastCheckTimestamp = now
+            return@withContext Result.success(info)
+        }
+
+        // Tier 2: GitHub REST API Latest Release (Single object)
+        val latestResult = fetchLatestGitHubRelease(LATEST_RELEASE_URL, currentVersion)
+        if (latestResult.isSuccess) {
+            val info = latestResult.getOrNull()
+            cachedUpdateInfo = info
+            lastCheckTimestamp = now
+            return@withContext Result.success(info)
+        }
+
+        // Tier 3: GitHub Pages Global Edge CDN
+        val pagesResult = fetchManifestFromUrl(PAGES_MANIFEST_URL, currentVersion)
+        if (pagesResult.isSuccess) {
+            val info = pagesResult.getOrNull()
+            cachedUpdateInfo = info
+            lastCheckTimestamp = now
+            return@withContext Result.success(info)
+        }
+
+        // Tier 4: Fallback full releases list
+        val fullResult = fetchFromFullReleases(RELEASES_URL, currentVersion)
+        if (fullResult.isSuccess) {
+            val info = fullResult.getOrNull()
+            cachedUpdateInfo = info
+            lastCheckTimestamp = now
+            return@withContext Result.success(info)
+        }
+
+        // If all tiers failed, return cached if present or the last error
+        if (cachedUpdateInfo != null) {
+            Result.success(cachedUpdateInfo)
+        } else {
+            Result.failure(cdnResult.exceptionOrNull() ?: latestResult.exceptionOrNull() ?: IllegalStateException("Update server unavailable. Please check your internet connection."))
+        }
+    }
+
+    private fun fetchManifestFromUrl(urlStr: String, currentVersion: String): Result<AppUpdateInfo?> {
+        return try {
+            val url = URL(urlStr)
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 10000
-                readTimeout = 10000
+                connectTimeout = 6000
+                readTimeout = 6000
+                setRequestProperty("Accept", "application/json, text/plain, */*")
+                setRequestProperty("User-Agent", "GymFlow-Android/${BuildConfig.VERSION_NAME}")
+                setRequestProperty("Connection", "keep-alive")
+            }
+
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                return Result.failure(IllegalStateException("HTTP ${connection.responseCode} from $urlStr"))
+            }
+
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            val manifest = json.decodeFromString<AppVersionManifestDto>(body)
+
+            val remoteTag = manifest.tagName.ifEmpty { "v${manifest.version}" }
+            val cleanRemote = remoteTag.removePrefix("v").removePrefix("V").trim()
+            val isNewer = VersionComparator.isNewerVersion(remoteTag, currentVersion)
+
+            if (!isNewer) {
+                return Result.success(null) // Already on latest version
+            }
+
+            val downloadUrl = manifest.directCdnUrl ?: manifest.downloadUrl
+            val fileName = manifest.fileName.ifEmpty { "GymFlow-$remoteTag.apk" }
+
+            val info = AppUpdateInfo(
+                currentVersion = currentVersion,
+                latestVersion = cleanRemote,
+                releaseTitle = manifest.releaseTitle.ifEmpty { "GymFlow $remoteTag" },
+                changelog = manifest.changelog.ifEmpty { "Performance improvements, stability fixes, and design enhancements." },
+                downloadUrl = downloadUrl,
+                fileName = fileName,
+                fileSizeBytes = manifest.fileSizeBytes,
+                releasePageUrl = manifest.releasePageUrl.ifEmpty { "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases" },
+                targetApkSha256 = manifest.sha256
+            )
+            Result.success(info)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun fetchLatestGitHubRelease(urlStr: String, currentVersion: String): Result<AppUpdateInfo?> {
+        return try {
+            val url = URL(urlStr)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 8000
                 setRequestProperty("Accept", "application/vnd.github+json")
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) GymFlow-Android-App")
+                setRequestProperty("User-Agent", "GymFlow-Android/${BuildConfig.VERSION_NAME}")
+                setRequestProperty("Connection", "keep-alive")
             }
 
-            val responseCode = connection.responseCode
-            if (responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
-                return@withContext Result.success(null)
+            if (connection.responseCode == HttpURLConnection.HTTP_NOT_FOUND) {
+                return Result.success(null)
             }
 
-            if (responseCode == 403) {
-                // Rate limited by GitHub unauthenticated API limit
-                if (cachedUpdateInfo != null) {
-                    return@withContext Result.success(cachedUpdateInfo)
-                }
-                return@withContext Result.failure(
-                    IllegalStateException("Update check is temporarily busy. Please try again shortly.")
-                )
+            if (connection.responseCode == 403) {
+                return Result.failure(IllegalStateException("GitHub rate-limited"))
             }
 
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                return@withContext Result.failure(
-                    IllegalStateException("GitHub service responded with HTTP $responseCode")
-                )
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                return Result.failure(IllegalStateException("HTTP ${connection.responseCode}"))
             }
 
-            val responseBody = BufferedReader(InputStreamReader(connection.inputStream)).use {
-                it.readText()
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            val release = json.decodeFromString<GitHubReleaseDto>(body)
+            if (release.draft) return Result.success(null)
+
+            val remoteTag = release.tagName.ifEmpty { release.name ?: "" }
+            val isNewer = VersionComparator.isNewerVersion(remoteTag, currentVersion)
+            if (!isNewer) return Result.success(null)
+
+            val apkAsset = release.assets.firstOrNull {
+                it.name.endsWith(".apk", ignoreCase = true) ||
+                        it.contentType == "application/vnd.android.package-archive"
+            } ?: return Result.success(null)
+
+            val cleanCurrent = currentVersion.removePrefix("v").removePrefix("V").trim()
+            val cleanRemote = remoteTag.removePrefix("v").removePrefix("V").trim()
+
+            val patchAsset = release.assets.firstOrNull { asset ->
+                asset.name.endsWith(".patch", ignoreCase = true) &&
+                        (asset.name.contains(cleanCurrent) || release.assets.count { it.name.endsWith(".patch", ignoreCase = true) } == 1)
             }
 
+            val shaRegex = Regex("""(?i)\b([a-f0-9]{64})\b""")
+            val targetSha256 = release.body?.let { b -> shaRegex.find(b)?.value }
+
+            val info = AppUpdateInfo(
+                currentVersion = currentVersion,
+                latestVersion = cleanRemote,
+                releaseTitle = release.name ?: "GymFlow $remoteTag",
+                changelog = release.body ?: "Performance improvements, UI refinements, and stability fixes.",
+                downloadUrl = apkAsset.downloadUrl.ifEmpty { release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases" },
+                fileName = apkAsset.name.ifEmpty { "GymFlow-$remoteTag.apk" },
+                fileSizeBytes = apkAsset.size,
+                releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases",
+                patchDownloadUrl = patchAsset?.downloadUrl?.ifEmpty { null },
+                patchFileName = patchAsset?.name?.ifEmpty { null },
+                patchSizeBytes = patchAsset?.size ?: 0L,
+                targetApkSha256 = targetSha256
+            )
+            Result.success(info)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun fetchFromFullReleases(urlStr: String, currentVersion: String): Result<AppUpdateInfo?> {
+        return try {
+            val url = URL(urlStr)
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 8000
+                setRequestProperty("Accept", "application/vnd.github+json")
+                setRequestProperty("User-Agent", "GymFlow-Android/${BuildConfig.VERSION_NAME}")
+            }
+
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                return Result.failure(IllegalStateException("HTTP ${connection.responseCode}"))
+            }
+
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
             val releases = try {
-                json.decodeFromString<List<GitHubReleaseDto>>(responseBody)
+                json.decodeFromString<List<GitHubReleaseDto>>(body)
             } catch (_: Exception) {
-                listOfNotNull(json.decodeFromString<GitHubReleaseDto>(responseBody))
+                listOfNotNull(json.decodeFromString<GitHubReleaseDto>(body))
             }
-
-            val currentVersion = BuildConfig.VERSION_NAME
 
             for (release in releases) {
                 if (release.draft) continue
@@ -96,55 +252,46 @@ class AppUpdateRepository @Inject constructor(
                 val apkAsset = release.assets.firstOrNull {
                     it.name.endsWith(".apk", ignoreCase = true) ||
                             it.contentType == "application/vnd.android.package-archive"
-                }
-
-                if (apkAsset == null) continue
-
-                val downloadUrl = apkAsset.downloadUrl.ifEmpty { release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases" }
-                val fileName = apkAsset.name.ifEmpty { "GymFlow-$remoteTag.apk" }
-                val fileSizeBytes = apkAsset.size
+                } ?: continue
 
                 val cleanCurrent = currentVersion.removePrefix("v").removePrefix("V").trim()
                 val cleanRemote = remoteTag.removePrefix("v").removePrefix("V").trim()
 
-                // Look for matching delta patch asset (e.g. GymFlow-1.0.20-to-1.0.21.patch or *.patch)
                 val patchAsset = release.assets.firstOrNull { asset ->
                     asset.name.endsWith(".patch", ignoreCase = true) &&
                             (asset.name.contains(cleanCurrent) || release.assets.count { it.name.endsWith(".patch", ignoreCase = true) } == 1)
                 }
 
-                // Extract expected SHA-256 if published in release notes
                 val shaRegex = Regex("""(?i)\b([a-f0-9]{64})\b""")
-                val targetSha256 = release.body?.let { body -> shaRegex.find(body)?.value }
+                val targetSha256 = release.body?.let { b -> shaRegex.find(b)?.value }
 
                 val info = AppUpdateInfo(
                     currentVersion = currentVersion,
                     latestVersion = cleanRemote,
                     releaseTitle = release.name ?: "GymFlow $remoteTag",
                     changelog = release.body ?: "Performance improvements, UI refinements, and stability fixes.",
-                    downloadUrl = downloadUrl,
-                    fileName = fileName,
-                    fileSizeBytes = fileSizeBytes,
+                    downloadUrl = apkAsset.downloadUrl.ifEmpty { release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases" },
+                    fileName = apkAsset.name.ifEmpty { "GymFlow-$remoteTag.apk" },
+                    fileSizeBytes = apkAsset.size,
                     releasePageUrl = release.htmlUrl ?: "https://github.com/$GITHUB_OWNER/$GITHUB_REPO/releases",
                     patchDownloadUrl = patchAsset?.downloadUrl?.ifEmpty { null },
                     patchFileName = patchAsset?.name?.ifEmpty { null },
                     patchSizeBytes = patchAsset?.size ?: 0L,
                     targetApkSha256 = targetSha256
                 )
-                cachedUpdateInfo = info
-                lastCheckTimestamp = now
-                return@withContext Result.success(info)
+                return Result.success(info)
             }
-
-            cachedUpdateInfo = null
-            lastCheckTimestamp = now
             Result.success(null)
         } catch (e: Exception) {
-            if (cachedUpdateInfo != null) {
-                Result.success(cachedUpdateInfo)
-            } else {
-                Result.failure(e)
-            }
+            Result.failure(e)
+        }
+    }
+
+    private fun tryQueryEndpoint(endpoint: String): Result<AppUpdateInfo?> {
+        return if (endpoint.endsWith(".json", ignoreCase = true)) {
+            fetchManifestFromUrl(endpoint, BuildConfig.VERSION_NAME)
+        } else {
+            fetchFromFullReleases(endpoint, BuildConfig.VERSION_NAME)
         }
     }
 }

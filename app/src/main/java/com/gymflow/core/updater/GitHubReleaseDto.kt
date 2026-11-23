@@ -26,3 +26,19 @@ data class GitHubAssetDto(
     @SerialName("download_count") val downloadCount: Int = 0
 )
 
+@Serializable
+data class AppVersionManifestDto(
+    val version: String = "",
+    val versionCode: Long = 0L,
+    val tagName: String = "",
+    val releaseTitle: String = "",
+    val changelog: String = "",
+    val downloadUrl: String = "",
+    val directCdnUrl: String? = null,
+    val fileName: String = "",
+    val fileSizeBytes: Long = 0L,
+    val sha256: String? = null,
+    val releasePageUrl: String = "",
+    val publishedAt: String? = null
+)
+

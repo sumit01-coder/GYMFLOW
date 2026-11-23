@@ -268,10 +268,12 @@ class AppUpdateManager @Inject constructor(
             val url = URL(currentUrl)
             effectiveConnection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 20000
-                readTimeout = 20000
+                connectTimeout = 15000
+                readTimeout = 25000
                 instanceFollowRedirects = false
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) GymFlow-Android-App")
+                setRequestProperty("User-Agent", "GymFlow-Android/${BuildConfig.VERSION_NAME}")
+                setRequestProperty("Connection", "keep-alive")
+                setRequestProperty("Accept-Encoding", "identity")
             }
 
             val responseCode = effectiveConnection.responseCode
@@ -299,24 +301,29 @@ class AppUpdateManager @Inject constructor(
 
         val contentLength = effectiveConnection.contentLengthLong
 
-        var inputStream: InputStream? = null
-        var outputStream: FileOutputStream? = null
+        var inputStream: java.io.InputStream? = null
+        var outputStream: java.io.FileOutputStream? = null
+        var bufferedInput: java.io.BufferedInputStream? = null
+        var bufferedOutput: java.io.BufferedOutputStream? = null
 
         try {
             inputStream = effectiveConnection.inputStream
-            outputStream = FileOutputStream(destinationFile)
+            bufferedInput = java.io.BufferedInputStream(inputStream, 65536)
 
-            val buffer = ByteArray(16384) // 16 KB buffer
+            outputStream = java.io.FileOutputStream(destinationFile)
+            bufferedOutput = java.io.BufferedOutputStream(outputStream, 65536)
+
+            val buffer = ByteArray(65536) // 64 KB high-throughput buffer for fast downloads
             var downloadedBytes = 0L
             var read: Int
             var lastProgressUpdate = 0L
 
-            while (inputStream.read(buffer).also { read = it } != -1) {
-                outputStream.write(buffer, 0, read)
+            while (bufferedInput.read(buffer).also { read = it } != -1) {
+                bufferedOutput.write(buffer, 0, read)
                 downloadedBytes += read
 
                 val now = System.currentTimeMillis()
-                if (now - lastProgressUpdate > 50 || downloadedBytes == contentLength) {
+                if (now - lastProgressUpdate > 80 || downloadedBytes == contentLength) {
                     lastProgressUpdate = now
                     val progress = if (contentLength > 0L) {
                         (downloadedBytes.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
@@ -330,9 +337,11 @@ class AppUpdateManager @Inject constructor(
                 }
             }
 
-            outputStream.flush()
+            bufferedOutput.flush()
         } finally {
+            try { bufferedInput?.close() } catch (_: Exception) {}
             try { inputStream?.close() } catch (_: Exception) {}
+            try { bufferedOutput?.close() } catch (_: Exception) {}
             try { outputStream?.close() } catch (_: Exception) {}
             effectiveConnection.disconnect()
         }

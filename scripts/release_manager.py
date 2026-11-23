@@ -13,6 +13,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 import urllib.request
 import urllib.error
 
@@ -162,6 +163,35 @@ def check_github_releases():
     except Exception as e:
         print(f"[GITHUB] Note: Could not query GitHub releases API directly: {e}")
 
+def update_version_manifest(version_str, apk_path, notes, sha256_hash):
+    manifest_path = REPO_ROOT / "public" / "version.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+
+    parts = [int(p) for p in version_str.split(".")]
+    version_code = parts[0] * 10000 + parts[1] * 100 + parts[2]
+
+    apk_file = Path(apk_path) if apk_path else None
+    size_bytes = apk_file.stat().st_size if apk_file and apk_file.exists() else 0
+    tag = f"v{version_str}"
+
+    manifest_data = {
+        "version": version_str,
+        "versionCode": version_code,
+        "tagName": tag,
+        "releaseTitle": f"GymFlow {tag}",
+        "changelog": notes,
+        "downloadUrl": f"https://github.com/{GITHUB_REPO}/releases/download/{tag}/GymFlow-{tag}.apk",
+        "directCdnUrl": f"https://github.com/{GITHUB_REPO}/releases/download/{tag}/GymFlow-{tag}.apk",
+        "fileName": f"GymFlow-{tag}.apk",
+        "fileSizeBytes": size_bytes,
+        "sha256": sha256_hash,
+        "releasePageUrl": f"https://github.com/{GITHUB_REPO}/releases/tag/{tag}",
+        "publishedAt": datetime.now(timezone.utc).isoformat()
+    }
+
+    manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
+    print(f"[MANIFEST] Updated public/version.json for {tag} (SHA-256: {sha256_hash[:16]}...)")
+
 def create_and_push_tag(version_str, notes):
     tag = f"v{version_str}"
     print(f"[GIT] Committing changes and version bump to {tag}...")
@@ -214,6 +244,8 @@ def main():
         if not apk:
             print("[ERROR] Release APK was not produced. Aborting.")
             sys.exit(1)
+        sha256_hash = calculate_sha256(apk)
+        update_version_manifest(new_version, apk, args.notes, sha256_hash)
         create_and_push_tag(new_version, args.notes)
         print("=== RELEASE PIPELINE COMPLETED SUCCESSFULLY ===")
         return

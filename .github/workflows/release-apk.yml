@@ -72,10 +72,31 @@ jobs:
           # Generate SHA-256 checksum
           cd "app/build/outputs/apk/release"
           sha256sum "$TARGET_NAME" > "${TARGET_NAME}.sha256"
+          SHA_VALUE=$(cat "${TARGET_NAME}.sha256" | awk '{print $1}')
+          FILE_SIZE=$(stat -c%s "$TARGET_NAME" 2>/dev/null || wc -c < "$TARGET_NAME")
+
+          # Generate release manifest version.json
+          cat <<EOF > "version.json"
+{
+  "version": "${CLEAN_VERSION}",
+  "versionCode": $(date +%s),
+  "tagName": "${TAG}",
+  "releaseTitle": "GymFlow ${TAG}",
+  "changelog": "${NOTES:-Official GymFlow Production Release}",
+  "downloadUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG}/${TARGET_NAME}",
+  "directCdnUrl": "https://github.com/${{ github.repository }}/releases/download/${TAG}/${TARGET_NAME}",
+  "fileName": "${TARGET_NAME}",
+  "fileSizeBytes": ${FILE_SIZE},
+  "sha256": "${SHA_VALUE}",
+  "releasePageUrl": "https://github.com/${{ github.repository }}/releases/tag/${TAG}",
+  "publishedAt": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+}
+EOF
           cd -
           
           echo "apk_path=$TARGET_PATH" >> $GITHUB_OUTPUT
           echo "sha256_path=${TARGET_PATH}.sha256" >> $GITHUB_OUTPUT
+          echo "manifest_path=app/build/outputs/apk/release/version.json" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release and Upload Assets
@@ -85,19 +106,21 @@ jobs:
           TAG="${{ steps.prepare_assets.outputs.tag }}"
           APK_FILE="${{ steps.prepare_assets.outputs.apk_path }}"
           SHA_FILE="${{ steps.prepare_assets.outputs.sha256_path }}"
+          MANIFEST_FILE="${{ steps.prepare_assets.outputs.manifest_path }}"
           TITLE="${{ github.event.inputs.release_name || format('GymFlow {0}', steps.prepare_assets.outputs.tag) }}"
           NOTES="${{ github.event.inputs.release_notes || github.event.head_commit.message }}"
           
           echo "Release Tag: $TAG"
           echo "APK File: $APK_FILE"
           echo "SHA256 File: $SHA_FILE"
+          echo "Manifest File: $MANIFEST_FILE"
           
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG exists, uploading assets..."
-            gh release upload "$TAG" "$APK_FILE" "$SHA_FILE" --clobber
+            gh release upload "$TAG" "$APK_FILE" "$SHA_FILE" "$MANIFEST_FILE" --clobber
           else
             echo "Creating new release $TAG and uploading assets..."
-            gh release create "$TAG" "$APK_FILE" "$SHA_FILE" --title "$TITLE" --notes "$NOTES"
+            gh release create "$TAG" "$APK_FILE" "$SHA_FILE" "$MANIFEST_FILE" --title "$TITLE" --notes "$NOTES"
           fi
           
           echo "Verifying release assets..."
